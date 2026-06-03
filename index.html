@@ -587,6 +587,21 @@ function winChildOf(t, r, j){
   const res=t.results && t.results[r+'-'+j];
   return (res && res.win!=null && res.kind!=='勝者なし') ? res.win : -1;
 }
+/* 3位決定戦をブラケット右上に描画（その他枠サイズに依存せず、選手枠サイズで必ず表示）。 */
+function drawThirdPlace(inner, svg, leftX, yTop){
+  const w=DIM.pw, h=DIM.ph, pitch=h+V_GAP;
+  const yA=yTop+h/2, yB=yA+pitch, yM=(yA+yB)/2, x2=leftX+w+COL_GAP;
+  const mk=(x,y,lab)=>{ const b=document.createElement('div'); b.className='slot winner';
+    b.innerHTML='<span class="stripe"></span><span class="name">'+esc(lab)+'</span>';
+    b.style.left=x+'px'; b.style.top=(y-h/2)+'px'; b.style.width=w+'px'; b.style.height=h+'px'; b.style.fontSize=DIM.pfs+'px';
+    inner.appendChild(b); };
+  const tg=document.createElement('div'); tg.className='champion-tag'; tg.textContent='🥉 3位決定戦';
+  tg.style.left=leftX+'px'; tg.style.top=(yA-h/2-18)+'px'; inner.appendChild(tg);
+  mk(leftX,yA,'敗者'); mk(leftX,yB,'敗者'); mk(x2,yM,'3位');
+  drawConnector(svg, leftX+w, yA, x2, yM);
+  drawConnector(svg, leftX+w, yB, x2, yM);
+  return { right:x2+w, bottom:yB+h/2 };
+}
 
 /* 試合番号 */
 let matchNoMap={}, matchNoNext=1;
@@ -658,6 +673,12 @@ function renderBracket(){
     champs[i] = { x:r.champRight, y:r.champY, name:t.name };
     maxRight = Math.max(maxRight, r.right);
     maxBottom = Math.max(maxBottom, r.bottom);
+    // 3位決定戦：ブラケットの右上に、その他枠サイズと独立して必ず枠表示
+    if(state.config.third && Math.log2(t.size)>=2){
+      const tp = drawThirdPlace(inner, svg, r.champRight + COL_GAP*2, yCursor);
+      maxRight = Math.max(maxRight, tp.right);
+      maxBottom = Math.max(maxBottom, tp.bottom);
+    }
     yCursor = r.bottom + 50;
   });
 
@@ -740,23 +761,11 @@ function drawTournament(t, tIndex, xOff, yOff, svg, inner, multi){
     });
   }
 
-  // 3位決定戦
-  if(state.config.third && rounds>=2){
-    const baseY=centers[0][size-1]+pitch*1.5;
-    if(!hideOtherBoxes()) ['敗者A','敗者B'].forEach((lab,k)=>{
-      const box=winnerBox(lab);
-      box.style.left=xOf(rounds-1)+'px'; box.style.top=(baseY+k*pitch)+'px';
-      inner.appendChild(box);
-    });
-    const t3=document.createElement('div'); t3.className='champion-tag'; t3.textContent='🥉 3位決定戦';
-    t3.style.left=xOf(rounds-1)+'px'; t3.style.top=(baseY-18)+'px'; inner.appendChild(t3);
-  }
-
   return {
     champRight: xOf(rounds)+colW(rounds),
     champY: centers[rounds][0],
     right: xOf(rounds)+colW(rounds),
-    bottom: yOff + size*pitch + (state.config.third&&rounds>=2 ? pitch*4 : 0)
+    bottom: yOff + size*pitch
   };
 }
 
@@ -927,20 +936,7 @@ function drawCenterTournament(t, xOff, yOff, svg, inner, multi){
   tag.textContent = multi ? ('🏅 '+t.name+'代表') : '🏆 優勝';
   tag.style.left=X[R]+'px'; tag.style.top=(centerY-DIM.oh/2-18)+'px'; inner.appendChild(tag);
 
-  // 3位決定戦（ブラケットの下・中央列）
-  if(state.config.third && R>=2){
-    const y3 = yOff + half*pitch + DIM.oh;
-    if(!skipOther) [[R-1,'敗者'],[R+1,'敗者'],[R,'3位']].forEach(([c,lab])=>{
-      const b=winnerBox(lab); b.style.left=X[c]+'px'; b.style.top=(y3-DIM.oh/2)+'px'; inner.appendChild(b);
-    });
-    drawConnector(svg, X[R-1]+owDrawn, y3, X[R], y3);
-    drawConnector(svg, X[R+1], y3, X[R]+owDrawn, y3);
-    const tg=document.createElement('div'); tg.className='champion-tag'; tg.textContent='🥉 3位決定戦';
-    tg.style.left=X[R]+'px'; tg.style.top=(y3-DIM.oh/2-18)+'px'; inner.appendChild(tg);
-  }
-
-  const extra = (state.config.third && R>=2) ? DIM.oh+pitch : 0;
-  return { champRight:X[lastCol]+DIM.pw, champY:centerY, right:X[lastCol]+DIM.pw, bottom: yOff + half*pitch + extra };
+  return { champRight:X[lastCol]+DIM.pw, champY:centerY, right:X[lastCol]+DIM.pw, bottom: yOff + half*pitch };
 }
 
 /* 各トーナメントの代表が戦う「代表トーナメント」を右側に描画。 */
@@ -1713,6 +1709,66 @@ function flipAdjacentSeeds(t){
   }
 }
 
+/* ★デモ用サンプルデータ（一時的）。公開デモをやめるときは空文字列 '' にすればOK。 */
+const DEMO_CSV = `ロボット名,チーム,番号,操縦者名,連絡先
+下剋上・真打,KHK歯車工房,1,操縦者 1号,pilot001@example.com
+Luch5,KHK歯車工房,2,操縦者 2号,pilot002@example.com
+W,KHK歯車工房,3,操縦者 3号,pilot003@example.com
+AtractA;Noah,大同大学ロボット研究部,4,操縦者 4号,pilot004@example.com
+Cronus,大同大学ロボット研究部,5,操縦者 5号,pilot005@example.com
+Leopard ESP,鮫洲レーシング,6,操縦者 6号,pilot006@example.com
+明月,天一同盟,7,操縦者 7号,pilot007@example.com
+雷光虫,天一同盟,8,操縦者 8号,pilot008@example.com
+鎬 ver.MRX,立命館大学ロボット技術研究会,9,操縦者 9号,pilot009@example.com
+爐 Salamander,立命館大学RRST,10,操縦者 10号,pilot010@example.com
+鉄線花,立命館大学RRST,11,操縦者 11号,pilot011@example.com
+FRONTLINE,立命館大学RRST,12,操縦者 12号,pilot012@example.com
+天 AchtSechs,立命館大学RRST,13,操縦者 13号,pilot013@example.com
+蜯（ドブガイ）,立命館大学RRST,14,操縦者 14号,pilot014@example.com
+流,立命館大学RRST,15,操縦者 15号,pilot015@example.com
+白黒の三角獣,芝浦工業大学SRDC,16,操縦者 16号,pilot016@example.com
+聖機械の獅子心臓,芝浦工業大学SRDC,17,操縦者 17号,pilot017@example.com
+ゴールド・ムンド,芝浦工業大学SRDC,18,操縦者 18号,pilot018@example.com
+人魚姫,芝浦工業大学SRDC,19,操縦者 19号,pilot019@example.com
+ジェネッス,芝浦工業大学SRDC,20,操縦者 20号,pilot020@example.com
+深紅の永久機関,芝浦工業大学SRDC,21,操縦者 21号,pilot021@example.com
+みかん,芝浦工業大学SRDC,22,操縦者 22号,pilot022@example.com
+/AKANE,東京電機大学自動制御研究部,23,操縦者 23号,pilot023@example.com
+疾風弐型,東京電機大学自動制御研究部,24,操縦者 24号,pilot024@example.com
+コーカサス,東京電機大学自動制御研究部,25,操縦者 25号,pilot025@example.com
+ロデム,東京電機大学自動制御研究部,26,操縦者 26号,pilot026@example.com
+影丸,東京電機大学自動制御研究部,27,操縦者 27号,pilot027@example.com
+Peroro,東京電機大学自動制御研究部,28,操縦者 28号,pilot028@example.com
+ベルグブリュッケン7,秋田県立大学,29,操縦者 29号,pilot029@example.com
+ウヌマックスⅦ,秋田県立大学,30,操縦者 30号,pilot030@example.com
+しろやぎ19,秋田県立大学,31,操縦者 31号,pilot031@example.com
+グラスゴート,秋田県立大学,32,操縦者 32号,pilot032@example.com
+黒姫 ARCHDUCHESS,★Mろーず★,33,操縦者 33号,pilot033@example.com
+ぷちつよいぷちむさし,★Mろーず★,34,操縦者 34号,pilot034@example.com
+悪魔の妹様,音速突撃隊,35,操縦者 35号,pilot035@example.com
+鋼片琴 暴走中,神奈川工科大学ロボット工学研究部,36,操縦者 36号,pilot036@example.com
+やまだーん00,魁！やまだーん塾,37,操縦者 37号,pilot037@example.com
+ダイナミックロボ,川崎市立川崎総合科学高等学校,38,操縦者 38号,pilot038@example.com
+最愛のアテナ,中央大学,39,操縦者 39号,pilot039@example.com
+クラブ・エルタ,中央大学,40,操縦者 40号,pilot040@example.com
+サンテック1号,サンテック株式会社,41,操縦者 41号,pilot041@example.com
+CLYPEUS,ADVENA,42,操縦者 42号,pilot042@example.com
+aNo ロボ,aNo研,43,操縦者 43号,pilot043@example.com
+Destiny 3号機,個人参加,44,操縦者 44号,pilot044@example.com
+ZI-OLF&s,個人参加,45,操縦者 45号,pilot045@example.com
+Stryker,個人参加,46,操縦者 46号,pilot046@example.com
+セドナ,個人参加,47,操縦者 47号,pilot047@example.com
+シャイン4号,個人参加,48,操縦者 48号,pilot048@example.com
+神伝頭チーム,神伝頭,49,操縦者 49号,pilot049@example.com
+ま・だ・出・来・て・な・い・の,個人参加,50,操縦者 50号,pilot050@example.com
+グロピュール,個人参加,51,操縦者 51号,pilot051@example.com
+燐Vanadius,個人参加,52,操縦者 52号,pilot052@example.com
+稲妻ロボ,個人参加,53,操縦者 53号,pilot053@example.com
+NEMESISnex.,個人参加,54,操縦者 54号,pilot054@example.com
+中野島中E,中野島中学校,55,操縦者 55号,pilot055@example.com
+舞姫,個人参加,56,操縦者 56号,pilot056@example.com
+お好みスライム,個人参加,57,操縦者 57号,pilot057@example.com`;
+
 function init(){
   document.getElementById('envPill').textContent = Backend.hasGas ? 'GAS接続' : 'スタンドアロン（ローカル保存）';
 
@@ -1774,6 +1830,9 @@ function init(){
 
   updatePhaseUI();
   renderAll();
+  if(typeof DEMO_CSV==='string' && DEMO_CSV.trim()){        // ★デモ用：起動時にサンプルCSVを読込（不要なら DEMO_CSV を空に）
+    applyCsv(DEMO_CSV, 'kawarobo_entry_list_large.csv');
+  }
   markSaved();                              // 初期状態を「保存済み」基準に
   window.addEventListener('beforeunload', (e)=>{
     if(isDirty()){ e.preventDefault(); e.returnValue=''; }   // 未保存なら警告
