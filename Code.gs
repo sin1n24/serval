@@ -17,7 +17,7 @@ var STORE_SHEET = 'Store';
 
 /** Webアプリのエントリポイント。Index.html を返す。 */
 function doGet(e) {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('トーナメント管理システム')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // 配信/呼び出しシステムからiframe埋め込み可

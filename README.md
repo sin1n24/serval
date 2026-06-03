@@ -8,18 +8,18 @@ localStorage に自動フォールバックして単独でも動作します。
 
 | ファイル | 役割 |
 |---|---|
-| `Index.html` | 本体（UI・ロジック・CSSすべて内包） |
+| `index.html` | 本体（UI・ロジック・CSSすべて内包） |
 | `Code.gs` | GASバックエンド（`doGet`でHTML配信、保存/読込/結果送信API） |
 | `appsscript.json` | GAS Webアプリ設定 |
 
 ## 使い方（単独・スタンドアロン）
 
-`Index.html` をブラウザで開くだけで動作します。データはブラウザの localStorage に保存されます。
+`index.html` をブラウザで開くだけで動作します。データはブラウザの localStorage に保存されます。
 
 ## 使い方（GASホスト）
 
 1. Google Apps Script プロジェクトを作成
-2. `Code.gs` / `Index.html` / `appsscript.json` を取り込み
+2. `Code.gs` / `index.html` / `appsscript.json` を取り込み
 3. ウェブアプリとしてデプロイ（アクセス: 全員）
 4. 発行URLを開く（フロントは `google.script.run` 経由でスプレッドシートに保存）
 
