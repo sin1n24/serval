@@ -439,6 +439,8 @@ let state = {
   version: SCHEMA_VERSION,
   roster: [],          // CSV等で読み込んだ選手のマスター（情報保持用）
   rosterLabel: '',     // 名前リスト欄に表示するCSVファイル名
+  repT:null,           // 代表トーナメント（複数時、同期される仮想トーナメント）
+  repLeague:{},        // 代表リーグ戦の結果（'a-b'→{win,kind,time}）
   tournaments:[ makeTournament(1, 8) ],
   active:0,
   stacked:false,       // 並べて表示（縦並べ）
@@ -615,6 +617,20 @@ function computeMatchNumbers(){
       if(pl[r-1][2*j]>0 && pl[r-1][2*j+1]>0) matchNoMap[t.id+':'+r+':'+j]=n++;   // 実際に対戦が起きる節のみ
     }
   });
+  // 代表（複数時）— トーナメント or リーグ
+  const cnt=state.tournaments.length;
+  if(cnt>1){
+    if(state.config.repMode==='league' && cnt===3){
+      for(let a=0;a<cnt;a++) for(let b=a+1;b<cnt;b++) matchNoMap['LG:'+a+':'+b]=n++;
+    } else {
+      const repSize = cnt<=2?2:4, rr=Math.log2(repSize);
+      const pl=[]; pl[0]=Array.from({length:repSize},(_,i)=> i<cnt?1:0);   // 代表の有無
+      for(let r=1;r<=rr;r++){ pl[r]=[]; for(let j=0;j*2<pl[r-1].length;j++) pl[r][j]=pl[r-1][2*j]+pl[r-1][2*j+1]; }
+      for(let r=1;r<=rr;r++) for(let j=0;j<pl[r].length;j++){
+        if(pl[r-1][2*j]>0 && pl[r-1][2*j+1]>0) matchNoMap['REP:'+r+':'+j]=n++;
+      }
+    }
+  }
   matchNoNext=n;
 }
 function drawMatchNo(inner, x, y, n, t, r, j){
@@ -685,6 +701,7 @@ function renderBracket(){
   // 代表トーナメント／代表リーグ戦（複数時、右側に）
   if(multi){
     const useLeague = (state.config.repMode==='league' && state.tournaments.length===3);
+    if(!useLeague) syncRepTournament();
     const rr = useLeague ? drawRepLeague(champs, maxRight + 90, svg, inner)
                          : drawRepTournament(champs, maxRight + 90, svg, inner);
     maxRight = Math.max(maxRight, rr.right);
@@ -939,47 +956,48 @@ function drawCenterTournament(t, xOff, yOff, svg, inner, multi){
   return { champRight:X[lastCol]+DIM.pw, champY:centerY, right:X[lastCol]+DIM.pw, bottom: yOff + half*pitch };
 }
 
-/* 各トーナメントの代表が戦う「代表トーナメント」を右側に描画。 */
+/* 各トーナメントの代表が戦う「代表トーナメント」を右側に描画（運用対応）。 */
 function drawRepTournament(champs, xOff, svg, inner){
-  const count=champs.length, pitch=DIM.oh+V_GAP;       // 代表枠は「その他枠」サイズ
-  const repSize = count<=2 ? 2 : 4;
-  const rounds=Math.log2(repSize);
+  const rt=state.repT; if(!rt) return {right:xOff, bottom:0};
+  const count=champs.length, pitch=DIM.oh+V_GAP;
+  const repSize=rt.size, rounds=Math.log2(repSize);
   const xOf=(r)=> xOff + r*(DIM.ow+COL_GAP);
+  const run=state.phase==='run';
 
-  // round0 のY座標: 並べて表示なら各代表のYに合わせ、個別表示なら均等配置
   const ys=[];
   for(let i=0;i<repSize;i++){
-    if(state.stacked && champs[i]) ys[i]=champs[i].y;          // 優勝枠に揃える
-    else if(state.stacked && i>0) ys[i]=ys[i-1]+pitch*2.2;     // 直前の下へ
-    else ys[i] = 40 + i*pitch*2.2 + DIM.oh/2;                  // 均等配置
+    if(state.stacked && champs[i]) ys[i]=champs[i].y;
+    else if(state.stacked && i>0) ys[i]=ys[i-1]+pitch*2.2;
+    else ys[i] = 40 + i*pitch*2.2 + DIM.oh/2;
   }
   const centers=[ys.slice()];
   for(let r=1;r<=rounds;r++){ const prev=centers[r-1]; centers[r]=[];
     for(let j=0;j*2<prev.length;j++) centers[r][j]=(prev[j*2]+prev[j*2+1])/2; }
 
-  // タイトル
   const title=document.createElement('div'); title.className='tname'; title.textContent='代表トーナメント';
   title.style.left=xOf(0)+'px'; title.style.top=(Math.min(...ys)-40)+'px'; inner.appendChild(title);
 
-  // round0 代表スロット
+  // round0 代表スロット（運用は優勝者名／作成はTn代表）
   for(let i=0;i<repSize;i++){
     const named = i<count;
-    const label = named ? (state.tournaments[i].name+'代表') : '（不在）';
+    const champ = named ? champOf(i) : null;
+    const label = (run && champ) ? champ.name : (named ? (state.tournaments[i].name+'代表') : '（不在）');
     const box=winnerBox(label, named?' rep':'');
     box.style.left=xOf(0)+'px'; box.style.top=(ys[i]-DIM.oh/2)+'px';
+    box.querySelector('.stripe').style.background = paletteHex(i%2===0?rt.colorTop:rt.colorBottom);
     inner.appendChild(box);
-    // 描画済みの優勝枠 → 代表スロット への接続線
     if(champs[i]) drawConnector(svg, champs[i].x, champs[i].y, xOf(0), ys[i]);
   }
-  // round>=1 勝者枠
+  // round>=1 勝者枠＋試合番号（クリックで結果入力）
   for(let r=1;r<=rounds;r++){
-    centers[r].forEach((cy)=>{
-      const box=winnerBox('勝者');
-      box.style.left=xOf(r)+'px'; box.style.top=(cy-DIM.oh/2)+'px'; inner.appendChild(box);
-      drawMatchNo(inner, xOf(r), cy, matchNoNext++);
+    centers[r].forEach((cy,j)=>{
+      const box=winnerBox(run?nodeContent(rt,r,j):'勝者');
+      box.style.left=xOf(r)+'px'; box.style.top=(cy-DIM.oh/2)+'px'; tagNode(box,rt,r,j); inner.appendChild(box);
+      drawMatchNo(inner, xOf(r), cy, matchNoMap['REP:'+r+':'+j], rt, r, j);
     });
     centers[r].forEach((cy,j)=>{
-      [j*2,j*2+1].forEach(ci=> drawConnector(svg, xOf(r-1)+DIM.ow, centers[r-1][ci], xOf(r), cy));
+      const wc=winChildOf(rt,r,j);
+      [j*2,j*2+1].forEach((ci,k)=> drawConnector(svg, xOf(r-1)+DIM.ow, centers[r-1][ci], xOf(r), cy, k===wc));
     });
   }
   const tag=document.createElement('div'); tag.className='champion-tag'; tag.textContent='🏆 総合優勝';
@@ -988,46 +1006,75 @@ function drawRepTournament(champs, xOff, svg, inner){
   return { right: xOf(rounds)+DIM.ow, bottom: Math.max(...ys)+DIM.oh };
 }
 
-/* 代表が総当たりで戦う「代表リーグ戦」を右側に描画（3トーナメント想定）。 */
+/* 代表が総当たりで戦う「代表リーグ戦」を右側に描画（運用対応・順位表つき）。 */
 function drawRepLeague(champs, xOff, svg, inner){
   const count=champs.length, pitch=DIM.oh+V_GAP;
-  const xRep = xOff, xMatch = xOff + DIM.ow + COL_GAP;
+  const xRep=xOff, xMatch=xOff+DIM.ow+COL_GAP, cardW=DIM.ow*1.8;
+  const run=state.phase==='run';
+  if(!state.repLeague) state.repLeague={};
+  const tn=state.tournaments;
 
-  // 代表スロットのY座標（並べて表示なら優勝枠に揃える）
   const ys=[];
   for(let i=0;i<count;i++){
     if(state.stacked && champs[i]) ys[i]=champs[i].y;
     else if(state.stacked && i>0) ys[i]=ys[i-1]+pitch*2.2;
-    else ys[i] = 40 + i*pitch*2.2 + DIM.oh/2;
+    else ys[i]=40+i*pitch*2.2+DIM.oh/2;
   }
-
-  // タイトル
   const title=document.createElement('div'); title.className='tname'; title.textContent='代表リーグ戦（総当たり）';
   title.style.left=xRep+'px'; title.style.top=(Math.min(...ys)-40)+'px'; inner.appendChild(title);
 
-  // 代表スロット＋優勝枠からの接続線
   for(let i=0;i<count;i++){
-    const box=winnerBox(state.tournaments[i].name+'代表', ' rep');
-    box.style.left=xRep+'px'; box.style.top=(ys[i]-DIM.oh/2)+'px'; inner.appendChild(box);
+    const champ=champOf(i);
+    const box=winnerBox((run&&champ)?champ.name:(tn[i].name+'代表'), ' rep');
+    box.style.left=xRep+'px'; box.style.top=(ys[i]-DIM.oh/2)+'px';
+    box.querySelector('.stripe').style.background=paletteHex(i%2===0?0:1);
+    inner.appendChild(box);
     if(champs[i]) drawConnector(svg, champs[i].x, champs[i].y, xRep, ys[i]);
   }
 
-  // 総当たりの対戦カード（3代表なら3試合）
+  // 対戦カード
   const pairs=[]; for(let a=0;a<count;a++) for(let b=a+1;b<count;b++) pairs.push([a,b]);
-  const startY = Math.min(...ys);
+  const startY=Math.min(...ys);
+  const nm=(i,c)=> (run&&c)?c.name : (tn[i].name+'代表');
   pairs.forEach(([a,b],k)=>{
-    const cy = startY + k*pitch*1.4;
-    const box=winnerBox(state.tournaments[a].name+'代表  ×  '+state.tournaments[b].name+'代表');
-    box.style.left=xMatch+'px'; box.style.top=(cy)+'px'; box.style.width=(DIM.ow*1.5)+'px';
+    const cy=startY+k*pitch*1.4, ca=champOf(a), cb=champOf(b);
+    const res=state.repLeague[a+'-'+b];
+    let txt=nm(a,ca)+'  ×  '+nm(b,cb);
+    if(res && res.kind){ txt += (res.kind==='勝者なし') ? '（両者敗退）' : '  勝:'+(res.win===0?nm(a,ca):nm(b,cb)); }
+    const box=winnerBox(txt); box.style.left=xMatch+'px'; box.style.top=cy+'px'; box.style.width=cardW+'px';
+    if(res&&res.kind&&res.kind!=='勝者なし') box.classList.add('won');
     inner.appendChild(box);
-    drawMatchNo(inner, xMatch, cy+DIM.oh/2, matchNoNext++);
+    const sel=state.runSel&&state.runSel.league&&state.runSel.a===a&&state.runSel.b===b;
+    const d=document.createElement('div'); d.className='match-no'+(run?' clickable':'')+(sel?' sel':'');
+    d.textContent=matchNoMap['LG:'+a+':'+b]; d.style.left=(xMatch-16)+'px'; d.style.top=(cy+DIM.oh/2-7)+'px';
+    if(run) d.onclick=()=>openLeagueMatch(a,b);
+    inner.appendChild(d);
   });
 
-  const tag=document.createElement('div'); tag.className='champion-tag'; tag.textContent='🏆 リーグ戦（勝点で順位）';
-  tag.style.left=xMatch+'px'; tag.style.top=(startY-18)+'px'; inner.appendChild(tag);
+  // 順位表（勝点）
+  const pts=Array(count).fill(0), won=Array(count).fill(0);
+  pairs.forEach(([a,b])=>{ const r=state.repLeague[a+'-'+b];
+    if(r&&r.kind&&r.kind!=='勝者なし'){ const w=r.win===0?a:b; pts[w]+=2; won[w]++; } });
+  const order=[...Array(count).keys()].sort((p,q)=> pts[q]-pts[p] || won[q]-won[p]);
+  const xStand=xMatch+cardW+COL_GAP, yStand=startY-6;
+  const st=document.createElement('div'); st.className='champion-tag'; st.textContent='🏆 順位（勝点）';
+  st.style.left=xStand+'px'; st.style.top=(yStand-18)+'px'; inner.appendChild(st);
+  order.forEach((i,rank)=>{
+    const champ=champOf(i);
+    const box=winnerBox((rank+1)+'位  '+nm(i,champ)+'  '+pts[i]+'pt', rank===0?' rep':'');
+    box.style.left=xStand+'px'; box.style.top=(yStand+rank*pitch)+'px'; box.style.width=cardW+'px';
+    inner.appendChild(box);
+  });
 
-  const bottom = Math.max(Math.max(...ys)+DIM.oh, startY + pairs.length*pitch*1.4 + DIM.oh);
-  return { right: xMatch + DIM.ow*1.5, bottom };
+  const bottom=Math.max(Math.max(...ys)+DIM.oh, startY+pairs.length*pitch*1.4+DIM.oh, yStand+count*pitch);
+  return { right: xStand+cardW, bottom };
+}
+/* リーグ戦の1対戦を選択 */
+function openLeagueMatch(a,b){
+  state.runSel={league:true, a, b};
+  const res=state.repLeague[a+'-'+b];
+  state.pending = res ? {win:res.win, kind:res.kind, time:res.time||''} : {win:null, kind:null, time:''};
+  renderAll();
 }
 
 /* タイトル要素のその場改名 */
@@ -1148,6 +1195,27 @@ function competitorOf(t, origin){
            colorIdx:(origin%2===0)?t.colorTop:t.colorBottom };
 }
 
+/* ===== 代表トーナメント/リーグ（複数トーナメントの優勝者で争う） ===== */
+function tournById(id){ return id==='REP' ? state.repT : state.tournaments.find(x=>x.id===id); }
+/* トーナメントiの優勝者（決定済みなら competitor、未定なら null） */
+function champOf(i){ const t=state.tournaments[i]; if(!t) return null;
+  return competitorOf(t, occupant(t, Math.log2(t.size), 0)); }
+/* 代表トーナメント repT を最新の優勝者で同期（results は保持）。複数時のみ。 */
+function syncRepTournament(){
+  const n=state.tournaments.length;
+  if(n<=1){ state.repT=null; return; }
+  const repSize = n<=2 ? 2 : 4;
+  if(!state.repT || state.repT.size!==repSize){
+    state.repT = { id:'REP', name:'代表', size:repSize, colorTop:0, colorBottom:1,
+      slots:Array.from({length:repSize},()=>({player:null,seed:'normal'})),
+      results:(state.repT&&state.repT.results)||{} };
+  }
+  for(let i=0;i<repSize;i++){
+    const c = i<n ? champOf(i) : null;
+    state.repT.slots[i].player = c ? {playerName:c.name, affiliation:c.aff, number:c.num} : null;
+  }
+}
+
 /* 運用フェーズの1ノード。r<rounds はクリックで結果入力。 */
 function runNode(t, r, j, rounds){
   const cfg=state.config;
@@ -1229,22 +1297,39 @@ function renderInspector(){
   document.getElementById('btnClearSlot').onclick=()=>{ slot.player=null; renderAll(); };
 }
 
+/* 選択中の試合のコンテキスト（ブラケット=代表含む / リーグ を統一的に扱う） */
+function runMatchCtx(){
+  const sel=state.runSel;
+  if(sel.league){
+    const A=sel.a, B=sel.b;
+    const ct=state.repT?state.repT.colorTop:0, cb=state.repT?state.repT.colorBottom:1;
+    return { a:champOf(A), b:champOf(B), colTop:paletteHex(ct), colBot:paletteHex(cb),
+      resObj:state.repLeague, key:A+'-'+B, no:matchNoMap['LG:'+A+':'+B],
+      title:'代表リーグ ／ '+esc(state.tournaments[A].name)+'代表 × '+esc(state.tournaments[B].name)+'代表',
+      animate:null };
+  }
+  const t=tournById(sel.tid), mr=sel.mr, mj=sel.mj;
+  const isFinal=(mr===Math.log2(t.size)), pre=(t.id==='REP')?'代表 ':'';
+  return { a:competitorOf(t, occupant(t,mr-1,2*mj)), b:competitorOf(t, occupant(t,mr-1,2*mj+1)),
+    colTop:paletteHex(t.colorTop), colBot:paletteHex(t.colorBottom),
+    resObj:t.results, key:mr+'-'+mj, no:matchNoMap[t.id+':'+mr+':'+mj],
+    title:esc(t.name)+' ／ '+pre+(isFinal?'決勝':'第'+mr+'回戦'),
+    animate:()=>animateAdvance(t, mr, mj) };
+}
+
 /* 運用フェーズのインスペクタ（結果入力パネル） */
 function renderRunInspector(el){
   if(!state.runSel){
     el.innerHTML='<div class="placeholder">運用フェーズ<br>試合番号をクリックして<br>勝敗を入力します。</div>';
     return;
   }
-  const t=state.tournaments.find(x=>x.id===state.runSel.tid);
-  const mr=state.runSel.mr, mj=state.runSel.mj;         // 試合(mr,mj)
-  const a=competitorOf(t, occupant(t, mr-1, 2*mj));     // 上側
-  const b=competitorOf(t, occupant(t, mr-1, 2*mj+1));   // 下側
+  const ctx=runMatchCtx();
+  const {a,b,colTop,colBot,resObj,key,no,title}=ctx;
   const pend=state.pending||{win:null,kind:null,time:''};
   const noWinner = pend.kind==='勝者なし';
-  // 色は選手でなく「上=colorTop / 下=colorBottom」に紐づく
   const nameBtn=(c,side)=>{
     const lbl=c?esc(c.name||'（無名）'):'（未定）';
-    const col=paletteHex(side===0?t.colorTop:t.colorBottom);
+    const col=side===0?colTop:colBot;          // 色は上下の位置に紐づく
     const dis=(!c || noWinner);
     return `<button class="winpick ${pend.win===side?'active':''}" data-win="${side}" ${dis?'disabled':''}>
       <span class="dot" style="background:${col}"></span>${lbl}</button>`;
@@ -1257,10 +1342,9 @@ function renderRunInspector(el){
         <button class="btn sm" id="swBtn" style="flex:1">${stopwatch.running?'停止':'計測'}</button>
       </div>
     </div>` : '';
-  const no = matchNoMap[t.id+':'+mr+':'+mj];
   el.innerHTML = `
     <div class="group">
-      <h2>${esc(t.name)} ／ ${(mr===Math.log2(t.size))?'決勝':'第'+mr+'回戦'}${no?'（試合'+no+'）':''}</h2>
+      <h2>${title}${no?'（試合'+no+'）':''}</h2>
       <div class="hint" style="margin-bottom:8px">勝者のロボットを選び、勝ち方を選んで送信します。</div>
       <div class="winpicks">${nameBtn(a,0)}${nameBtn(b,1)}</div>
     </div>
@@ -1273,34 +1357,34 @@ function renderRunInspector(el){
     </div>
     <button class="btn primary" id="btnSend" style="width:100%">送信</button>
     <button class="btn sm" id="btnSpotlight" style="width:100%; margin-top:8px">🎬 演出（対戦カード大写し）</button>
-    ${t.results[mr+'-'+mj]?'<div class="hint" style="margin-top:8px">※ 送信済み。再選択して再送信できます。</div>':''}
+    ${resObj[key]?'<div class="hint" style="margin-top:8px">※ 送信済み。再選択して再送信できます。</div>':''}
   `;
   el.querySelectorAll('[data-win]').forEach(btn=> btn.onclick=()=>{ pend.win=+btn.dataset.win; state.pending=pend; renderRunInspector(el); });
   el.querySelectorAll('[data-kind]').forEach(btn=> btn.onclick=()=>{ pend.kind=btn.dataset.kind;
     if(pend.kind==='勝者なし') pend.win=null; state.pending=pend; renderRunInspector(el); });
   const tin=document.getElementById('pendTime'); if(tin) tin.oninput=()=>{ pend.time=tin.value; };
   const sw=document.getElementById('swBtn'); if(sw) sw.onclick=()=>toggleStopwatch();
-  document.getElementById('btnSend').onclick=()=> sendResult(t, mr, mj);
-  document.getElementById('btnSpotlight').onclick=()=> showSpotlight(t, mr, mj);
+  document.getElementById('btnSend').onclick=()=> sendResultCtx(ctx);
+  document.getElementById('btnSpotlight').onclick=()=> showSpotlightCtx(ctx);
 }
 
-/* 結果送信：GASからOKを受けてから進行＆アニメーション。試合(mr,mj)。 */
-function sendResult(t, mr, mj){
+/* 結果送信：GASからOKを受けてから進行＆アニメーション。 */
+function sendResultCtx(ctx){
   const pend=state.pending||{};
   if(pend.kind==null){ toast('勝ち方を選んでください', true); return; }
   if(pend.kind!=='勝者なし' && pend.win==null){ toast('勝者を選んでください', true); return; }
-  const key=mr+'-'+mj;
-  const prev=t.results[key];
-  t.results[key] = {win:pend.win, kind:pend.kind, time:pend.time||''};
+  const {resObj,key,animate}=ctx;
+  const prev=resObj[key];
+  resObj[key] = {win:pend.win, kind:pend.kind, time:pend.time||''};
   const json=JSON.stringify(state);               // 送信用に確定状態を作る
-  t.results[key]=prev;                             // OKまでは未確定に戻す
+  resObj[key]=prev;                                // OKまでは未確定に戻す
   toast('送信中…');
   Backend.submitResult(document.getElementById('docKey').value||'default', json).then(res=>{
     if(res && res.ok){
-      t.results[key] = {win:pend.win, kind:pend.kind, time:pend.time||''};   // 確定
+      resObj[key] = {win:pend.win, kind:pend.kind, time:pend.time||''};   // 確定
       stopStopwatch();
       renderAll();
-      if(pend.kind!=='勝者なし') animateAdvance(t, mr, mj);
+      if(pend.kind!=='勝者なし' && animate) animate();
       toast('送信OK・進行しました');
     } else toast('送信に失敗', true);
   }).catch(()=> toast('送信に失敗', true));
@@ -1331,17 +1415,15 @@ function stopStopwatch(){
   const sw=document.getElementById('swBtn'); if(sw) sw.textContent='計測';
 }
 
-/* 演出：対戦カードを大写しにするオーバーレイ。試合(mr,mj)。 */
-function showSpotlight(t, mr, mj){
-  const a=competitorOf(t, occupant(t, mr-1, 2*mj));
-  const b=competitorOf(t, occupant(t, mr-1, 2*mj+1));
+/* 演出：対戦カードを大写しにするオーバーレイ。 */
+function showSpotlightCtx(ctx){
+  const {a,b,colTop,colBot}=ctx;
   const ov=document.getElementById('spotlight');
-  const card=(c,side)=>{ const col=paletteHex(side===0?t.colorTop:t.colorBottom);
-    return `<div class="sp-card" style="border-color:${col}">
+  const card=(c,col)=> `<div class="sp-card" style="border-color:${col}">
       <div class="sp-bar" style="background:${col}"></div>
       <div class="sp-name">${c?esc(c.name||'（無名）'):'（未定）'}</div>
-      <div class="sp-aff">${c?esc(c.aff||''):''}</div></div>`; };
-  ov.querySelector('.sp-body').innerHTML = card(a,0)+'<div class="sp-vs">VS</div>'+card(b,1);
+      <div class="sp-aff">${c?esc(c.aff||''):''}</div></div>`;
+  ov.querySelector('.sp-body').innerHTML = card(a,colTop)+'<div class="sp-vs">VS</div>'+card(b,colBot);
   ov.classList.add('show');
 }
 
@@ -1574,6 +1656,7 @@ function normalizeState(){
               avoidSameAff:true, showMatchNo:false, centerStyle:false, winLineColor:'#e23b3b'};
   for(const k in defs){ if(state.config[k]===undefined) state.config[k]=defs[k]; }
   if(typeof state.rosterLabel!=='string') state.rosterLabel='';
+  if(!state.repLeague || typeof state.repLeague!=='object') state.repLeague={};
   const keyMap={red:0,blue:1,green:2,yellow:3,white:4,black:5};
   (state.tournaments||[]).forEach(t=>{
     if(typeof t.colorTop==='string')    t.colorTop = keyMap[t.colorTop] ?? 0;
@@ -1633,7 +1716,8 @@ function updatePhaseUI(){}
 /* 未保存検知（表示状態は除外し、データ部分のみで比較） */
 let lastSavedJson=null;
 function dataJson(){ return JSON.stringify({config:state.config, tournaments:state.tournaments,
-  roster:state.roster, rosterLabel:state.rosterLabel, version:state.version}); }
+  roster:state.roster, rosterLabel:state.rosterLabel, version:state.version,
+  repResults:state.repT&&state.repT.results, repLeague:state.repLeague}); }
 function markSaved(){ lastSavedJson = dataJson(); }
 function isDirty(){ return lastSavedJson!==null && dataJson()!==lastSavedJson; }
 
