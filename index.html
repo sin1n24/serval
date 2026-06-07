@@ -91,8 +91,9 @@
   .q-item.st-next .q-no{ color:#e8821e }
   .q-item.st-soon{ border-color:#e8a24e; box-shadow:inset 4px 0 0 #e8a24e }
   .q-item.st-soon .q-no{ color:#b9701a }
-  .q-item.st-skip{ opacity:.7; border-style:dashed }
-  .q-item.st-skip .q-no, .q-item.st-skip .q-lab{ color:var(--muted) }
+  .q-item.st-skip{ border-color:#2faa55; box-shadow:inset 4px 0 0 #2faa55; color:#000 }
+  .q-item.st-skip .q-no, .q-item.st-skip .q-lab, .q-item.st-skip .q-sub{ color:#000 }
+  .q-more{ font-size:13px; color:var(--muted); align-self:center; padding:0 4px }
   .q-lab{ font-size:11px; color:var(--muted); font-weight:700 }
   .q-no{ font-weight:800; color:var(--accent); min-width:18px; text-align:center }
   .q-vs{ font-size:13px }
@@ -158,7 +159,7 @@
   .match-no.st-done{color:#2faa55; border-color:#2faa55}
   .match-no.st-next{background:#e8821e; border-color:#e8821e; color:#fff}
   .match-no.st-soon{color:#b9701a; border-color:#e8a24e}
-  .match-no.st-skip{color:var(--muted); border-style:dashed}
+  .match-no.st-skip{color:#000; border-color:#2faa55}
   .match-no.clickable{cursor:pointer}
   .match-no.clickable:hover{border-color:var(--accent); background:var(--hl)}
   .match-no.sel{background:var(--accent2); color:#fff; border-color:var(--accent2)}
@@ -708,7 +709,7 @@ function rebuild(){
  * ============================================================ */
 // 枠サイズ（大中小）。選手枠(player)・その他枠(other)を別々に指定できる。
 // 幅のみ変化（高さ・文字は固定）。小は大胆に小さく、大は大胆に大きく。
-const SLOT_SIZES = { '小':{w:80,h:27,fs:12.5}, '中':{w:180,h:27,fs:12.5}, '大':{w:340,h:27,fs:12.5} };
+const SLOT_SIZES = { '小':{w:80,h:27,fs:12.5}, '中':{w:160,h:27,fs:12.5}, '大':{w:300,h:27,fs:12.5} };
 const COL_GAP = 44, V_GAP = 6;
 let DIM = null;
 function computeDim(){
@@ -781,15 +782,21 @@ function renderQueueBar(){
   const upcoming=keys.filter(k=> !skip[k]);
   const skipped=keys.filter(k=> skip[k]);
   const labels=['次の試合','2番手','3番手'];
-  const up = upcoming.slice(0,3).map((k,i)=>({k, lab:labels[i], st:(i===0?'next':'soon')}));   // 次の試合/2番手/3番手のみ
+  const upAll = upcoming.slice(0,3).map((k,i)=>({k, lab:labels[i], st:(i===0?'next':'soon')}));   // 次/2番手/3番手
   const sk = skipped.map(k=>({k, lab:'スキップ', st:'skip'}));
-  // 未来(最大3)＋スキップで合計4件まで。次の試合・2番手は必須。
-  const show = up.concat(sk).slice(0, 4);
+  const next2 = upAll.slice(0,2);                 // 次の試合・2番手（必須）
+  // スキップが2件以上なら3番手を出さずスキップを優先。1件以下なら3番手も表示。合計4件まで。
+  let show = (sk.length>=2) ? next2.concat(sk) : next2.concat(upAll.slice(2,3)).concat(sk);
+  show = show.slice(0, 4);
+  const shownSkip = show.filter(it=> it.st==='skip').length;
+  const hiddenSkip = sk.length - shownSkip;       // 表示しきれなかったスキップ数
   const card=(it)=>{ const b=matchBrief(it.k);
     return '<div class="q-item st-'+it.st+'"><span class="q-lab">'+esc(it.lab)+'</span>'
       +'<span class="q-no">'+(b.no||'')+'</span><span class="q-vs">'+esc(b.a)+' vs '+esc(b.b)+'</span>'
       +'<span class="q-sub">'+esc(b.label)+'</span></div>'; };
-  bar.innerHTML = show.length ? show.map(card).join('') : '<div class="q-empty">未実施の試合はありません</div>';
+  let html = show.length ? show.map(card).join('') : '<div class="q-empty">未実施の試合はありません</div>';
+  if(hiddenSkip>0) html += '<div class="q-more" title="スキップ他'+hiddenSkip+'件">… 他'+hiddenSkip+'件</div>';
+  bar.innerHTML = html;
 }
 /* 未実施・非スキップで最小番号の試合キー（＝次の試合）。 */
 function nextMatchKey(){
