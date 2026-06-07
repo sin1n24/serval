@@ -209,8 +209,8 @@
   @keyframes advSpark{0%,100%{opacity:.15; transform:scale(.7)} 50%{opacity:1; transform:scale(1.5); filter:drop-shadow(0 0 12px #ffd24a)}}
   .adv-line{width:0; height:6px; background:#e23b3b; border-radius:4px; box-shadow:0 0 12px rgba(226,59,59,.7)}
   #advance.phase-result .adv-line{width:62vw; transition:width .85s ease}
-  /* 縦長（スマホ縦）では演出カードを上下に並べて見切れ防止 */
-  @media (max-aspect-ratio: 3/4){
+  /* 縦長／横幅が狭い画面では演出カードを上下に並べて見切れ防止 */
+  @media (max-aspect-ratio: 1/1), (max-width: 760px){
     .sp-cards, .adv-cards{flex-direction:column; gap:14px}
     .sp-card, .adv-card{min-width:0; max-width:84vw; padding:18px 20px}
     .sp-name, .adv-nm{font-size:26px}
@@ -251,6 +251,7 @@
   svg.lines{position:absolute; top:0; left:0; overflow:visible; pointer-events:none}
   svg.lines path{fill:none; stroke:var(--bracket-line,#33404f); stroke-width:1.5}
   svg.lines path.win{stroke:var(--win-line,#e23b3b); stroke-width:3.5}
+  .qz{z-index:6 !important}   /* 順位・3位決定戦はttabs(大会名)より前面＝近くへ配置しても隠れない */
   svg.lines path.win.blink{animation:lineBlink .5s ease-in-out 4}
   @keyframes lineBlink{0%,100%{opacity:1; stroke-width:3.5} 50%{opacity:.12; stroke-width:7}}
 
@@ -754,12 +755,10 @@ function renderQueueBar(){
   const upcoming=keys.filter(k=> !skip[k]);
   const skipped=keys.filter(k=> skip[k]);
   const labels=['次の試合','2番手','3番手'];
-  const up = upcoming.map((k,i)=>({k, lab:labels[i]||'', skip:false}));
+  const up = upcoming.slice(0,3).map((k,i)=>({k, lab:labels[i], skip:false}));   // 次の試合/2番手/3番手のみ（4番手は出さない）
   const sk = skipped.map(k=>({k, lab:'スキップ', skip:true}));
-  // 次の試合・2番手は必須。残りは（3番手→スキップ）の順で合計4件まで。
-  const req = up.slice(0,2);
-  const rest = up.slice(2).concat(sk);
-  const show = req.concat(rest).slice(0, 4);
+  // 未来(最大3)＋スキップで合計4件まで。次の試合・2番手は必須。
+  const show = up.concat(sk).slice(0, 4);
   const card=(it)=>{ const b=matchBrief(it.k);
     return '<div class="q-item'+(it.skip?' skip':'')+'"><span class="q-lab">'+esc(it.lab)+'</span>'
       +'<span class="q-no">'+(b.no||'')+'</span><span class="q-vs">'+esc(b.a)+' vs '+esc(b.b)+'</span>'
@@ -891,12 +890,12 @@ function drawThirdPlace(inner, svg, t, leftX, yTop, small){
   const res=t.results && t.results['3rd'];
   const wc=(res && res.win!=null && res.kind!=='勝者なし') ? res.win : -1;   // 3位決定戦の勝者(0/1)
   // 枠は通常の出場者枠と同じ見た目（normal slot）。stripeは位置の色。
-  const mk=(x,y,lab,colIdx)=>{ const b=document.createElement('div'); b.className='slot'; b.style.cursor='default';
+  const mk=(x,y,lab,colIdx)=>{ const b=document.createElement('div'); b.className='slot qz'; b.style.cursor='default';
     b.innerHTML='<span class="stripe"></span><span class="name'+(lab?'':' empty')+'">'+esc(lab||'')+'</span>';
     b.style.left=x+'px'; b.style.top=(y-h/2)+'px'; b.style.width=w+'px'; b.style.height=h+'px'; b.style.fontSize=fs+'px';
     if(colIdx!=null) b.querySelector('.stripe').style.background=paletteHex(colIdx);
     inner.appendChild(b); };
-  const tg=document.createElement('div'); tg.className='champion-tag';
+  const tg=document.createElement('div'); tg.className='champion-tag qz';
   tg.textContent = '🥉 3位決定戦' + (viewMode?'':'（ドラッグで移動）');   // 閲覧では注記を出さない
   tg.style.left=leftX+'px'; tg.style.top=(yA-h/2-18)+'px';
   if(!viewMode){ tg.style.cursor='move'; tg.onpointerdown=(e)=>startThirdDrag(e); }
@@ -941,7 +940,7 @@ function draw3rdMatchNo(inner, x, y, n, t){
     mscore(inner, x, y-38, tw, paletteHex(t.colorTop));
     mscore(inner, x, y+7,  bw, paletteHex(t.colorBottom));
   }
-  const d=document.createElement('div'); d.className='match-no'; d.textContent=n;
+  const d=document.createElement('div'); d.className='match-no qz'; d.textContent=n;
   d.style.left=(x-16)+'px'; d.style.top=(y-21)+'px';
   if(!viewMode){
     d.classList.add('clickable');
@@ -1732,17 +1731,17 @@ function drawStandingsBox(inner, xStand, yTop, rows, title){
   const so=state.config.standOffset||(state.config.standOffset={dx:0,dy:0});
   if(xStand<54){ so.dx+=54-xStand; xStand=54; }
   if(yTop<2){ so.dy+=2-yTop; yTop=2; }
-  const st=document.createElement('div'); st.className='champion-tag';
+  const st=document.createElement('div'); st.className='champion-tag qz';
   st.textContent=title + (viewMode?'':'（ドラッグで移動）');
   st.style.left=xStand+'px'; st.style.top=yTop+'px';
   if(!viewMode){ st.style.cursor='move'; st.onpointerdown=(e)=>startStandDrag(e); }
   inner.appendChild(st);
-  const txt=(s,x,yy)=>{ const d=document.createElement('div'); d.className='champion-tag'; d.textContent=s;
+  const txt=(s,x,yy)=>{ const d=document.createElement('div'); d.className='champion-tag qz'; d.textContent=s;
     d.style.color='var(--text)'; d.style.left=x+'px'; d.style.top=yy+'px'; inner.appendChild(d); };
   rows.forEach((row,idx)=>{
     const yRow=yTop+18+idx*pitch;
     txt(row.label, xStand-52, yRow+(h-14)/2);                       // 順位ラベル（枠外左・通常太さ）
-    const box=document.createElement('div'); box.className='slot'; box.style.cursor='default';
+    const box=document.createElement('div'); box.className='slot qz'; box.style.cursor='default';
     box.innerHTML='<span class="name" style="font-weight:700;font-size:'+(DIM.pfs+2)+'px;padding:0 8px">'+esc(row.name||'')+'</span>';
     box.style.left=xStand+'px'; box.style.top=yRow+'px'; box.style.width=standW+'px'; box.style.height=h+'px'; box.style.fontSize=DIM.pfs+'px';
     inner.appendChild(box);
