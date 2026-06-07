@@ -92,7 +92,8 @@
   .q-item.st-soon{ border-color:#e8a24e; box-shadow:inset 4px 0 0 #e8a24e }
   .q-item.st-soon .q-no{ color:#b9701a }
   .q-item.st-skip{ border-color:#2faa55; box-shadow:inset 4px 0 0 #2faa55; color:#000 }
-  .q-item.st-skip .q-no, .q-item.st-skip .q-lab, .q-item.st-skip .q-sub{ color:#000 }
+  .q-item.st-skip .q-lab, .q-item.st-skip .q-sub{ color:#000 }
+  .q-item.st-skip .q-no{ color:#2faa55 }   /* スキップの試合番号は緑 */
   .q-more{ font-size:13px; color:var(--muted); align-self:center; padding:0 4px }
   .q-lab{ font-size:11px; color:var(--muted); font-weight:700 }
   .q-no{ font-weight:800; color:var(--accent); min-width:18px; text-align:center }
@@ -156,7 +157,7 @@
     background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:0 6px; line-height:18px; z-index:2; white-space:nowrap}
   body.view-mode .match-no{font-size:11px; font-weight:400; line-height:16px}   /* 閲覧は小さく・太字解除 */
   /* 試合番号の状態色（下バーと対応）: 終了=緑 / 次=橙 / 2・3番手=琥珀 / スキップ=灰 */
-  .match-no.st-done{color:#2faa55; border-color:#2faa55}
+  .match-no.st-done{color:var(--muted); border-color:var(--muted)}
   .match-no.st-next{background:#e8821e; border-color:#e8821e; color:#fff}
   .match-no.st-soon{color:#b9701a; border-color:#e8a24e}
   .match-no.st-skip{color:#000; border-color:#2faa55}
@@ -709,7 +710,7 @@ function rebuild(){
  * ============================================================ */
 // 枠サイズ（大中小）。選手枠(player)・その他枠(other)を別々に指定できる。
 // 幅のみ変化（高さ・文字は固定）。小は大胆に小さく、大は大胆に大きく。
-const SLOT_SIZES = { '小':{w:80,h:27,fs:12.5}, '中':{w:160,h:27,fs:12.5}, '大':{w:300,h:27,fs:12.5} };
+const SLOT_SIZES = { '小':{w:80,h:27,fs:12.5}, '中':{w:148,h:27,fs:12.5}, '大':{w:270,h:27,fs:12.5} };
 const COL_GAP = 44, V_GAP = 6;
 let DIM = null;
 function computeDim(){
@@ -1308,6 +1309,7 @@ function drawCenterTournament(t, xOff, yOff, svg, inner, multi){
   const lastCol = 2*R;
   const wOf = c=> (c===0||c===lastCol)? DIM.pw : DIM.stepO;
   const X=[]; X[0]=xOff; for(let c=1;c<=lastCol;c++) X[c]=X[c-1]+wOf(c-1)+COL_GAP;
+  for(let c=R+1;c<=lastCol;c++) X[c]+=COL_GAP;   // 右側トーナメントを少し右へ＝決勝の交点を遠ざける
   const baseY = i=> yOff + i*pitch + DIM.ph/2;
   const halfNodes = r=> (size>>r)/2;
   const owDrawn = skipOther?0:DIM.ow;
