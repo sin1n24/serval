@@ -86,7 +86,13 @@
     background:var(--panel); border-top:1px solid var(--line); min-height:46px }
   .q-item{ display:flex; align-items:center; gap:7px; border:1px solid var(--line); border-radius:8px;
     padding:4px 10px; background:var(--panel2); white-space:nowrap }
-  .q-item.skip{ opacity:.7; border-style:dashed }
+  /* 状態色（ブラケットの試合番号と対応）: 次=橙 / 2・3番手=琥珀 / スキップ=灰 */
+  .q-item.st-next{ border-color:#e8821e; box-shadow:inset 4px 0 0 #e8821e }
+  .q-item.st-next .q-no{ color:#e8821e }
+  .q-item.st-soon{ border-color:#e8a24e; box-shadow:inset 4px 0 0 #e8a24e }
+  .q-item.st-soon .q-no{ color:#b9701a }
+  .q-item.st-skip{ opacity:.7; border-style:dashed }
+  .q-item.st-skip .q-no, .q-item.st-skip .q-lab{ color:var(--muted) }
   .q-lab{ font-size:11px; color:var(--muted); font-weight:700 }
   .q-no{ font-weight:800; color:var(--accent); min-width:18px; text-align:center }
   .q-vs{ font-size:13px }
@@ -148,6 +154,11 @@
   .match-no{position:absolute; font-size:13px; font-weight:700; color:var(--accent);
     background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:0 6px; line-height:18px; z-index:2; white-space:nowrap}
   body.view-mode .match-no{font-size:11px; font-weight:400; line-height:16px}   /* 閲覧は小さく・太字解除 */
+  /* 試合番号の状態色（下バーと対応）: 終了=緑 / 次=橙 / 2・3番手=琥珀 / スキップ=灰 */
+  .match-no.st-done{color:#2faa55; border-color:#2faa55}
+  .match-no.st-next{background:#e8821e; border-color:#e8821e; color:#fff}
+  .match-no.st-soon{color:#b9701a; border-color:#e8a24e}
+  .match-no.st-skip{color:var(--muted); border-style:dashed}
   .match-no.clickable{cursor:pointer}
   .match-no.clickable:hover{border-color:var(--accent); background:var(--hl)}
   .match-no.sel{background:var(--accent2); color:#fff; border-color:var(--accent2)}
@@ -749,6 +760,19 @@ function renderAll(){
 /* 下部バー：未実施の試合を番号順に「次の試合／2番手／3番手」、スキップは別枠で最大3件。 */
 /* 並び順：優先(state.priority)を先頭、その後は試合番号順。 */
 function queueRank(k){ const pi=(state.priority||[]).indexOf(k); return pi>=0 ? pi : (1e6 + (matchNoMap[k]||0)); }
+/* 各試合のステータス: done(終了)/next(次)/soon(2・3番手)/skip(スキップ)/wait(待機) */
+let _matchStatus={};
+function computeMatchStatus(){
+  _matchStatus={};
+  const skip=state.skipped||{};
+  const undone=Object.keys(matchNoMap).filter(k=> !matchDecided(k));
+  undone.forEach(k=>{ _matchStatus[k] = skip[k] ? 'skip' : 'wait'; });
+  const upc=undone.filter(k=> !skip[k]).sort((a,b)=> queueRank(a)-queueRank(b));
+  if(upc[0]) _matchStatus[upc[0]]='next';
+  if(upc[1]) _matchStatus[upc[1]]='soon';
+  if(upc[2]) _matchStatus[upc[2]]='soon';
+}
+function matchStatus(key){ return matchDecided(key) ? 'done' : (_matchStatus[key]||'wait'); }
 function renderQueueBar(){
   const bar=document.getElementById('queueBar'); if(!bar) return;
   const skip=state.skipped||{};
@@ -757,12 +781,12 @@ function renderQueueBar(){
   const upcoming=keys.filter(k=> !skip[k]);
   const skipped=keys.filter(k=> skip[k]);
   const labels=['次の試合','2番手','3番手'];
-  const up = upcoming.slice(0,3).map((k,i)=>({k, lab:labels[i], skip:false}));   // 次の試合/2番手/3番手のみ（4番手は出さない）
-  const sk = skipped.map(k=>({k, lab:'スキップ', skip:true}));
+  const up = upcoming.slice(0,3).map((k,i)=>({k, lab:labels[i], st:(i===0?'next':'soon')}));   // 次の試合/2番手/3番手のみ
+  const sk = skipped.map(k=>({k, lab:'スキップ', st:'skip'}));
   // 未来(最大3)＋スキップで合計4件まで。次の試合・2番手は必須。
   const show = up.concat(sk).slice(0, 4);
   const card=(it)=>{ const b=matchBrief(it.k);
-    return '<div class="q-item'+(it.skip?' skip':'')+'"><span class="q-lab">'+esc(it.lab)+'</span>'
+    return '<div class="q-item st-'+it.st+'"><span class="q-lab">'+esc(it.lab)+'</span>'
       +'<span class="q-no">'+(b.no||'')+'</span><span class="q-vs">'+esc(b.a)+' vs '+esc(b.b)+'</span>'
       +'<span class="q-sub">'+esc(b.label)+'</span></div>'; };
   bar.innerHTML = show.length ? show.map(card).join('') : '<div class="q-empty">未実施の試合はありません</div>';
@@ -942,7 +966,7 @@ function draw3rdMatchNo(inner, x, y, n, t){
     mscore(inner, x, y-38, tw, paletteHex(t.colorTop));
     mscore(inner, x, y+7,  bw, paletteHex(t.colorBottom));
   }
-  const d=document.createElement('div'); d.className='match-no qz'; d.textContent=n;
+  const d=document.createElement('div'); d.className='match-no qz st-'+matchStatus(t.id+':3rd'); d.textContent=n;
   d.style.left=(x-16)+'px'; d.style.top=(y-21)+'px';
   if(!viewMode){
     d.classList.add('clickable');
@@ -1042,7 +1066,7 @@ function drawMatchNo(inner, x, y, n, t, r, j, horizOff){
       }
     }
   }
-  const d=document.createElement('div'); d.className='match-no'; d.textContent=n;
+  const d=document.createElement('div'); d.className='match-no st-'+(t?matchStatus(t.id+':'+r+':'+j):'wait'); d.textContent=n;
   d.style.left=(x-16)+'px'; d.style.top=(horizOff ? (y+5) : (y-21))+'px';   // 決勝は線の下側に番号
   if(!viewMode && t){                              // 管理者：番号クリックで結果入力（作成・運用の区別なし）
     d.classList.add('clickable');
@@ -1073,6 +1097,7 @@ function renderBracket(){
 
   computeDim();
   computeMatchNumbers();
+  computeMatchStatus();                 // 試合番号の色分け（終了/次/2・3番手/スキップ）
   const multi = state.tournaments.length>1;
   const shown = state.stacked
     ? state.tournaments.map((t,i)=>({t,i}))
@@ -1516,7 +1541,7 @@ function drawLeagueMatchNo(inner, x, y, n, a, b){
     mscore(inner, x-10, y-38, tw, paletteHex(0));
     mscore(inner, x-10, y+7,  bw, paletteHex(1));
   }
-  const d=document.createElement('div'); d.className='match-no'; d.textContent=n;
+  const d=document.createElement('div'); d.className='match-no st-'+matchStatus('LG:'+a+':'+b); d.textContent=n;
   d.style.left=(x-10-16)+'px'; d.style.top=(y-21)+'px';
   if(!viewMode){ d.classList.add('clickable');
     if(state.runSel&&state.runSel.league&&state.runSel.a===a&&state.runSel.b===b) d.classList.add('sel');
