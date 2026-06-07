@@ -17,9 +17,10 @@ var STORE_SHEET = 'Store';
 
 /** Webアプリのエントリポイント。Index.html を返す。 */
 function doGet(e) {
+  // 注意: setFaviconUrl は画像を厳しく検証し、弾かれると doGet 全体が例外になりアプリが開けなくなる。
+  // GAS のタブ・ファビコンは確実に設定できないため指定しない（GitHub Pages版は <link> で表示される）。
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('トーナメント管理システム')
-    .setFaviconUrl('https://sin1.studio/serval/serval.png?v=3')   // GASはPNG等のみ対応（icoは不可）
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // 配信/呼び出しシステムからiframe埋め込み可
 }
