@@ -1,4 +1,5 @@
 # clasp（GASデプロイ用ローカル設定。公開リポジトリには含めない）
 .clasp.json
 .claspignore
+deploy.sh
 _bk/
