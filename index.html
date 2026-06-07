@@ -2529,6 +2529,9 @@ const DEMO_CSV = '';   // ??CSV???????????
 function init(){
   // URLに admin を含めると最初から管理者モード（例: index.html#admin / ?admin）。簡易・非セキュア。
   if(/admin/i.test(location.hash) || /admin/i.test(location.search)) viewMode=false;
+  // ?doc=◯◯ で大会（保存キー）を指定。GASはwindow.__DOCKEY__、Pagesはlocation.searchから取得。
+  try{ const ud = window.__DOCKEY__ || new URLSearchParams(location.search).get('doc');
+    if(ud){ const dk=document.getElementById('docKey'); if(dk) dk.value=ud; } }catch(e){}
   document.getElementById('envPill').textContent = Backend.hasGas ? 'GAS接続' : 'スタンドアロン（ローカル保存）';
 
   // 数値設定は変更すると即再作成（ブラケット作成ボタンは廃止）

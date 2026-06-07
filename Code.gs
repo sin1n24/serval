@@ -19,10 +19,14 @@ var STORE_SHEET = 'Store';
 function doGet(e) {
   // 注意: setFaviconUrl は画像を厳しく検証し、弾かれると doGet 全体が例外になりアプリが開けなくなる。
   // GAS のタブ・ファビコンは確実に設定できないため指定しない（GitHub Pages版は <link> で表示される）。
-  return HtmlService.createHtmlOutputFromFile('index')
+  var out = HtmlService.createHtmlOutputFromFile('index')
     .setTitle('トーナメント管理システム')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // 配信/呼び出しシステムからiframe埋め込み可
+  // ?doc=◯◯ で大会（保存キー）を指定。iframe内のJSはURLを読めないのでサーバ側で埋め込む。
+  var doc = (e && e.parameter && e.parameter.doc) ? String(e.parameter.doc).slice(0, 100) : '';
+  if (doc) out.append('<script>window.__DOCKEY__=' + JSON.stringify(doc) + '<\/script>');
+  return out;
 }
 
 /** Store シートを取得（無ければ作る）。 */
