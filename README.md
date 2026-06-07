@@ -3,6 +3,7 @@
 単一HTMLで動くトーナメント／リーグ運営ツール。**閲覧モード**（観客・スマホ向け、自動更新）と**管理モード**（作成・結果入力）を1画面で切り替えて使えます。バックエンドに Google Apps Script（GAS）＋スプレッドシートを想定しつつ、HTML を直接開いた場合は localStorage に自動フォールバックして単独でも動作します。
 
 公開デモ　管理モード（スタンドアロン／GitHub Pages）: https://sin1.studio/serval?admin
+
 公開デモ　閲覧モード（スタンドアロン／GitHub Pages）: https://sin1.studio/serval/
 
 ## ファイル構成
