@@ -6,6 +6,12 @@
 
 公開デモ　**閲覧モード**（スタンドアロン／GitHub Pages）: https://sin1.studio/serval/
 
+## デモ動画・スクリーンショット
+
+[![Serval デモ動画](screenshot.jpg)](https://youtu.be/ANzgtFMA-zg)
+
+▶ デモ動画（YouTube）: https://youtu.be/ANzgtFMA-zg
+
 ## ファイル構成
 
 | ファイル | 役割 |
