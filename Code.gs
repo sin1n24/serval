@@ -25,11 +25,19 @@ function doGet(e) {
 
 /** Store シートを取得（無ければ作る）。 */
 function getStoreSheet_() {
+  var props = PropertiesService.getScriptProperties();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) {
-    // スタンドアロンスクリプトとして実行された場合は新規スプレッドシートを作成して紐付ける
-    ss = SpreadsheetApp.create('TournamentManager-Store');
-    PropertiesService.getScriptProperties().setProperty('SS_ID', ss.getId());
+    // スタンドアロンスクリプト：保存先スプレッドシートは一度だけ作成し、以後はSS_IDで再利用する。
+    // （毎回 create するとAPI呼び出しごとにスプレッドシートが量産され、Drive上限/レート超過で失敗する）
+    var id = props.getProperty('SS_ID');
+    if (id) {
+      try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; }  // 削除済み等は作り直す
+    }
+    if (!ss) {
+      ss = SpreadsheetApp.create('TournamentManager-Store');
+      props.setProperty('SS_ID', ss.getId());
+    }
   }
   var sh = ss.getSheetByName(STORE_SHEET);
   if (!sh) {
@@ -41,6 +49,11 @@ function getStoreSheet_() {
 
 /** 1ドキュメントを保存。key単位で上書き。 */
 function apiSave(key, jsonString) {
+  // スプレッドシートの1セルは最大50,000文字。超える場合は明示エラーを返す（setValuesの例外を避ける）。
+  if (jsonString && jsonString.length > 49500) {
+    return { ok: false, key: key,
+      error: 'データが大きすぎます（' + jsonString.length + '文字 > 上限49500）。選手数やトーナメント数を減らしてください。' };
+  }
   var sh = getStoreSheet_();
   var data = sh.getDataRange().getValues();
   var now = new Date();
@@ -84,7 +97,8 @@ function apiList() {
  */
 function apiSubmitResult(key, payloadJson) {
   // payloadJson はフロントで反映済みの最新state全体を渡す方式にしておくと衝突が少ない。
-  // ここではそのまま保存し、OKを返すことでフロントの「進むアニメーション」を発火させる。
-  apiSave(key, payloadJson);
+  // 保存に成功したらOKを返し、フロントの「進むアニメーション」を発火させる。
+  var r = apiSave(key, payloadJson);
+  if (!r || !r.ok) return r || { ok: false, key: key, error: '保存に失敗しました' };  // サイズ超過等はそのまま返す
   return { ok: true, key: key, receivedAt: new Date().toISOString() };
 }
