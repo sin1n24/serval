@@ -19,6 +19,7 @@ var STORE_SHEET = 'Store';
 function doGet(e) {
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('トーナメント管理システム')
+    .setFaviconUrl('https://sin1.studio/serval/serval.ico?v=3')   // GASはこの指定でタブのファビコンが付く
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // 配信/呼び出しシステムからiframe埋め込み可
 }
