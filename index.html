@@ -1393,21 +1393,22 @@ function drawCenterTournament(t, xOff, yOff, svg, inner, multi){
     }};
   }
 
-  // 左右をそれぞれ自然な位置で描画し、優勝は左右準決勝（根）の中間の高さに置く
+  // 左右をそれぞれ描画。高さ(Y)は揃えて一直線にし、優勝(決勝)は左右準決勝の交点の「横方向の中間」に置く
   const bL = collapse?buildHalfCollapsed(0,'L'):buildHalfFull(0,'L');
   const bR = collapse?buildHalfCollapsed(half,'R'):buildHalfFull(half,'R');
-  const leftRoot  = bL.draw(0);
-  const rightRoot = bR.draw(0);
-  const centerY = (leftRoot.y + rightRoot.y)/2;   // 各準決勝の交点の中間
+  const centerY = Math.max(bL.rootY, bR.rootY);    // 左右準決勝の交点を同じ高さへ揃える
+  const leftRoot  = bL.draw(centerY - bL.rootY);
+  const rightRoot = bR.draw(centerY - bR.rootY);
 
-  // 決勝（中央）— 左右finalist の高さの中間へ集約
-  matchBox(X[R], centerY, R, 0, X[R]);
+  // 決勝（中央）— 左右finalist の交点の横方向の中間へ配置（高さは一直線）
+  const finalX = (leftRoot.edge + rightRoot.edge)/2 - owDrawn/2;
+  matchBox(finalX, centerY, R, 0, finalX);
   const fwc=winChildOf(t,R,0);
-  drawConnector(svg, leftRoot.edge, leftRoot.y, X[R], centerY, fwc===0, undefined, t.id+':'+R+':0');
-  drawConnector(svg, rightRoot.edge, rightRoot.y, X[R]+owDrawn, centerY, fwc===1, undefined, t.id+':'+R+':0');
+  drawConnector(svg, leftRoot.edge, centerY, finalX, centerY, fwc===0, undefined, t.id+':'+R+':0');
+  drawConnector(svg, rightRoot.edge, centerY, finalX+owDrawn, centerY, fwc===1, undefined, t.id+':'+R+':0');
   // 交点から上へ短い線（優勝を明示）。決着済みなら勝者色。
   {
-    const cx=X[R]+owDrawn/2, topY=centerY-(skipOther?0:DIM.oh/2);
+    const cx=finalX+owDrawn/2, topY=centerY-(skipOther?0:DIM.oh/2);
     const done=occupant(t,R,0)!=null;
     const vp=document.createElementNS(SVGNS,'path'); vp.setAttribute('d', `M${cx},${topY} V${topY-24}`);
     if(done){ vp.setAttribute('class','win'); _winPaths.push({svg,p:vp}); } else svg.appendChild(vp);
@@ -1415,7 +1416,7 @@ function drawCenterTournament(t, xOff, yOff, svg, inner, multi){
 
   const tag=document.createElement('div'); tag.className='champion-tag';
   tag.textContent = multi ? ('🏅 '+shortRep(t.name)) : '🏆 優勝';
-  const cxTag=X[R]+owDrawn/2, lineTopY=(centerY-(skipOther?0:DIM.oh/2))-24;
+  const cxTag=finalX+owDrawn/2, lineTopY=(centerY-(skipOther?0:DIM.oh/2))-24;
   tag.style.left=(cxTag-22)+'px'; tag.style.top=(lineTopY-16)+'px';   // 伸ばした線のさらに上に表示
   inner.appendChild(tag);
 
@@ -2092,7 +2093,7 @@ function stopStopwatch(){
 }
 
 /* 演出タイミング（ms）。ADV=勝ち上がり表示時間 / SP=対戦カード表示時間 / GAP=間隔（重なり防止） */
-const ADV_MS=3000, SP_MS=3000, CARD_GAP=400;
+const ADV_MS=3000, SP_MS=2000, CARD_GAP=400;
 /* 演出：対戦カードを大写しにするオーバーレイ（表示のみ）。a,b={name,aff}|null */
 let spotlightTimer;
 function showSpotlight(a,b,colTop,colBot,header){
