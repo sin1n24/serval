@@ -87,6 +87,8 @@
   .q-item{ display:flex; align-items:center; gap:7px; border:1px solid var(--line); border-radius:8px;
     padding:4px 10px; background:var(--panel2); white-space:nowrap }
   /* 状態色（ブラケットの試合番号と対応）: 次=橙 / 2・3番手=琥珀 / スキップ=灰 */
+  .q-item.st-forced{ border-color:#e23b3b; box-shadow:inset 4px 0 0 #e23b3b }
+  .q-item.st-forced .q-no{ color:#e23b3b }
   .q-item.st-next{ border-color:#e8821e; box-shadow:inset 4px 0 0 #e8821e }
   .q-item.st-next .q-no{ color:#e8821e }
   .q-item.st-soon{ border-color:#e8a24e; box-shadow:inset 4px 0 0 #e8a24e }
@@ -160,7 +162,8 @@
   .match-no.st-done{color:var(--muted); border-color:var(--muted)}
   .match-no.st-next{background:#e8821e; border-color:#e8821e; color:#fff}
   .match-no.st-soon{color:#b9701a; border-color:#e8a24e}
-  .match-no.st-skip{color:#000; border-color:#2faa55}
+  .match-no.st-skip{color:#2faa55; border-color:#2faa55}
+  .match-no.st-forced{background:#e23b3b; border-color:#e23b3b; color:#fff}   /* 割り込み(次の試合にする) */
   .match-no.clickable{cursor:pointer}
   .match-no.clickable:hover{border-color:var(--accent); background:var(--hl)}
   .match-no.sel{background:var(--accent2); color:#fff; border-color:var(--accent2)}
@@ -710,7 +713,7 @@ function rebuild(){
  * ============================================================ */
 // 枠サイズ（大中小）。選手枠(player)・その他枠(other)を別々に指定できる。
 // 幅のみ変化（高さ・文字は固定）。小は大胆に小さく、大は大胆に大きく。
-const SLOT_SIZES = { '小':{w:80,h:27,fs:12.5}, '中':{w:148,h:27,fs:12.5}, '大':{w:270,h:27,fs:12.5} };
+const SLOT_SIZES = { '小':{w:80,h:27,fs:12.5}, '中':{w:148,h:27,fs:12.5}, '大':{w:240,h:27,fs:12.5} };
 const COL_GAP = 44, V_GAP = 6;
 let DIM = null;
 function computeDim(){
@@ -773,6 +776,7 @@ function computeMatchStatus(){
   if(upc[0]) _matchStatus[upc[0]]='next';
   if(upc[1]) _matchStatus[upc[1]]='soon';
   if(upc[2]) _matchStatus[upc[2]]='soon';
+  (state.priority||[]).forEach(k=>{ if(_matchStatus[k] && _matchStatus[k]!=='skip' && !matchDecided(k)) _matchStatus[k]='forced'; });  // 割り込みは赤
 }
 function matchStatus(key){ return matchDecided(key) ? 'done' : (_matchStatus[key]||'wait'); }
 function renderQueueBar(){
@@ -783,7 +787,8 @@ function renderQueueBar(){
   const upcoming=keys.filter(k=> !skip[k]);
   const skipped=keys.filter(k=> skip[k]);
   const labels=['次の試合','2番手','3番手'];
-  const upAll = upcoming.slice(0,3).map((k,i)=>({k, lab:labels[i], st:(i===0?'next':'soon')}));   // 次/2番手/3番手
+  const prio = state.priority||[];
+  const upAll = upcoming.slice(0,3).map((k,i)=>({k, lab:labels[i], st:(prio.includes(k)?'forced':(i===0?'next':'soon'))}));   // 次/2番手/3番手（割り込みは赤）
   const sk = skipped.map(k=>({k, lab:'スキップ', st:'skip'}));
   const next2 = upAll.slice(0,2);                 // 次の試合・2番手（必須）
   // スキップが2件以上なら3番手を出さずスキップを優先。1件以下なら3番手も表示。合計4件まで。
@@ -1309,7 +1314,7 @@ function drawCenterTournament(t, xOff, yOff, svg, inner, multi){
   const lastCol = 2*R;
   const wOf = c=> (c===0||c===lastCol)? DIM.pw : DIM.stepO;
   const X=[]; X[0]=xOff; for(let c=1;c<=lastCol;c++) X[c]=X[c-1]+wOf(c-1)+COL_GAP;
-  for(let c=R+1;c<=lastCol;c++) X[c]+=COL_GAP;   // 右側トーナメントを少し右へ＝決勝の交点を遠ざける
+  for(let c=R+1;c<=lastCol;c++) X[c]+=COL_GAP/2;   // 右側トーナメントを少し右へ＝決勝の交点を遠ざける
   const baseY = i=> yOff + i*pitch + DIM.ph/2;
   const halfNodes = r=> (size>>r)/2;
   const owDrawn = skipOther?0:DIM.ow;
@@ -1388,18 +1393,18 @@ function drawCenterTournament(t, xOff, yOff, svg, inner, multi){
     }};
   }
 
-  // 左右を構築 → 決勝進出者の高さを揃えてから描画（決勝の線が一直線になる）
+  // 左右をそれぞれ自然な位置で描画し、優勝は左右準決勝（根）の中間の高さに置く
   const bL = collapse?buildHalfCollapsed(0,'L'):buildHalfFull(0,'L');
   const bR = collapse?buildHalfCollapsed(half,'R'):buildHalfFull(half,'R');
-  const centerY = Math.max(bL.rootY, bR.rootY);
-  const leftRoot  = bL.draw(centerY - bL.rootY);
-  const rightRoot = bR.draw(centerY - bR.rootY);
+  const leftRoot  = bL.draw(0);
+  const rightRoot = bR.draw(0);
+  const centerY = (leftRoot.y + rightRoot.y)/2;   // 各準決勝の交点の中間
 
-  // 決勝（中央）— 左右finalist と同じ高さなので一直線
+  // 決勝（中央）— 左右finalist の高さの中間へ集約
   matchBox(X[R], centerY, R, 0, X[R]);
   const fwc=winChildOf(t,R,0);
-  drawConnector(svg, leftRoot.edge, centerY, X[R], centerY, fwc===0, undefined, t.id+':'+R+':0');
-  drawConnector(svg, rightRoot.edge, centerY, X[R]+owDrawn, centerY, fwc===1, undefined, t.id+':'+R+':0');
+  drawConnector(svg, leftRoot.edge, leftRoot.y, X[R], centerY, fwc===0, undefined, t.id+':'+R+':0');
+  drawConnector(svg, rightRoot.edge, rightRoot.y, X[R]+owDrawn, centerY, fwc===1, undefined, t.id+':'+R+':0');
   // 交点から上へ短い線（優勝を明示）。決着済みなら勝者色。
   {
     const cx=X[R]+owDrawn/2, topY=centerY-(skipOther?0:DIM.oh/2);
