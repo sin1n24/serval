@@ -310,6 +310,26 @@
   .env-pill{font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:20px; padding:3px 9px}
   .theme-toggle{background:transparent; border:0; font-size:17px; opacity:.65; padding:2px 6px; line-height:1}
   .theme-toggle:hover{opacity:1}
+
+  /* スポンサー広告 */
+  .ad-box{position:absolute; z-index:4}
+  .ad-box img{display:block; max-width:260px; max-height:180px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  .ad-box.admin{outline:2px dashed var(--accent,#e8821e); outline-offset:3px; border-radius:9px}
+  .ad-box .ad-label{position:absolute; left:0; top:-17px; font-size:11px; color:var(--accent,#e8821e); white-space:nowrap; pointer-events:none}
+  /* 広告設定モーダル */
+  .admodal{position:fixed; inset:0; background:rgba(4,7,12,.7); display:flex; align-items:center; justify-content:center; z-index:60}
+  .admodal[hidden]{display:none}
+  .admodal-card{background:var(--panel,#161b22); border:1px solid var(--line); border-radius:12px; width:min(460px,92vw); max-height:88vh; overflow:auto; padding:20px}
+  .admodal-card h2{margin:0 0 12px}
+  .admodal-stats{font-size:14px; color:var(--text); margin-bottom:6px}
+  .admodal-stats b{font-size:17px; color:var(--accent,#e8821e)}
+  .admodal-hint{font-size:11.5px; color:var(--muted); line-height:1.6; margin-bottom:12px}
+  .admodal-ad{border-top:1px solid var(--line); padding:12px 0}
+  .admodal-ad h3{margin:0 0 8px; font-size:14px; display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+  .admodal-ad .ad-clicks{font-size:12px; color:var(--muted); font-weight:400}
+  .admodal-ad label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:3px}
+  .admodal-ad input[type=text]{width:100%; box-sizing:border-box}
+  .admodal-actions{margin-top:16px}
 </style>
 </head>
 <body>
@@ -432,6 +452,10 @@
           <label class="check" style="margin-top:8px"><input type="checkbox" id="cfgHideByes" checked>シード枠（不戦）を表示しない</label>
         </div>
       </div>
+
+      <div class="group">
+        <button class="btn" id="btnAds" style="width:100%">📢 広告設定</button>
+      </div>
     </aside>
 
     <!-- 中央：ブラケット描画 -->
@@ -460,6 +484,20 @@
 <!-- 勝ち上がり演出オーバーレイ -->
 <div class="spotlight" id="advance"><div class="adv-body"></div></div>
 
+<!-- 広告設定モーダル -->
+<div class="admodal" id="adModal" hidden>
+  <div class="admodal-card">
+    <h2>📢 スポンサー広告設定</h2>
+    <div class="admodal-stats">全体閲覧数（表示回数）：<b id="adViews">0</b>
+      <button class="btn sm" id="adReload" style="margin-left:8px">集計を更新</button></div>
+    <div class="admodal-hint">画像URL または ファイルを指定。管理画面ではクリックで飛ばずドラッグで移動でき、閲覧画面ではクリックでリンク先を開きます。</div>
+    <div id="adFields"></div>
+    <div class="admodal-actions">
+      <button class="btn primary" id="adClose" style="width:100%">閉じる</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
  *  Backend 抽象レイヤ : google.script.run があればGAS、無ければlocalStorage
@@ -480,7 +518,15 @@ const Backend = (function(){
     apiList(){ const keys=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
       if(k.startsWith('tm_store_')) keys.push({key:k.slice(9)}); } return Promise.resolve({ok:true, keys}); },
     apiSubmitResult(key, json){ localStorage.setItem(localKey(key), json);
-      return Promise.resolve({ok:true, key, receivedAt:new Date().toISOString()}); }
+      return Promise.resolve({ok:true, key, receivedAt:new Date().toISOString()}); },
+    _adKey(key){ return localKey(key)+'__adstats'; },
+    _adGet(key){ let s={views:0,clicks:[0,0,0]}; try{ const j=localStorage.getItem(local._adKey(key)); if(j) s=JSON.parse(j); }catch(e){}
+      if(!s.clicks) s.clicks=[0,0,0]; return s; },
+    apiAdEvent(key, kind, index){ const s=local._adGet(key);
+      if(kind==='view') s.views=(s.views||0)+1;
+      else if(kind==='click'){ const ix=Math.max(0,Math.min(2,index|0)); s.clicks[ix]=(s.clicks[ix]||0)+1; }
+      localStorage.setItem(local._adKey(key), JSON.stringify(s)); return Promise.resolve({ok:true, stats:s}); },
+    apiAdStats(key){ return Promise.resolve({ok:true, stats:local._adGet(key)}); }
   };
   return {
     hasGas,
@@ -492,6 +538,9 @@ const Backend = (function(){
     callTeams:(numbers, type, customText)=> hasGas
       ? gasCall('apiCallTeams',[numbers, type||'preparation', customText||''])
       : Promise.resolve({ok:false, error:'LINE呼出はGASホスト版でのみ送信できます（スタンドアロンでは未対応）'}),
+    // スポンサー広告の集計（state本体とは別レコードに加算）
+    adEvent:(k,kind,index)=> hasGas ? gasCall('apiAdEvent',[k,kind,index]) : local.apiAdEvent(k,kind,index),
+    adStats:(k)=> hasGas ? gasCall('apiAdStats',[k]) : local.apiAdStats(k),
   };
 })();
 
@@ -542,7 +591,9 @@ let state = {
   repT:null,           // 代表トーナメント（複数時、同期される仮想トーナメント）
   repLeague:{},        // 代表リーグ戦の結果（'a-b'→{win,kind,time}）
   skipped:{},          // スキップした試合（matchNoMapキー→true）
-  priority:[],         // 「次の試合にする」で前に出した試合（matchNoMapキー、先頭ほど優先）
+  priority:[],         // 「次の試合にする」で前に出した試合（matchNoマップキー、先頭ほど優先）
+  ads:{ items:[ {img:'',link:'',pos:null}, {img:'',link:'',pos:null}, {img:'',link:'',pos:null} ] },  // スポンサー広告（画像・リンク・表示位置）。集計値は別レコード保存
+
   tournaments:[ makeTournament(1, 8) ],
   active:0,
   stacked:false,       // 並べて表示（縦並べ）
@@ -589,7 +640,7 @@ async function initialLoad(){
   }catch(e){ /* 取得失敗は現状描画 */ }
   _booted=true;
   renderAll();
-  if(viewMode) maybeShowBroadcast();
+  if(viewMode){ maybeShowBroadcast(); countAdView(); }   // 閲覧表示時に全体閲覧数を1回加算
 }
 function enterAdmin(){ viewMode=false; syncConfigInputs(); applyViewMode(); toast('管理者モード'); }
 function enterViewMode(){ viewMode=true; state.sel=null; state.runSel=null; state.pending=null; applyViewMode(); }
@@ -1109,7 +1160,7 @@ function renderBracket(){
   inner.style.zoom = state.config.zoom || 1;                          // 表示倍率
   inner.style.setProperty('--bracket-line', state.config.lineColor || '#33404f');  // 接続線の色
   inner.style.setProperty('--win-line', state.config.winLineColor || '#e23b3b');   // 勝者線の色
-  [...inner.querySelectorAll('.slot,.champion-tag,.event-title,.tname,.match-no,.mscore')].forEach(n=>n.remove());
+  [...inner.querySelectorAll('.slot,.champion-tag,.event-title,.tname,.match-no,.mscore,.ad-box')].forEach(n=>n.remove());
   const svg = document.getElementById('lines'); svg.innerHTML=''; _winPaths=[];
 
   computeDim();
@@ -1161,8 +1212,10 @@ function renderBracket(){
 
   _winPaths.forEach(o=> o.svg.appendChild(o.p)); _winPaths=[];   // 勝者線を最前面へ
 
+  drawAds(inner, maxBottom);                                     // スポンサー広告（既定位置はブラケットの下）
+
   // 実際に描画した要素の実寸からはみ出さないよう拡張（見切れ防止）
-  inner.querySelectorAll('.slot,.champion-tag,.event-title,.match-no,.tname,.mscore').forEach(el=>{
+  inner.querySelectorAll('.slot,.champion-tag,.event-title,.match-no,.tname,.mscore,.ad-box').forEach(el=>{
     const l=parseFloat(el.style.left)||0, tp=parseFloat(el.style.top)||0;
     maxRight=Math.max(maxRight, l+el.offsetWidth);
     maxBottom=Math.max(maxBottom, tp+el.offsetHeight);
@@ -1923,6 +1976,111 @@ function callPlayer(p){
   callTeams([num], '呼出 '+name);
 }
 
+/* ============================================================
+ *  スポンサー広告（画像表示・クリック誘導・表示/クリック集計）
+ *   - 画像とリンク・表示位置は state.ads に保存（管理者が編集）
+ *   - 表示回数(全体閲覧数)/クリック回数は別レコード(<key>__adstats)に集計
+ *   - 管理画面：クリックしてもリンクへ飛ばず、ドラッグで移動
+ *   - 閲覧画面：クリックでリンクを開き、クリック数を加算
+ * ============================================================ */
+function curDocKey(){ const dk=document.getElementById('docKey'); return (dk&&dk.value)||'default'; }
+function ensureAds(){
+  if(!state.ads || !Array.isArray(state.ads.items)) state.ads={items:[]};
+  while(state.ads.items.length<3) state.ads.items.push({img:'',link:'',pos:null});
+  state.ads.items.forEach(a=>{ if(!a||typeof a!=='object') return; if(a.img==null)a.img=''; if(a.link==null)a.link=''; });
+  return state.ads;
+}
+/* ブラケット上に広告画像を配置（renderBracket から呼ぶ）。 */
+function drawAds(inner, defBottom){
+  const ads=ensureAds();
+  ads.items.forEach((ad, idx)=>{
+    if(!ad || !ad.img) return;                                   // 画像未指定は非表示
+    if(!ad.pos){ ad.pos={ x: 12, y: (defBottom||0)+30 + idx*150 }; }   // 初期位置：ブラケットの下に縦並べ
+    const box=document.createElement('div'); box.className='ad-box'+(viewMode?'':' admin');
+    box.style.left=ad.pos.x+'px'; box.style.top=ad.pos.y+'px';
+    const img=document.createElement('img'); img.className='ad-img'; img.src=ad.img; img.alt='広告'+(idx+1);
+    img.draggable=false; box.appendChild(img);
+    if(viewMode){
+      if(ad.link){ box.style.cursor='pointer'; box.title=ad.link; box.onclick=()=>adClick(idx, ad.link); }
+    } else {
+      box.style.cursor='move'; box.title='広告'+(idx+1)+'（ドラッグで移動）';
+      const lbl=document.createElement('div'); lbl.className='ad-label'; lbl.textContent='広告'+(idx+1);
+      box.appendChild(lbl);
+      box.onpointerdown=(e)=>startAdDrag(e, idx);                 // 管理：DnDで移動（リンクへは飛ばない）
+    }
+    inner.appendChild(box);
+  });
+}
+/* 広告のドラッグ移動（各広告ごとの位置 state.ads.items[i].pos）。 */
+function startAdDrag(e, idx){
+  e.preventDefault();
+  const ad=ensureAds().items[idx]; if(!ad.pos) ad.pos={x:0,y:0};
+  const d={sx:e.clientX, sy:e.clientY, ox:ad.pos.x, oy:ad.pos.y};
+  const mv=(ev)=>{ const z=state.config.zoom||1;
+    ad.pos.x=Math.max(0, d.ox+(ev.clientX-d.sx)/z);
+    ad.pos.y=Math.max(0, d.oy+(ev.clientY-d.sy)/z); renderBracket(); };
+  const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); };
+  window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
+}
+/* 閲覧側：広告クリック→集計してリンクを開く。 */
+function adClick(idx, link){
+  Backend.adEvent(curDocKey(), 'click', idx).catch(()=>{});
+  if(link) window.open(link, '_blank', 'noopener');
+}
+/* 閲覧ページ表示時に全体閲覧数(表示回数)を1回だけ加算。 */
+let _adViewCounted=false;
+function countAdView(){
+  if(_adViewCounted || !viewMode) return;
+  const ads=state.ads; if(!ads || !Array.isArray(ads.items) || !ads.items.some(a=>a&&a.img)) return;  // 表示中の広告がある時だけ
+  _adViewCounted=true;
+  Backend.adEvent(curDocKey(), 'view').catch(()=>{});
+}
+
+/* 広告設定モーダルを開く（集計を取得して表示）。 */
+function openAdModal(){
+  ensureAds();
+  document.getElementById('adModal').hidden=false;
+  refreshAdStats();
+}
+function closeAdModal(){ document.getElementById('adModal').hidden=true; }
+/* 集計（全体閲覧数・各リンクのクリック数）を取得して反映。 */
+function refreshAdStats(){
+  Backend.adStats(curDocKey()).then(r=>{
+    const st=(r&&r.stats)||{views:0,clicks:[0,0,0]};
+    renderAdFields(st);
+  }).catch(()=> renderAdFields({views:0,clicks:[0,0,0]}));
+}
+function renderAdFields(st){
+  const clicks=st.clicks||[0,0,0];
+  document.getElementById('adViews').textContent=(st.views||0);
+  const ads=ensureAds(); const wrap=document.getElementById('adFields'); wrap.innerHTML='';
+  for(let i=0;i<3;i++){
+    const ad=ads.items[i];
+    const div=document.createElement('div'); div.className='admodal-ad';
+    div.innerHTML =
+      '<h3>広告'+(i+1)+' <span class="ad-clicks">リンク'+(i+1)+'クリック数：'+(clicks[i]||0)+'</span></h3>'+
+      '<label>画像'+(i+1)+'指定（画像URL）</label>'+
+      '<div class="row"><input type="text" class="adImg" data-i="'+i+'" value="'+esc(ad.img||'')+'" placeholder="https://…/banner.png" style="flex:1">'+
+        '<button class="btn sm adFile" data-i="'+i+'">ファイル…</button></div>'+
+      '<label style="margin-top:6px">リンク'+(i+1)+'指定（クリック先URL）</label>'+
+      '<input type="text" class="adLink" data-i="'+i+'" value="'+esc(ad.link||'')+'" placeholder="https://sponsor.example.com">';
+    wrap.appendChild(div);
+  }
+  wrap.querySelectorAll('.adImg').forEach(inp=> inp.oninput=()=>{ ensureAds().items[+inp.dataset.i].img=inp.value.trim(); renderBracket(); });
+  wrap.querySelectorAll('.adLink').forEach(inp=> inp.oninput=()=>{ ensureAds().items[+inp.dataset.i].link=inp.value.trim(); });
+  wrap.querySelectorAll('.adFile').forEach(btn=> btn.onclick=()=> pickAdImage(+btn.dataset.i));
+}
+/* 画像ファイルを選んで data URL として埋め込む（大きすぎる場合は保存時に弾かれる旨を警告）。 */
+function pickAdImage(i){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=()=>{ const f=inp.files[0]; if(!f) return;
+    if(f.size>60*1024) toast('画像が大きめです（'+Math.round(f.size/1024)+'KB）。保存上限を超える場合はURL指定にしてください', true);
+    const rd=new FileReader();
+    rd.onload=()=>{ ensureAds().items[i].img=String(rd.result); renderBracket(); refreshAdStats(); };
+    rd.readAsDataURL(f); };
+  inp.click();
+}
+
 /* 選択中の試合のコンテキスト（ブラケット=代表含む / リーグ を統一的に扱う） */
 function runMatchCtx(){
   const sel=state.runSel;
@@ -2449,6 +2607,7 @@ function normalizeState(){
   if(!state.repLeague || typeof state.repLeague!=='object') state.repLeague={};
   if(!state.skipped || typeof state.skipped!=='object') state.skipped={};
   if(!Array.isArray(state.priority)) state.priority=[];
+  ensureAds();                                            // スポンサー広告の枠（3件）を補完
   const keyMap={red:0,blue:1,green:2,yellow:3,white:4,black:5};
   (state.tournaments||[]).forEach((t,i)=>{
     if(typeof t.colorTop==='string')    t.colorTop = keyMap[t.colorTop] ?? 0;
@@ -2634,6 +2793,11 @@ function init(){
   document.getElementById('btnSettings').onclick=()=>{
     const p=document.getElementById('settingsPanel'); p.hidden=!p.hidden;
   };
+  // 広告設定モーダル
+  document.getElementById('btnAds').onclick=openAdModal;
+  document.getElementById('adClose').onclick=closeAdModal;
+  document.getElementById('adReload').onclick=refreshAdStats;
+  document.getElementById('adModal').onclick=(e)=>{ if(e.target.id==='adModal') closeAdModal(); };
   document.getElementById('setZoom').onchange=(e)=>{ state.config.zoom=+e.target.value; renderBracket(); };
   document.getElementById('setShowAff').onchange=(e)=>{ state.config.showAff=e.target.checked; renderBracket(); };
   document.getElementById('setShowNumber').onchange=(e)=>{ state.config.showNumber=e.target.checked; renderBracket(); };

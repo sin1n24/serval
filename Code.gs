@@ -108,3 +108,56 @@ function apiSubmitResult(key, payloadJson) {
   if (!r || !r.ok) return r || { ok: false, key: key, error: '保存に失敗しました' };  // サイズ超過等はそのまま返す
   return { ok: true, key: key, receivedAt: new Date().toISOString() };
 }
+
+/* ============================================================
+ *  スポンサー広告の集計（表示回数 / クリック回数）
+ *  - 本体stateとは別レコード「<key>__adstats」に保存する。
+ *    閲覧者が大量に書き込んでも試合データ(state)を上書きしないため。
+ *  - 形: { views: 全体閲覧数, clicks: [広告1, 広告2, 広告3] }
+ * ============================================================ */
+function _adStatsKey_(key) { return String(key || 'default') + '__adstats'; }
+
+/** 広告イベントを加算。kind='view'(全体閲覧) または 'click'(index番の広告)。 */
+function apiAdEvent(key, kind, index) {
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { /* ロック取得失敗でも続行（多少の競合は許容） */ }
+  try {
+    var statsKey = _adStatsKey_(key);
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var rowIdx = -1, stats = { views: 0, clicks: [0, 0, 0] };
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === statsKey) {
+        rowIdx = i;
+        try { var p = JSON.parse(data[i][1]); if (p) stats = p; } catch (e) {}
+        break;
+      }
+    }
+    if (!stats.clicks) stats.clicks = [0, 0, 0];
+    if (kind === 'view') {
+      stats.views = (stats.views || 0) + 1;
+    } else if (kind === 'click') {
+      var ix = Math.max(0, Math.min(2, parseInt(index, 10) || 0));
+      stats.clicks[ix] = (stats.clicks[ix] || 0) + 1;
+    }
+    var now = new Date();
+    if (rowIdx >= 0) sh.getRange(rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(stats), now]]);
+    else sh.appendRow([statsKey, JSON.stringify(stats), now]);
+    return { ok: true, stats: stats };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+/** 広告集計を取得。 */
+function apiAdStats(key) {
+  var sh = getStoreSheet_();
+  var data = sh.getDataRange().getValues();
+  var statsKey = _adStatsKey_(key);
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === statsKey) {
+      try { return { ok: true, stats: JSON.parse(data[i][1]) }; } catch (e) {}
+    }
+  }
+  return { ok: true, stats: { views: 0, clicks: [0, 0, 0] } };
+}
