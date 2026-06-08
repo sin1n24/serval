@@ -488,6 +488,10 @@ const Backend = (function(){
     load:(k)=> hasGas ? gasCall('apiLoad',[k]) : local.apiLoad(k),
     list:()=> hasGas ? gasCall('apiList',[]) : local.apiList(),
     submitResult:(k,j)=> hasGas ? gasCall('apiSubmitResult',[k,j]) : local.apiSubmitResult(k,j),
+    // LINE呼出（line-call-system連携）。トークンはGAS側Script Propertiesに置くためGASホスト時のみ実送信。
+    callTeams:(numbers, type, customText)=> hasGas
+      ? gasCall('apiCallTeams',[numbers, type||'preparation', customText||''])
+      : Promise.resolve({ok:false, error:'LINE呼出はGASホスト版でのみ送信できます（スタンドアロンでは未対応）'}),
   };
 })();
 
@@ -1895,16 +1899,28 @@ function renderInspector(){
   document.getElementById('btnClearSlot').onclick=()=>{ slot.player=null; renderAll(); };
   document.getElementById('btnCall').onclick=()=> callPlayer(slot.player);
 }
-/* 呼出（別システム連携用のフック）。現状はトースト表示。CALL_ENDPOINT を設定すると番号をPOST。 */
-const CALL_ENDPOINT='';   // 例: 'https://xxxx.trycloudflare.com/call'（line-call-system）
+/* LINE呼出（line-call-system連携）。チーム番号(=選手枠の「番号」, 数字)で待機通知を送る。
+   トークンはGAS側に置くため実送信はGASホスト版のみ。numbers=数字の配列、label=確認/トースト用の見出し。 */
+function callTeams(numbers, label, type){
+  const nums = (numbers||[]).map(n=>String(n||'').trim()).filter(n=>/^\d+$/.test(n));
+  if(!nums.length){ toast('呼出できる番号がありません（選手の「番号」を数字で設定してください）', true); return; }
+  if(!confirm((label||'呼出')+'\nNo.'+nums.join(' / No.')+' のLINEに通知を送信します。よろしいですか？')) return;
+  toast('呼出を送信中…');
+  Backend.callTeams(nums, type||'preparation').then(res=>{
+    if(res && res.ok){
+      const miss=(res.results||[]).filter(r=>r.status==='unlinked'||r.status==='not_found').map(r=>r.number);
+      let msg=(label||'呼出')+'：'+(res.sent||0)+'件送信';
+      if(miss.length) msg+='／未登録 No.'+miss.join(',No.');
+      toast(msg, miss.length>0);
+    } else {
+      toast('呼出に失敗'+(res&&res.error?'：'+res.error:''), true);
+    }
+  }).catch(err=> toast('呼出に失敗: '+((err&&err.message)||err||''), true));
+}
+/* 単独枠の呼出（選手エディタの「呼出」ボタン）。 */
 function callPlayer(p){
   const num=(p&&p.number)||'', name=(p&&p.playerName)||'(空き)';
-  if(CALL_ENDPOINT && num){
-    fetch(CALL_ENDPOINT, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({number:num, name})})
-      .then(()=> toast('呼出を送信: '+name)).catch(()=> toast('呼出の送信に失敗', true));
-  } else {
-    toast('呼出: '+name+(num?'（No.'+num+'）':'')+'（連携先未設定）');
-  }
+  callTeams([num], '呼出 '+name);
 }
 
 /* 選択中の試合のコンテキスト（ブラケット=代表含む / リーグ を統一的に扱う） */
@@ -1975,6 +1991,7 @@ function renderRunInspector(el){
     <button class="btn primary" id="btnSend" style="width:100%">${resObj[key]?'再送信':'送信'}</button>
     <button class="btn sm" id="btnNextUp" style="width:100%; margin-top:8px" ${resObj[key]?'disabled':''}>${(state.priority&&state.priority.includes(ctx.noKey))?'次の試合にする解除':'この試合を次の試合にする'}</button>
     <button class="btn sm" id="btnSpotlight" style="width:100%; margin-top:8px">対戦カード演出</button>
+    <button class="btn sm call" id="btnCallTeams" style="width:100%; margin-top:8px" ${((ctx.a&&/^\d+$/.test(String(ctx.a.num)))||(ctx.b&&/^\d+$/.test(String(ctx.b.num))))?'':'disabled'}>対戦チームを呼出（LINE）</button>
     <button class="btn sm" id="btnSkip" style="width:100%; margin-top:8px" ${resObj[key]?'disabled':''}>${(state.skipped&&state.skipped[ctx.noKey])?'スキップ解除':'この試合をスキップする'}</button>
     ${resObj[key]?'<button class="btn sm danger" id="btnClearResult" style="width:100%; margin-top:8px">結果を取り消す（未送信に戻す）</button>':''}
   `;
@@ -1985,6 +2002,10 @@ function renderRunInspector(el){
   const sw=document.getElementById('swBtn'); if(sw) sw.onclick=()=>toggleStopwatch();
   document.getElementById('btnSend').onclick=()=> sendResultCtx(ctx);
   document.getElementById('btnSpotlight').onclick=()=> showSpotlightCtx(ctx);
+  const ctb=document.getElementById('btnCallTeams'); if(ctb) ctb.onclick=()=>{
+    const nums=[ctx.a&&ctx.a.num, ctx.b&&ctx.b.num].filter(Boolean);
+    callTeams(nums, '対戦チーム呼出（'+(ctx.title.replace(/<[^>]*>/g,''))+'）');
+  };
   const bc=document.getElementById('btnClearResult'); if(bc) bc.onclick=()=> clearResultCtx(ctx);
   document.getElementById('btnSkip').onclick=()=>{
     if(!state.skipped) state.skipped={};
