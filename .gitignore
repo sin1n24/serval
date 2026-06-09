@@ -3,3 +3,4 @@
 .claspignore
 deploy.sh
 _bk/
+_checkjs.js
