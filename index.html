@@ -317,11 +317,11 @@
   .theme-toggle:hover{opacity:1}
 
   /* スポンサー広告 */
-  .ad-box{position:absolute; z-index:4}
-  .ad-box img{display:block; max-width:260px; max-height:180px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.3)}
-  .ad-box.admin{outline:2px dashed var(--accent,#e8821e); outline-offset:3px; border-radius:9px}
-  .ad-box .ad-label{position:absolute; left:0; top:-17px; font-size:11px; color:var(--accent,#e8821e); white-space:nowrap; pointer-events:none}
-  .ad-box .ad-grip{position:absolute; right:-6px; bottom:-6px; width:14px; height:14px; background:var(--accent,#e8821e); border:2px solid #fff; border-radius:3px; cursor:nwse-resize; z-index:5; box-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .kanban-box{position:absolute; z-index:4}
+  .kanban-box img{display:block; max-width:260px; max-height:180px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.3)}
+  .kanban-box.admin{outline:2px dashed var(--accent,#e8821e); outline-offset:3px; border-radius:9px}
+  .kanban-box .kanban-label{position:absolute; left:0; top:-17px; font-size:11px; color:var(--accent,#e8821e); white-space:nowrap; pointer-events:none}
+  .kanban-box .kanban-grip{position:absolute; right:-6px; bottom:-6px; width:14px; height:14px; background:var(--accent,#e8821e); border:2px solid #fff; border-radius:3px; cursor:nwse-resize; z-index:5; box-shadow:0 1px 3px rgba(0,0,0,.4)}
   /* 広告設定モーダル */
   .admodal{position:fixed; inset:0; background:rgba(4,7,12,.7); display:flex; align-items:center; justify-content:center; z-index:60}
   .admodal[hidden]{display:none}
@@ -332,7 +332,7 @@
   .admodal-hint{font-size:11.5px; color:var(--muted); line-height:1.6; margin-bottom:12px}
   .admodal-ad{border-top:1px solid var(--line); padding:12px 0}
   .admodal-ad h3{margin:0 0 8px; font-size:14px; display:flex; justify-content:space-between; align-items:baseline; gap:8px}
-  .admodal-ad .ad-clicks{font-size:12px; color:var(--muted); font-weight:400}
+  .admodal-ad .kanban-clicks{font-size:12px; color:var(--muted); font-weight:400}
   .admodal-ad label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:3px}
   .admodal-ad input[type=text]{width:100%; box-sizing:border-box}
   .admodal-actions{margin-top:16px}
@@ -481,7 +481,7 @@ try{ if(/admin/i.test(location.hash)||/admin/i.test(location.search)) document.b
       </div>
 
       <div class="group"><button class="btn" id="btnSettings" style="width:100%">⚙ 表示設定</button></div>
-      <div class="group"><button class="btn" id="btnAds" style="width:100%">📢 バナー設定</button></div>
+      <div class="group"><button class="btn" id="btnKanban" style="width:100%">📢 バナー設定</button></div>
       <div class="group"><button class="btn" id="btnBoardCfg" style="width:100%">📺 別画面設定</button></div>
     </aside>
 
@@ -513,15 +513,15 @@ try{ if(/admin/i.test(location.hash)||/admin/i.test(location.search)) document.b
 <div class="spotlight" id="advance"><div class="adv-body"></div></div>
 
 <!-- 広告設定モーダル -->
-<div class="admodal" id="adModal" hidden>
+<div class="admodal" id="kanbanModal" hidden>
   <div class="admodal-card">
     <h2>📢 バナー設定</h2>
-    <div class="admodal-stats">全体閲覧数（表示回数）：<b id="adViews">0</b>
-      <button class="btn sm" id="adReload" style="margin-left:8px">集計を更新</button></div>
+    <div class="admodal-stats">全体閲覧数（表示回数）：<b id="kanbanViews">0</b>
+      <button class="btn sm" id="kanbanReload" style="margin-left:8px">集計を更新</button></div>
     <div class="admodal-hint">画像URL または ファイルを指定。管理画面ではクリックで飛ばずドラッグで移動でき、閲覧画面ではクリックでリンク先を開きます。</div>
-    <div id="adFields"></div>
+    <div id="kanbanFields"></div>
     <div class="admodal-actions">
-      <button class="btn primary" id="adClose" style="width:100%">閉じる</button>
+      <button class="btn primary" id="kanbanClose" style="width:100%">閉じる</button>
     </div>
   </div>
 </div>
@@ -1302,7 +1302,7 @@ function renderBracket(){
   inner.style.zoom = state.config.zoom || 1;                          // 表示倍率
   inner.style.setProperty('--bracket-line', state.config.lineColor || '#33404f');  // 接続線の色
   inner.style.setProperty('--win-line', state.config.winLineColor || '#e23b3b');   // 勝者線の色
-  [...inner.querySelectorAll('.slot,.champion-tag,.event-title,.tname,.match-no,.mscore,.ad-box')].forEach(n=>n.remove());
+  [...inner.querySelectorAll('.slot,.champion-tag,.event-title,.tname,.match-no,.mscore,.kanban-box')].forEach(n=>n.remove());
   const svg = document.getElementById('lines'); svg.innerHTML=''; _winPaths=[];
 
   computeDim();
@@ -1357,7 +1357,7 @@ function renderBracket(){
   drawAds(inner, maxBottom);                                     // スポンサー広告（既定位置はブラケットの下）
 
   // 実際に描画した要素の実寸からはみ出さないよう拡張（見切れ防止）
-  inner.querySelectorAll('.slot,.champion-tag,.event-title,.match-no,.tname,.mscore,.ad-box').forEach(el=>{
+  inner.querySelectorAll('.slot,.champion-tag,.event-title,.match-no,.tname,.mscore,.kanban-box').forEach(el=>{
     const l=parseFloat(el.style.left)||0, tp=parseFloat(el.style.top)||0;
     maxRight=Math.max(maxRight, l+el.offsetWidth);
     maxBottom=Math.max(maxBottom, tp+el.offsetHeight);
@@ -2209,9 +2209,9 @@ function drawAds(inner, defBottom){
   ads.items.forEach((ad, idx)=>{
     if(!ad || !ad.img) return;                                   // 画像未指定は非表示
     if(!ad.pos){ ad.pos={ x: 12, y: (defBottom||0)+30 + idx*150 }; }   // 初期位置：ブラケットの下に縦並べ
-    const box=document.createElement('div'); box.className='ad-box'+(viewMode?'':' admin');
+    const box=document.createElement('div'); box.className='kanban-box'+(viewMode?'':' admin');
     box.style.left=ad.pos.x+'px'; box.style.top=ad.pos.y+'px';
-    const img=document.createElement('img'); img.className='ad-img'; img.src=ad.img; img.alt='バナー'+(idx+1);
+    const img=document.createElement('img'); img.className='kanban-img'; img.src=ad.img; img.alt='バナー'+(idx+1);
     img.draggable=false;
     // 幅を指定（拡大縮小の保存値）。表示は描画領域(stageInner)のzoom倍率に連動して拡縮する。
     if(ad.w){ img.style.width=ad.w+'px'; img.style.maxWidth='none'; img.style.maxHeight='none'; img.style.height='auto'; }
@@ -2220,10 +2220,10 @@ function drawAds(inner, defBottom){
       if(ad.link){ box.style.cursor='pointer'; box.title=ad.link; box.onclick=()=>adClick(idx, ad.link); }
     } else {
       box.style.cursor='move'; box.title='バナー'+(idx+1)+'（ドラッグで移動・右下で拡大縮小）';
-      const lbl=document.createElement('div'); lbl.className='ad-label'; lbl.textContent='バナー'+(idx+1);
+      const lbl=document.createElement('div'); lbl.className='kanban-label'; lbl.textContent='バナー'+(idx+1);
       box.appendChild(lbl);
       box.onpointerdown=(e)=>startAdDrag(e, idx);                 // 管理：DnDで移動（リンクへは飛ばない）
-      const grip=document.createElement('div'); grip.className='ad-grip'; grip.title='ドラッグで拡大縮小';
+      const grip=document.createElement('div'); grip.className='kanban-grip'; grip.title='ドラッグで拡大縮小';
       grip.onpointerdown=(e)=>{ e.stopPropagation(); startAdResize(e, idx, img); };  // 角は拡大縮小（移動と分離）
       box.appendChild(grip);
     }
@@ -2269,10 +2269,10 @@ function countAdView(){
 /* 広告設定モーダルを開く（集計を取得して表示）。 */
 function openAdModal(){
   ensureAds();
-  document.getElementById('adModal').hidden=false;
+  document.getElementById('kanbanModal').hidden=false;
   refreshAdStats();
 }
-function closeAdModal(){ document.getElementById('adModal').hidden=true; }
+function closeAdModal(){ document.getElementById('kanbanModal').hidden=true; }
 /* 集計（全体閲覧数・各リンクのクリック数）を取得して反映。 */
 function refreshAdStats(){
   Backend.adStats(curDocKey()).then(r=>{
@@ -2282,23 +2282,23 @@ function refreshAdStats(){
 }
 function renderAdFields(st){
   const clicks=st.clicks||[0,0,0];
-  document.getElementById('adViews').textContent=(st.views||0);
-  const ads=ensureAds(); const wrap=document.getElementById('adFields'); wrap.innerHTML='';
+  document.getElementById('kanbanViews').textContent=(st.views||0);
+  const ads=ensureAds(); const wrap=document.getElementById('kanbanFields'); wrap.innerHTML='';
   for(let i=0;i<3;i++){
     const ad=ads.items[i];
     const div=document.createElement('div'); div.className='admodal-ad';
     div.innerHTML =
-      '<h3>バナー'+(i+1)+' <span class="ad-clicks">リンク'+(i+1)+'クリック数：'+(clicks[i]||0)+'</span></h3>'+
+      '<h3>バナー'+(i+1)+' <span class="kanban-clicks">リンク'+(i+1)+'クリック数：'+(clicks[i]||0)+'</span></h3>'+
       '<label>画像'+(i+1)+'指定（画像URL）</label>'+
-      '<div class="row"><input type="text" class="adImg" data-i="'+i+'" value="'+esc(ad.img||'')+'" placeholder="https://…/banner.png" style="flex:1">'+
-        '<button class="btn sm adFile" data-i="'+i+'">ファイル…</button></div>'+
+      '<div class="row"><input type="text" class="kanbanImg" data-i="'+i+'" value="'+esc(ad.img||'')+'" placeholder="https://…/banner.png" style="flex:1">'+
+        '<button class="btn sm kanbanFile" data-i="'+i+'">ファイル…</button></div>'+
       '<label style="margin-top:6px">リンク'+(i+1)+'指定（クリック先URL）</label>'+
-      '<input type="text" class="adLink" data-i="'+i+'" value="'+esc(ad.link||'')+'" placeholder="https://sponsor.example.com">';
+      '<input type="text" class="kanbanLink" data-i="'+i+'" value="'+esc(ad.link||'')+'" placeholder="https://sponsor.example.com">';
     wrap.appendChild(div);
   }
-  wrap.querySelectorAll('.adImg').forEach(inp=> inp.oninput=()=>{ ensureAds().items[+inp.dataset.i].img=inp.value.trim(); renderBracket(); });
-  wrap.querySelectorAll('.adLink').forEach(inp=> inp.oninput=()=>{ ensureAds().items[+inp.dataset.i].link=inp.value.trim(); });
-  wrap.querySelectorAll('.adFile').forEach(btn=> btn.onclick=()=> pickAdImage(+btn.dataset.i));
+  wrap.querySelectorAll('.kanbanImg').forEach(inp=> inp.oninput=()=>{ ensureAds().items[+inp.dataset.i].img=inp.value.trim(); renderBracket(); });
+  wrap.querySelectorAll('.kanbanLink').forEach(inp=> inp.oninput=()=>{ ensureAds().items[+inp.dataset.i].link=inp.value.trim(); });
+  wrap.querySelectorAll('.kanbanFile').forEach(btn=> btn.onclick=()=> pickAdImage(+btn.dataset.i));
 }
 /* 画像ファイルを選んで data URL として埋め込む（大きすぎる場合は保存時に弾かれる旨を警告）。 */
 function pickAdImage(i){
@@ -3273,10 +3273,10 @@ function init(){
   document.getElementById('settingsClose').onclick=()=>{ document.getElementById('settingsModal').hidden=true; };
   document.getElementById('settingsModal').onclick=(e)=>{ if(e.target.id==='settingsModal') document.getElementById('settingsModal').hidden=true; };
   // 広告設定モーダル
-  document.getElementById('btnAds').onclick=openAdModal;
-  document.getElementById('adClose').onclick=closeAdModal;
-  document.getElementById('adReload').onclick=refreshAdStats;
-  document.getElementById('adModal').onclick=(e)=>{ if(e.target.id==='adModal') closeAdModal(); };
+  document.getElementById('btnKanban').onclick=openAdModal;
+  document.getElementById('kanbanClose').onclick=closeAdModal;
+  document.getElementById('kanbanReload').onclick=refreshAdStats;
+  document.getElementById('kanbanModal').onclick=(e)=>{ if(e.target.id==='kanbanModal') closeAdModal(); };
   // 大型表示設定モーダル
   document.getElementById('btnBoardCfg').onclick=openBoardModal;
   document.getElementById('boardCfgClose').onclick=closeBoardModal;
