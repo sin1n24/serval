@@ -414,7 +414,7 @@ try{ if(/admin/i.test(location.hash)||/admin/i.test(location.search)) document.b
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver15</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver16</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -634,15 +634,22 @@ try{ if(/admin/i.test(location.hash)||/admin/i.test(location.search)) document.b
 
 <script>
 /* 実行時エラーを画面に表示（観客画面が無音で真っ白になるのを防ぎ、原因も分かるように） */
-window.addEventListener('error', function(ev){
+function _showErr(msg){
   try{
     var d=document.getElementById('__jserr');
     if(!d){ d=document.createElement('div'); d.id='__jserr';
-      d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#5b1212;color:#ffd8d8;font:12px/1.6 monospace;padding:8px 12px;white-space:pre-wrap;max-height:42vh;overflow:auto;border-top:2px solid #ff6b6b';
+      d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#5b1212;color:#ffd8d8;font:12px/1.6 monospace;padding:8px 12px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-top:2px solid #ff6b6b';
       (document.body||document.documentElement).appendChild(d); }
-    var f=(ev.filename||'').split('/').pop();
-    d.textContent += '⚠ '+(ev.message||ev.error||'error')+'  ('+f+':'+ev.lineno+':'+ev.colno+')\n';
+    d.textContent += '⚠ '+msg+'\n';
   }catch(_){ }
+}
+window.addEventListener('error', function(ev){
+  _showErr((ev.message||ev.error||'error')+'  ('+(ev.filename||'').split('/').pop()+':'+ev.lineno+':'+ev.colno+')');
+});
+window.addEventListener('unhandledrejection', function(ev){      // async/Promise内の例外（初回描画はここに来る）
+  var r=(ev&&ev.reason)||{};
+  var st=r.stack?('\n'+String(r.stack).split('\n').slice(0,4).join('\n')):'';
+  _showErr('Promise: '+((r&&r.message)||r)+st);
 });
 /* ============================================================
  *  Backend 抽象レイヤ : google.script.run があればGAS、無ければlocalStorage
