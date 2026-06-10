@@ -411,10 +411,29 @@
 <body class="view-mode"><!-- 既定は閲覧モード。初期描画から管理UIを隠しチラつき(FOUC)防止。管理時はJSが外す -->
 <script>/* ?admin/#admin は最初の描画から管理UIを表示（こちらもFOUC回避） */
 try{ if(/admin/i.test(location.hash)||/admin/i.test(location.search)) document.body.classList.remove('view-mode'); }catch(e){}
+/* 実行時エラーを画面下部に赤バー表示（真っ白で無音にしない／原因特定用）。
+   後続スクリプトの解析エラーも拾えるよう、最初の独立scriptで登録する。 */
+function _showErr(msg){
+  try{
+    var d=document.getElementById('__jserr');
+    if(!d){ d=document.createElement('div'); d.id='__jserr';
+      d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#5b1212;color:#ffd8d8;font:12px/1.6 monospace;padding:8px 12px;white-space:pre-wrap;max-height:55vh;overflow:auto;border-top:2px solid #ff6b6b';
+      (document.body||document.documentElement).appendChild(d); }
+    d.textContent += '⚠ '+msg+'\n';
+  }catch(_){ }
+}
+window.addEventListener('error', function(ev){
+  _showErr((ev.message||ev.error||'error')+'  ('+(ev.filename||'').split('/').pop()+':'+ev.lineno+':'+ev.colno+')');
+});
+window.addEventListener('unhandledrejection', function(ev){
+  var r=(ev&&ev.reason)||{};
+  var st=r.stack?('\n'+String(r.stack).split('\n').slice(0,5).join('\n')):'';
+  _showErr('Promise: '+((r&&r.message)||r)+st);
+});
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver16</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver17</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -633,24 +652,6 @@ try{ if(/admin/i.test(location.hash)||/admin/i.test(location.search)) document.b
 </div>
 
 <script>
-/* 実行時エラーを画面に表示（観客画面が無音で真っ白になるのを防ぎ、原因も分かるように） */
-function _showErr(msg){
-  try{
-    var d=document.getElementById('__jserr');
-    if(!d){ d=document.createElement('div'); d.id='__jserr';
-      d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#5b1212;color:#ffd8d8;font:12px/1.6 monospace;padding:8px 12px;white-space:pre-wrap;max-height:50vh;overflow:auto;border-top:2px solid #ff6b6b';
-      (document.body||document.documentElement).appendChild(d); }
-    d.textContent += '⚠ '+msg+'\n';
-  }catch(_){ }
-}
-window.addEventListener('error', function(ev){
-  _showErr((ev.message||ev.error||'error')+'  ('+(ev.filename||'').split('/').pop()+':'+ev.lineno+':'+ev.colno+')');
-});
-window.addEventListener('unhandledrejection', function(ev){      // async/Promise内の例外（初回描画はここに来る）
-  var r=(ev&&ev.reason)||{};
-  var st=r.stack?('\n'+String(r.stack).split('\n').slice(0,4).join('\n')):'';
-  _showErr('Promise: '+((r&&r.message)||r)+st);
-});
 /* ============================================================
  *  Backend 抽象レイヤ : google.script.run があればGAS、無ければlocalStorage
  * ============================================================ */
@@ -793,8 +794,10 @@ async function initialLoad(){
     }
   }catch(e){ /* 取得失敗は現状描画 */ }
   _booted=true;
-  renderAll();
-  if(viewMode){ maybeShowBroadcast(); countAdView(); }   // 閲覧表示時に全体閲覧数を1回加算
+  try{ renderAll(); }
+  catch(err){ _showErr('描画エラー initialLoad: '+((err&&err.message)||err)+(err&&err.stack?('\n'+String(err.stack).split('\n').slice(0,5).join('\n')):'')); }
+  try{ if(viewMode){ maybeShowBroadcast(); countAdView(); } }
+  catch(err){ _showErr('broadcast/adView: '+((err&&err.message)||err)); }
 }
 function enterAdmin(){ viewMode=false; syncConfigInputs(); applyViewMode(); toast('管理者モード'); }
 function enterViewMode(){ viewMode=true; state.sel=null; state.runSel=null; state.pending=null; applyViewMode(); }
