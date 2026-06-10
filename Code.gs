@@ -28,8 +28,7 @@ function doGet(e) {
       '<script>document.getElementById("ext").textContent="外部スクリプト読込: "+(window.__probeOK?"OK ✅ （CSP許可・この方式で直せます）":"ブロック ❌ （CSP不可・別方式が必要）");<\/script>' +
       '</body></html>');
   }
-  // 注意: setFaviconUrl は画像を厳しく検証し、弾かれると doGet 全体が例外になりアプリが開けなくなる。
-  // GAS のタブ・ファビコンは確実に設定できないため指定しない（GitHub Pages版は <link> で表示される）。
+  // index.html を配信。巨大な1つのインラインscriptはGASがnonce処理できず弾くため、JSは複数の小さな<script>に分割済み。
   var out = HtmlService.createHtmlOutputFromFile('index')
     .setTitle('トーナメント管理システム')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
