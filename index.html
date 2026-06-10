@@ -414,7 +414,7 @@ try{ if(/admin/i.test(location.hash)||/admin/i.test(location.search)) document.b
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver14</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver15</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -633,6 +633,17 @@ try{ if(/admin/i.test(location.hash)||/admin/i.test(location.search)) document.b
 </div>
 
 <script>
+/* 実行時エラーを画面に表示（観客画面が無音で真っ白になるのを防ぎ、原因も分かるように） */
+window.addEventListener('error', function(ev){
+  try{
+    var d=document.getElementById('__jserr');
+    if(!d){ d=document.createElement('div'); d.id='__jserr';
+      d.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#5b1212;color:#ffd8d8;font:12px/1.6 monospace;padding:8px 12px;white-space:pre-wrap;max-height:42vh;overflow:auto;border-top:2px solid #ff6b6b';
+      (document.body||document.documentElement).appendChild(d); }
+    var f=(ev.filename||'').split('/').pop();
+    d.textContent += '⚠ '+(ev.message||ev.error||'error')+'  ('+f+':'+ev.lineno+':'+ev.colno+')\n';
+  }catch(_){ }
+});
 /* ============================================================
  *  Backend 抽象レイヤ : google.script.run があればGAS、無ければlocalStorage
  * ============================================================ */
