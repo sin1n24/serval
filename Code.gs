@@ -17,6 +17,17 @@ var STORE_SHEET = 'Store';
 
 /** Webアプリのエントリポイント。Index.html を返す。 */
 function doGet(e) {
+  // 切り分け用：?test=1 で極小ページ＋外部スクリプト読込テスト（GASサンドボックスが描画/外部JSを読めるか確認）
+  if (e && e.parameter && e.parameter.test) {
+    return HtmlService.createHtmlOutput(
+      '<!doctype html><html><head><meta charset="utf-8"></head>' +
+      '<body style="font:20px sans-serif;padding:24px">' +
+      'GAS OK ✅ テストページ描画成功<br>time=' + new Date() + '<br><br>' +
+      '<div id="ext">外部スクリプト読込: 確認中…</div>' +
+      '<script src="https://sin1.studio/serval/probe.js"><\/script>' +
+      '<script>document.getElementById("ext").textContent="外部スクリプト読込: "+(window.__probeOK?"OK ✅ （CSP許可・この方式で直せます）":"ブロック ❌ （CSP不可・別方式が必要）");<\/script>' +
+      '</body></html>');
+  }
   // 注意: setFaviconUrl は画像を厳しく検証し、弾かれると doGet 全体が例外になりアプリが開けなくなる。
   // GAS のタブ・ファビコンは確実に設定できないため指定しない（GitHub Pages版は <link> で表示される）。
   var out = HtmlService.createHtmlOutputFromFile('index')
