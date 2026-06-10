@@ -433,7 +433,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver19</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver20</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -3250,12 +3250,13 @@ const DEMO_CSV = '';   // ??CSV???????????
 
 function init(){
   // URLに admin を含めると最初から管理者モード（例: index.html#admin / ?admin）。簡易・非セキュア。
-  if(/admin/i.test(location.hash) || /admin/i.test(location.search)) viewMode=false;
+  // GASはiframe内でlocationが読めないため、doGetが埋め込む window.__ADMIN__ も見る。
+  if(window.__ADMIN__ || /admin/i.test(location.hash) || /admin/i.test(location.search)) viewMode=false;
   // ?doc=◯◯ で大会（保存キー）を指定。GASはwindow.__DOCKEY__、Pagesはlocation.searchから取得。
   try{ const ud = window.__DOCKEY__ || new URLSearchParams(location.search).get('doc');
     if(ud){ const dk=document.getElementById('docKey'); if(dk) dk.value=ud; } }catch(e){}
   // ?board で大型表示（別画面）モード：管理タブからの配信を受けて現在の試合を大写しするだけ。
-  if(/board/i.test(location.hash) || /board/i.test(location.search)){ setupBoard(); return; }
+  if(window.__BOARD__ || /board/i.test(location.hash) || /board/i.test(location.search)){ setupBoard(); return; }
   document.getElementById('envPill').textContent = Backend.hasGas ? 'GAS接続' : 'スタンドアロン（ローカル保存）';
 
   // 数値設定は変更すると即再作成（ブラケット作成ボタンは廃止）
@@ -3288,7 +3289,10 @@ function init(){
   document.getElementById('btnImport').onclick=doImport;
   document.getElementById('btnViewMode').onclick=enterViewMode;        // 管理者→閲覧プレビュー
   document.getElementById('btnBoard').onclick=()=>{                    // 大型表示を別ウィンドウで開く（同じ大会キーで連携）
-    window.open('?board&doc='+encodeURIComponent(curDocKey()), 'serval-board', 'width=1280,height=720');
+    // GASではiframe内のため相対URLだと裸のsandbox URL(googleusercontent.com/userCodeAppPanel)が
+    // 開いて永遠に真っ白になる。doGetが埋め込む正規WebアプリURL(__EXECURL__)を基準にする。
+    const base = window.__EXECURL__ || '';                             // Pagesは従来どおり相対URL
+    window.open(base+'?board&doc='+encodeURIComponent(curDocKey()), 'serval-board', 'width=1280,height=720');
   };
   document.querySelector('.topbar h1').onclick=secretTap;              // 秘密のアンロック（トリプルクリック）
   document.getElementById('secretSpot').onclick=secretTap;             // 閲覧時の秘密アンロック

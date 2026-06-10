@@ -17,25 +17,25 @@ var STORE_SHEET = 'Store';
 
 /** Webアプリのエントリポイント。Index.html を返す。 */
 function doGet(e) {
-  // 切り分け用：?test=1 で極小ページ＋外部スクリプト読込テスト（GASサンドボックスが描画/外部JSを読めるか確認）
-  if (e && e.parameter && e.parameter.test) {
-    return HtmlService.createHtmlOutput(
-      '<!doctype html><html><head><meta charset="utf-8"></head>' +
-      '<body style="font:20px sans-serif;padding:24px">' +
-      'GAS OK ✅ テストページ描画成功<br>time=' + new Date() + '<br><br>' +
-      '<div id="ext">外部スクリプト読込: 確認中…</div>' +
-      '<script src="https://sin1.studio/serval/probe.js"><\/script>' +
-      '<script>document.getElementById("ext").textContent="外部スクリプト読込: "+(window.__probeOK?"OK ✅ （CSP許可・この方式で直せます）":"ブロック ❌ （CSP不可・別方式が必要）");<\/script>' +
-      '</body></html>');
-  }
-  // index.html を配信。巨大な1つのインラインscriptはGASがnonce処理できず弾くため、JSは複数の小さな<script>に分割済み。
+  // index.html を配信。巨大な1つのインラインscriptはGASのHTML処理で脱落するため、JSは複数の小さな<script>に分割済み。
   var out = HtmlService.createHtmlOutputFromFile('index')
     .setTitle('トーナメント管理システム')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // 配信/呼び出しシステムからiframe埋め込み可
-  // ?doc=◯◯ で大会（保存キー）を指定。iframe内のJSはURLを読めないのでサーバ側で埋め込む。
-  var doc = (e && e.parameter && e.parameter.doc) ? String(e.parameter.doc).slice(0, 100) : '';
-  if (doc) out.append('<script>window.__DOCKEY__=' + JSON.stringify(doc) + '<\/script>');
+  // GASではアプリが googleusercontent.com のiframe内で動くため、JSからURLパラメータも
+  // WebアプリのURL自体も読めない。必要な値はサーバ側で window に埋め込む。
+  // （append は </html> の後ろに付くが DOMContentLoaded より先に実行されるので init から参照できる）
+  var p = (e && e.parameter) || {};
+  var js = '';
+  try { js += 'window.__EXECURL__=' + JSON.stringify(ScriptApp.getService().getUrl() || '') + ';'; } catch (err) {}
+  var doc = p.doc ? String(p.doc).slice(0, 100) : '';                    // ?doc=◯◯ 大会（保存キー）
+  if (doc) js += 'window.__DOCKEY__=' + JSON.stringify(doc) + ';';
+  if (p.board != null) js += 'window.__BOARD__=true;';                   // ?board 大型表示（別画面）
+  if (p.admin != null) {                                                  // ?admin 管理者モード
+    // 早期FOUC対策スクリプト（body直後）はiframe内でURLを読めないため、ここでview-mode解除も行う
+    js += 'window.__ADMIN__=true;try{document.body.classList.remove("view-mode")}catch(err){}';
+  }
+  if (js) out.append('<script>' + js + '<\/script>');
   return out;
 }
 
