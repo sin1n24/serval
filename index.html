@@ -433,7 +433,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver20</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver21</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -2328,14 +2328,57 @@ function renderAdFields(st){
   wrap.querySelectorAll('.kanbanLink').forEach(inp=> inp.oninput=()=>{ ensureAds().items[+inp.dataset.i].link=inp.value.trim(); });
   wrap.querySelectorAll('.kanbanFile').forEach(btn=> btn.onclick=()=> pickAdImage(+btn.dataset.i));
 }
-/* 画像ファイルを選んで data URL として埋め込む（大きすぎる場合は保存時に弾かれる旨を警告）。 */
+/* 画像を縮小して data URL 化する。GASのセル上限(約50,000文字/レコード)に収めるため、
+   バナー3枚＋トーナメント本体が1レコードに同居しても安全な目安（≒1枚12,000文字以下）まで
+   寸法と画質を段階的に下げる。透過PNGは縮小PNGのまま、収まらなければJPEGにフォールバック。 */
+function shrinkImageToDataUrl(file, budgetChars){
+  return new Promise((resolve, reject)=>{
+    const rd=new FileReader();
+    rd.onerror=()=>reject(new Error('画像の読み込みに失敗しました'));
+    rd.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('画像を解釈できませんでした'));
+      img.onload=()=>{
+        const isPng=/^image\/png/i.test(file.type);
+        // 寸法→画質の順で総当たりし、最初に予算内へ収まった結果を採用。最後は最小設定で妥協。
+        const dims=[960,720,560,420,320,240];
+        const qual=[0.82,0.7,0.58,0.45];
+        let best=null;
+        for(const maxSide of dims){
+          const scale=Math.min(1, maxSide/Math.max(img.naturalWidth, img.naturalHeight));
+          const w=Math.max(1, Math.round(img.naturalWidth*scale));
+          const h=Math.max(1, Math.round(img.naturalHeight*scale));
+          const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+          const ctx=cv.getContext('2d'); ctx.drawImage(img,0,0,w,h);
+          // まず（PNG元画像のみ）透過維持のPNGで試す
+          if(isPng){
+            const png=cv.toDataURL('image/png');
+            if(png.length<=budgetChars){ resolve(png); return; }
+          }
+          // JPEGで画質を下げながら試す
+          for(const q of qual){
+            const jpg=cv.toDataURL('image/jpeg', q);
+            if(!best || jpg.length<best.length) best=jpg;        // 妥協用に最小を保持
+            if(jpg.length<=budgetChars){ resolve(jpg); return; }
+          }
+        }
+        resolve(best);   // どうしても収まらない時は一番小さいものを返す（保存時に最終判定）
+      };
+      img.src=String(rd.result);
+    };
+    rd.readAsDataURL(file);
+  });
+}
+/* 画像ファイルを選び、縮小して data URL として埋め込む。 */
 function pickAdImage(i){
   const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
-  inp.onchange=()=>{ const f=inp.files[0]; if(!f) return;
-    if(f.size>60*1024) toast('画像が大きめです（'+Math.round(f.size/1024)+'KB）。保存上限を超える場合はURL指定にしてください', true);
-    const rd=new FileReader();
-    rd.onload=()=>{ ensureAds().items[i].img=String(rd.result); renderBracket(); refreshAdStats(); };
-    rd.readAsDataURL(f); };
+  inp.onchange=async ()=>{ const f=inp.files[0]; if(!f) return;
+    try{
+      const url=await shrinkImageToDataUrl(f, 12000);
+      ensureAds().items[i].img=url; renderBracket(); refreshAdStats();   // refreshAdStatsが入力欄も縮小後URLで再描画
+      if(url && url.length>12000) toast('画像が大きめです（約'+Math.round(url.length/1024)+'KB相当）。表示はできますが保存時に上限を超える場合はURL指定にしてください', true);
+    }catch(err){ toast('画像エラー：'+((err&&err.message)||err), true); }
+  };
   inp.click();
 }
 
@@ -3034,7 +3077,7 @@ async function doSave(){
   try{
     const r = await Backend.save(key, JSON.stringify(state));
     if(r.ok) markSaved();
-    toast(r.ok ? `保存しました（${Backend.hasGas?'GAS':'ローカル'}）` : '保存失敗', !r.ok);
+    toast(r.ok ? `保存しました（${Backend.hasGas?'GAS':'ローカル'}）` : ('保存失敗：'+(r.error||'不明なエラー')), !r.ok);
   }catch(err){ toast('保存失敗: '+((err&&err.message)||err||''), true); }
 }
 /* 読み込んだデータの書式バージョンを確認して移行。戻り値=ユーザー向けメッセージ。 */
