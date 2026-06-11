@@ -98,13 +98,15 @@
   .q-sub{ font-size:11px; color:var(--muted) }
   .q-sep{ font-size:11px; color:var(--muted); font-weight:700; padding-left:6px; border-left:1px solid var(--line); align-self:stretch; display:flex; align-items:center }
   .q-empty{ color:var(--muted); font-size:13px }
-  /* 全試合終了：表彰式を輝かしく表示 */
-  .q-champion{ font-size:17px; font-weight:900; letter-spacing:.12em; padding:3px 16px; border-radius:8px;
-    color:#5a3d00; background:linear-gradient(135deg,#ffe580,#ffc629 45%,#ffb300 55%,#ffe580);
-    box-shadow:0 0 10px rgba(255,193,7,.6), inset 0 0 0 1px rgba(255,255,255,.5);
-    animation:champShine 2s ease-in-out infinite }
-  @keyframes champShine{ 0%,100%{ box-shadow:0 0 8px rgba(255,193,7,.5), inset 0 0 0 1px rgba(255,255,255,.5) }
-    50%{ box-shadow:0 0 18px rgba(255,193,7,.95), inset 0 0 0 1px rgba(255,255,255,.8) } }
+  /* 別画面：全試合終了時の「表彰式」を輝かしく表示 */
+  .bd-wait.bd-champion{
+    font-weight:900; letter-spacing:.1em;
+    background:linear-gradient(135deg,#fff3b0,#ffc629 42%,#ffb300 58%,#fff3b0);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent;
+    filter:drop-shadow(0 0 14px rgba(255,193,7,.65));
+    animation:champShine 2.2s ease-in-out infinite }
+  @keyframes champShine{ 0%,100%{ filter:drop-shadow(0 0 10px rgba(255,193,7,.5)) }
+    50%{ filter:drop-shadow(0 0 26px rgba(255,193,7,1)) } }
 
   .body{display:flex; flex:1 1 auto; min-height:0}
 
@@ -435,7 +437,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver24</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver25</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -1026,7 +1028,7 @@ function renderQueueBar(){
     return '<div class="q-item st-'+it.st+'"><span class="q-lab">'+esc(it.lab)+'</span>'
       +'<span class="q-no">'+(b.no||'')+'</span><span class="q-vs">'+esc(b.a)+' vs '+esc(b.b)+'</span>'
       +'<span class="q-sub">'+esc(b.label)+'</span></div>'; };
-  let html = show.length ? show.map(card).join('') : '<div class="q-champion">🏆 表彰式 🏆</div>';
+  let html = show.length ? show.map(card).join('') : '<div class="q-empty">未実施の試合はありません</div>';
   if(hiddenSkip>0) html += '<div class="q-more" title="スキップ他'+hiddenSkip+'件">… 他'+hiddenSkip+'件</div>';
   bar.innerHTML = html;
 }
@@ -2799,7 +2801,10 @@ function renderBoard(d, silent){
   const wait=document.getElementById('bdWait'), grid=scr.querySelector('.bd-grid'),
         head=scr.querySelector('.bd-head'), time=scr.querySelector('.bd-time'),
         content=document.getElementById('bdContent');
-  if(!d || d.empty){ wait.style.display='block'; wait.textContent=(d&&d.empty)?'未実施の試合はありません':'待機中…';
+  if(!d || d.empty){ wait.style.display='block';
+    const done=(d&&d.empty);
+    wait.textContent = done ? '🏆 表彰式 🏆' : '待機中…';
+    wait.classList.toggle('bd-champion', done);
     if(content) content.style.display='none'; _boardSig='empty'; return; }
   if(content) content.style.display='flex';
   wait.style.display='none';
