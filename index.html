@@ -98,6 +98,13 @@
   .q-sub{ font-size:11px; color:var(--muted) }
   .q-sep{ font-size:11px; color:var(--muted); font-weight:700; padding-left:6px; border-left:1px solid var(--line); align-self:stretch; display:flex; align-items:center }
   .q-empty{ color:var(--muted); font-size:13px }
+  /* 全試合終了：表彰式を輝かしく表示 */
+  .q-champion{ font-size:17px; font-weight:900; letter-spacing:.12em; padding:3px 16px; border-radius:8px;
+    color:#5a3d00; background:linear-gradient(135deg,#ffe580,#ffc629 45%,#ffb300 55%,#ffe580);
+    box-shadow:0 0 10px rgba(255,193,7,.6), inset 0 0 0 1px rgba(255,255,255,.5);
+    animation:champShine 2s ease-in-out infinite }
+  @keyframes champShine{ 0%,100%{ box-shadow:0 0 8px rgba(255,193,7,.5), inset 0 0 0 1px rgba(255,255,255,.5) }
+    50%{ box-shadow:0 0 18px rgba(255,193,7,.95), inset 0 0 0 1px rgba(255,255,255,.8) } }
 
   .body{display:flex; flex:1 1 auto; min-height:0}
 
@@ -428,7 +435,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver23</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver24</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -1019,7 +1026,7 @@ function renderQueueBar(){
     return '<div class="q-item st-'+it.st+'"><span class="q-lab">'+esc(it.lab)+'</span>'
       +'<span class="q-no">'+(b.no||'')+'</span><span class="q-vs">'+esc(b.a)+' vs '+esc(b.b)+'</span>'
       +'<span class="q-sub">'+esc(b.label)+'</span></div>'; };
-  let html = show.length ? show.map(card).join('') : '<div class="q-empty">未実施の試合はありません</div>';
+  let html = show.length ? show.map(card).join('') : '<div class="q-champion">🏆 表彰式 🏆</div>';
   if(hiddenSkip>0) html += '<div class="q-more" title="スキップ他'+hiddenSkip+'件">… 他'+hiddenSkip+'件</div>';
   bar.innerHTML = html;
 }
@@ -1331,12 +1338,13 @@ function renderBracket(){
     ? state.tournaments.map((t,i)=>({t,i}))
     : [{t:state.tournaments[state.active], i:state.active}];
 
-  let yCursor=0, maxRight=0, maxBottom=0;
+  const ORIGIN=5;                 // 左上の枠が画面端に接しないよう原点に余白（絶対配置のためpaddingは効かない）
+  let yCursor=ORIGIN, maxRight=0, maxBottom=0;
   const champs = new Array(state.tournaments.length).fill(null);  // index -> {x,y,name}
 
   shown.forEach(({t,i})=>{
-    const r = state.config.centerStyle ? drawCenterTournament(t, 0, yCursor, svg, inner, multi)
-                                       : drawTournament(t, i, 0, yCursor, svg, inner, multi);
+    const r = state.config.centerStyle ? drawCenterTournament(t, ORIGIN, yCursor, svg, inner, multi)
+                                       : drawTournament(t, i, ORIGIN, yCursor, svg, inner, multi);
     champs[i] = { x:r.champRight, y:r.champY, name:t.name };
     maxRight = Math.max(maxRight, r.right);
     maxBottom = Math.max(maxBottom, r.bottom);
