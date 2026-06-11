@@ -47,15 +47,6 @@
   }
   .topbar h1{font-size:15px; margin:0; letter-spacing:.04em; font-weight:600; white-space:nowrap; user-select:none; -webkit-user-select:none; cursor:default}
   .topbar .spacer{flex:1}
-  /* 大会名（ブロックタブの隣に優先表示） */
-  .event-name-tab{
-    font-size:16px; font-weight:700; color:var(--text); letter-spacing:.02em;
-    background:transparent; border:1px solid transparent; border-radius:8px;
-    padding:5px 10px; min-width:120px; margin-right:6px;
-  }
-  .event-name-tab:focus{ outline:none; border-color:var(--line); background:var(--panel2) }
-  .event-name-tab::placeholder{ color:var(--muted); font-weight:500 }
-  .event-name-tab[readonly]{ cursor:default }
   .phase-switch{display:flex; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:3px}
   .phase-switch button{
     border:0; background:transparent; color:var(--muted); padding:6px 16px; border-radius:7px; font-weight:600;
@@ -84,6 +75,8 @@
   /* 下部：次の試合キュー（閲覧・管理とも常時表示） */
   #queueBar{ flex:0 0 auto; display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; padding:8px 14px;
     background:var(--panel); border-top:1px solid var(--line); min-height:46px }
+  /* 閲覧画面では「次の試合」キューを上部へ（管理画面は従来どおり下部） */
+  body.view-mode #queueBar{ order:-1; border-top:none; border-bottom:1px solid var(--line) }
   .q-item{ display:flex; align-items:center; gap:7px; border:1px solid var(--line); border-radius:8px;
     padding:4px 10px; background:var(--panel2); white-space:nowrap }
   /* 状態色（ブラケットの試合番号と対応）: 次=橙 / 2・3番手=琥珀 / スキップ=灰 */
@@ -433,7 +426,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver21</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver22</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -537,7 +530,7 @@ window.addEventListener('unhandledrejection', function(ev){
     <h2>📢 バナー設定</h2>
     <div class="admodal-stats">全体閲覧数（表示回数）：<b id="kanbanViews">0</b>
       <button class="btn sm" id="kanbanReload" style="margin-left:8px">集計を更新</button></div>
-    <div class="admodal-hint">画像URL または ファイルを指定。管理画面ではクリックで飛ばずドラッグで移動でき、閲覧画面ではクリックでリンク先を開きます。</div>
+    <div class="admodal-hint">画像URL または ファイルを指定。管理画面はドラッグで移動、閲覧画面はクリックでリンク先を開きます。ファイル指定は1〜2枚まで（多い・大きい画像は画像URL指定を推奨）。</div>
     <div id="kanbanFields"></div>
     <div class="admodal-actions">
       <button class="btn primary" id="kanbanClose" style="width:100%">閉じる</button>
@@ -738,7 +731,7 @@ let state = {
   config:{ size:8, count:1, third:false, order:'block', players:0, seedCount:0, palette:clonePalette(),
            zoom:1, showAff:false, showNumber:false, showSeed:false, lineColor:'#33404f', autoSave:false,
            theme:'light', playerSize:'中', otherSize:'なし', recordTime:false, repMode:'tournament', hideByes:true,
-           avoidSameAff:true, showMatchNo:false, centerStyle:false, winLineColor:'#e23b3b', eventName:'' },
+           avoidSameAff:true, showMatchNo:false, centerStyle:false, winLineColor:'#e23b3b' },
   version: SCHEMA_VERSION,
   roster: [],          // CSV等で読み込んだ選手のマスター（情報保持用）
   rosterLabel: '',     // 名前リスト欄に表示するCSVファイル名
@@ -1073,14 +1066,6 @@ function renderTabs(){
   const el = document.getElementById('ttabs');
   el.innerHTML = '';
   const multi = state.tournaments.length>1;
-  // 大会名：ブロックタブの隣に優先表示（閲覧でも表示／管理者は編集可）
-  if(!(viewMode && !(state.config.eventName||'').trim())){   // 閲覧で空のときは出さない
-    const ev = document.createElement('input');
-    ev.id='eventNameTab'; ev.className='event-name-tab'; ev.placeholder='大会名';
-    ev.value = state.config.eventName || ''; ev.readOnly = viewMode;
-    ev.oninput = ()=>{ state.config.eventName = ev.value; };
-    el.appendChild(ev);
-  }
   state.tournaments.forEach((t,i)=>{
     if(!multi) return;                                     // 1つだけならブロック名タブは出さない
     const b = document.createElement('button');
@@ -1102,6 +1087,7 @@ function renderTabs(){
     tg.onclick = ()=>{ state.stacked=!state.stacked; state.sel=null; renderAll(); };
     el.appendChild(tg);
   }
+  el.style.display = el.children.length ? '' : 'none';   // トーナメントが1つ＝タブが無いときは領域ごと消す
 }
 
 /* タブをその場でテキスト入力に変えて改名 */
@@ -2239,7 +2225,7 @@ function drawAds(inner, defBottom){
     if(!ad.pos){ ad.pos={ x: 12, y: (defBottom||0)+30 + idx*150 }; }   // 初期位置：ブラケットの下に縦並べ
     const box=document.createElement('div'); box.className='kanban-box'+(viewMode?'':' admin');
     box.style.left=ad.pos.x+'px'; box.style.top=ad.pos.y+'px';
-    const img=document.createElement('img'); img.className='kanban-img'; img.src=ad.img; img.alt='バナー'+(idx+1);
+    const img=document.createElement('img'); img.className='kanban-img'; img.src=ad.img; img.alt='バナー'+String.fromCharCode(65+idx);
     img.draggable=false;
     // 幅を指定（拡大縮小の保存値）。表示は描画領域(stageInner)のzoom倍率に連動して拡縮する。
     if(ad.w){ img.style.width=ad.w+'px'; img.style.maxWidth='none'; img.style.maxHeight='none'; img.style.height='auto'; }
@@ -2247,8 +2233,8 @@ function drawAds(inner, defBottom){
     if(viewMode){
       if(ad.link){ box.style.cursor='pointer'; box.title=ad.link; box.onclick=()=>adClick(idx, ad.link); }
     } else {
-      box.style.cursor='move'; box.title='バナー'+(idx+1)+'（ドラッグで移動・右下で拡大縮小）';
-      const lbl=document.createElement('div'); lbl.className='kanban-label'; lbl.textContent='バナー'+(idx+1);
+      box.style.cursor='move'; box.title='バナー'+String.fromCharCode(65+idx)+'（ドラッグで移動・右下で拡大縮小）';
+      const lbl=document.createElement('div'); lbl.className='kanban-label'; lbl.textContent='バナー'+String.fromCharCode(65+idx);
       box.appendChild(lbl);
       box.onpointerdown=(e)=>startAdDrag(e, idx);                 // 管理：DnDで移動（リンクへは飛ばない）
       const grip=document.createElement('div'); grip.className='kanban-grip'; grip.title='ドラッグで拡大縮小';
@@ -2313,14 +2299,14 @@ function renderAdFields(st){
   document.getElementById('kanbanViews').textContent=(st.views||0);
   const ads=ensureAds(); const wrap=document.getElementById('kanbanFields'); wrap.innerHTML='';
   for(let i=0;i<3;i++){
-    const ad=ads.items[i];
+    const ad=ads.items[i]; const L=String.fromCharCode(65+i);
     const div=document.createElement('div'); div.className='admodal-ad';
     div.innerHTML =
-      '<h3>バナー'+(i+1)+' <span class="kanban-clicks">リンク'+(i+1)+'クリック数：'+(clicks[i]||0)+'</span></h3>'+
-      '<label>画像'+(i+1)+'指定（画像URL）</label>'+
+      '<h3>バナー'+L+' <span class="kanban-clicks">リンク'+L+'クリック数：'+(clicks[i]||0)+'</span></h3>'+
+      '<label>画像'+L+'指定（画像URL）</label>'+
       '<div class="row"><input type="text" class="kanbanImg" data-i="'+i+'" value="'+esc(ad.img||'')+'" placeholder="https://…/banner.png" style="flex:1">'+
         '<button class="btn sm kanbanFile" data-i="'+i+'">ファイル…</button></div>'+
-      '<label style="margin-top:6px">リンク'+(i+1)+'指定（クリック先URL）</label>'+
+      '<label style="margin-top:6px">リンク'+L+'指定（クリック先URL）</label>'+
       '<input type="text" class="kanbanLink" data-i="'+i+'" value="'+esc(ad.link||'')+'" placeholder="https://sponsor.example.com">';
     wrap.appendChild(div);
   }
@@ -2341,8 +2327,9 @@ function shrinkImageToDataUrl(file, budgetChars){
       img.onload=()=>{
         const isPng=/^image\/png/i.test(file.type);
         // 寸法→画質の順で総当たりし、最初に予算内へ収まった結果を採用。最後は最小設定で妥協。
-        const dims=[960,720,560,420,320,240];
-        const qual=[0.82,0.7,0.58,0.45];
+        // バナーは画面上では小さく表示されるため、解像度・画質は控えめでも十分。容量優先で軽量化する。
+        const dims=[640,480,360,280,220,180];
+        const qual=[0.72,0.6,0.48,0.38];
         let best=null;
         for(const maxSide of dims){
           const scale=Math.min(1, maxSide/Math.max(img.naturalWidth, img.naturalHeight));
@@ -2374,9 +2361,9 @@ function pickAdImage(i){
   const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
   inp.onchange=async ()=>{ const f=inp.files[0]; if(!f) return;
     try{
-      const url=await shrinkImageToDataUrl(f, 12000);
+      const url=await shrinkImageToDataUrl(f, 9000);
       ensureAds().items[i].img=url; renderBracket(); refreshAdStats();   // refreshAdStatsが入力欄も縮小後URLで再描画
-      if(url && url.length>12000) toast('画像が大きめです（約'+Math.round(url.length/1024)+'KB相当）。表示はできますが保存時に上限を超える場合はURL指定にしてください', true);
+      if(url && url.length>9000) toast('この画像は大きいため、3枚使うと保存できないことがあります。きれいに出すには画像URL指定がおすすめです', true);
     }catch(err){ toast('画像エラー：'+((err&&err.message)||err), true); }
   };
   inp.click();
@@ -3139,7 +3126,7 @@ function normalizeState(){
   if(!Array.isArray(state.roster)) state.roster = [];
   const defs={zoom:1, showAff:false, showNumber:false, showSeed:false, lineColor:'#33404f', autoSave:false,
               theme:'light', playerSize:'中', otherSize:'なし', recordTime:false, repMode:'tournament', hideByes:true,
-              avoidSameAff:true, showMatchNo:false, centerStyle:false, winLineColor:'#e23b3b', eventName:''};
+              avoidSameAff:true, showMatchNo:false, centerStyle:false, winLineColor:'#e23b3b'};
   for(const k in defs){ if(state.config[k]===undefined) state.config[k]=defs[k]; }
   // 3位決定戦：あり/なしの真偽値に統一（旧文字列 'none'→false / その他→true）
   if(typeof state.config.third==='string') state.config.third = (state.config.third!=='none');
