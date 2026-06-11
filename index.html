@@ -77,6 +77,8 @@
     background:var(--panel); border-top:1px solid var(--line); min-height:46px }
   /* 閲覧画面では「次の試合」キューを上部へ（管理画面は従来どおり下部） */
   body.view-mode #queueBar{ order:-1; border-top:none; border-bottom:1px solid var(--line) }
+  /* 起動中（初回バックエンド取得まで・キャッシュ無し時）：素の空トーナメントを見せず背景のみ */
+  body.booting #stageInner, body.booting #ttabs, body.booting #queueBar{ visibility:hidden }
   .q-item{ display:flex; align-items:center; gap:7px; border:1px solid var(--line); border-radius:8px;
     padding:4px 10px; background:var(--panel2); white-space:nowrap }
   /* 状態色（ブラケットの試合番号と対応）: 次=橙 / 2・3番手=琥珀 / スキップ=灰 */
@@ -426,7 +428,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver22</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver23</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -763,18 +765,21 @@ const REFRESH_MS = 7000;              // 閲覧時の自動更新間隔（ミリ
 function runView(){ return true; }
 
 let _booted=false;                    // 初回のバックエンド取得が終わったか
+/* 起動高速化用キャッシュ：最後に表示/保存したdocをlocalStorageへ。次回起動時に即描画する。 */
+function cacheDoc(key, json){ try{ localStorage.setItem('servalCache:'+key, json); }catch(e){} }
 function showLoading(){
-  const inner=document.getElementById('stageInner');
+  const stage=document.getElementById('stage');   // stageInnerはboot中隠れるため親に出す
   if(!document.getElementById('loadingMsg')){
     const l=document.createElement('div'); l.id='loadingMsg'; l.textContent='読み込み中…';
     l.style.cssText='position:absolute; left:40px; top:60px; color:var(--muted); font-size:14px';
-    inner.appendChild(l);
+    stage.appendChild(l);
   }
 }
+function hideLoading(){ const l=document.getElementById('loadingMsg'); if(l) l.remove(); }
 function applyViewMode(){
   document.body.classList.toggle('view-mode', viewMode);
   startAutoRefresh();                 // 管理者・閲覧ともに定期同期（複数人運用を想定）
-  if(!_booted) showLoading();         // 初回はバックエンド取得まで素のトーナメントを描かない
+  if(!_booted){ if(document.body.classList.contains('booting')) showLoading(); }  // キャッシュ表示中はラベル不要
   else renderAll();
 }
 /* 起動直後の初回読込（両モード）。保存docがあれば反映し、なければ現状を描画。 */
@@ -784,10 +789,12 @@ async function initialLoad(){
     const r=await Backend.load(key);
     if(r && r.ok && r.json){
       const obj=JSON.parse(r.json); const res=loadParsed(obj);
-      if(res.ok){ _lastRemoteJson=r.json; markSaved(); syncConfigInputs(); }
+      if(res.ok){ _lastRemoteJson=r.json; markSaved(); syncConfigInputs(); cacheDoc(key, r.json); }
     }
   }catch(e){ /* 取得失敗は現状描画 */ }
   _booted=true;
+  document.body.classList.remove('booting');   // 背景のみ表示を解除
+  hideLoading();
   try{ renderAll(); }
   catch(err){ _showErr('描画エラー initialLoad: '+((err&&err.message)||err)+(err&&err.stack?('\n'+String(err.stack).split('\n').slice(0,5).join('\n')):'')); }
   try{ if(viewMode){ maybeShowBroadcast(); countAdView(); } }
@@ -809,7 +816,7 @@ function refreshTick(){
 /* 管理者の変更を保存（閲覧モードへ反映させるため）。 */
 function autoSyncSave(){
   const key=document.getElementById('docKey').value||'default';
-  Backend.save(key, JSON.stringify(state)).then(r=>{ if(r&&r.ok){ markSaved(); _lastRemoteJson=JSON.stringify(state); } }).catch(()=>{});
+  Backend.save(key, JSON.stringify(state)).then(r=>{ if(r&&r.ok){ markSaved(); _lastRemoteJson=JSON.stringify(state); cacheDoc(key, _lastRemoteJson); } }).catch(()=>{});
 }
 /* 管理者：未保存の変更・編集中（枠/試合の選択あり）のときは触らない。それ以外は最新を取り込む。 */
 async function adminRefresh(){
@@ -845,6 +852,7 @@ async function refreshFromBackend(){
       state.stacked=keepStacked;
       if(keepZoom) state.config.zoom=keepZoom;                    // ピンチズームを上書きしない
       markSaved();                                                // 閲覧側は常に「保存済み」基準（離脱警告を出さない）
+      cacheDoc(key, r.json);                                      // 次回起動の即時描画用
       renderAll();
       maybeShowBroadcast();                             // 管理者が押した演出を閲覧側でも表示
     }
@@ -3063,7 +3071,7 @@ async function doSave(){
   const key = document.getElementById('docKey').value || 'default';
   try{
     const r = await Backend.save(key, JSON.stringify(state));
-    if(r.ok) markSaved();
+    if(r.ok){ markSaved(); cacheDoc(key, JSON.stringify(state)); }
     toast(r.ok ? `保存しました（${Backend.hasGas?'GAS':'ローカル'}）` : ('保存失敗：'+(r.error||'不明なエラー')), !r.ok);
   }catch(err){ toast('保存失敗: '+((err&&err.message)||err||''), true); }
 }
@@ -3358,6 +3366,14 @@ function init(){
   document.getElementById('setWinLineColor').oninput=(e)=>{ state.config.winLineColor=e.target.value; renderBracket(); };
 
   updatePhaseUI();
+  // 起動直後に素の空トーナメントを見せない：前回表示のキャッシュがあれば即それを描画、
+  // なければバックエンド取得が終わるまで背景のみ（body.booting でステージを隠す）。
+  let bootShown=false;
+  try{
+    const cached=localStorage.getItem('servalCache:'+(document.getElementById('docKey').value||'default'));
+    if(cached){ const o=JSON.parse(cached); if(loadParsed(o).ok){ syncConfigInputs(); bootShown=true; } }
+  }catch(e){}
+  if(!bootShown) document.body.classList.add('booting');
   renderAll();
   if(typeof DEMO_CSV==='string' && DEMO_CSV.trim()){        // ★デモ用：起動時にサンプルCSVを読込（不要なら DEMO_CSV を空に）
     applyCsv(DEMO_CSV, 'kawarobo_entry_list_large.csv');
