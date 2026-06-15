@@ -1,6 +1,6 @@
 # Serval（トーナメント管理システム）引き継ぎ資料
 
-最終更新: 2026-06-14 / 現在の版: **index.html ver39 / GASデプロイ v57**
+最終更新: 2026-06-15 / 現在の版: **index.html ver41 / GASデプロイ v59**
 
 ## 1. これは何か
 M5Stack等とは別の、**GASホスト型の単一HTML Webアプリ**。トーナメント表の作成・運用・観客向け閲覧・大型表示（別画面）・スポンサーバナー・LINE呼出・演出（勝ち上がり/対戦カード）・**演出の動画書き出し**まで持つ。
@@ -28,7 +28,17 @@ M5Stack等とは別の、**GASホスト型の単一HTML Webアプリ**。トー�
 - **`google.script.run` の戻り値にDate等を含めるとクライアントに `null` が来る** → 日時は `toISOString()` で文字列化（`apiList`で実害があり修正済み）。
 - 1セル上限~5万字 → `apiSave`は49,500字超でエラー。バナー画像はcanvas圧縮で抑制済み。
 
-## 4. このセッションで実装した主な機能
+## 4. ファイル操作のルール
+- **ファイル削除は禁止**。不要ファイルは `DELETE/` フォルダを作成してそこへ移動する（`.gitignore` 済み）。
+- Claude Code に削除権限を与えていないため。実際の削除はユーザーが判断して行う。
+
+## 5. このセッションで実施した整理（2026-06-15）
+- **TournamentManager-Store の孤児 272 個を削除**: 初期 Code.gs（`84de2c4`）が `getStoreSheet_()` 内で SS_ID を読まずに毎回 `SpreadsheetApp.create()` していたバグが原因。ver20（`e864225`）で修正済みだが痕跡が残っていた。GAS に一時関数 `cleanupStoreSheetsONETIME` を仕込んで実行しクリーンアップ完了。
+- **不要ファイルを `DELETE/` へ移動**: `_bk/`（デバッグ残骸・2.6MB）、`_checkjs.js`、`_dbgdeploy.sh`。
+- **HANDOFF.md・CLAUDE.md を git 追跡に追加**（以前は git 管理外だった）。
+- **Googleドライブのゴミ箱**: 272 個の孤児 SS がゴミ箱に残っている→ユーザーが空にすることで容量回収可能。
+
+## 6. このセッションで実装した主な機能
 - **iframe余白除去**: 閲覧モードで`main.stage`を`height:auto`/`overflow:visible`、ブラケット下の空白を解消。
 - **🎬 演出設定モーダル**（左パネル「演出設定」）:
   - 自動演出ON/OFF（勝ち上がり/対戦カード/勝者線点滅）、演出時間（ADV/SP秒）。
@@ -45,7 +55,7 @@ M5Stack等とは別の、**GASホスト型の単一HTML Webアプリ**。トー�
 - **リネーム**: `JSON↓→⬇バックアップ` / `JSON↑→⬆復元`。「読込」は「📂開く」に統合。
 - **修正**: `apiList`のDate→ISO文字列化（一覧0件/null化バグ）。`doLoad`の警告を`isDirty()`基準（編集して未保存のときだけ確認）。
 
-## 5. 主要コードの場所（index.html内、関数名で検索）
+## 7. 主要コードの場所（index.html内、関数名で検索）
 - 状態: `let state = {`（`config`に演出/効果音/zoom等のフラグ）
 - 演出: `showAdvanceCtx` `showSpotlightCtx` `showAdvance` `showSpotlight` `_matchXY` `maybeShowBroadcast`
 - 効果音: `playAdvSfx` `playSpSfx` `sfxAdv1..3` `sfxSp1..3` `syncEffectsModal`
@@ -55,10 +65,10 @@ M5Stack等とは別の、**GASホスト型の単一HTML Webアプリ**。トー�
 - 保存/読込: `doSave` `doLoad` `doExport` `doImport` `markSaved` `isDirty` / Backend抽象は `const Backend = (function(){`
 - 試合データ: `matchBrief` `matchCompetitors` `matchKeyResult` `matchNoMap` `competitorOf` `drawConnector`（winKey=`data-wk`）
 
-## 6. 既知の注意 / 次の一手候補
+## 8. 既知の注意 / 次の一手候補
 - デプロイは必ず §2 の手順（background + ログ読み）。直叩きは禁止（ハーネス落ち）。
 - 動画書き出しは未編集の実機で見え方（進行の空欄/記入差・赤点滅・⚡位置）を要目視確認。調整余地: 点滅速度・尺・ブラケット拡大率・カードのフォント/行数・暗転をクロスフェード化。
 - Workspaceセッション制御を「無期限」にすれば clasp 再ログイン頻度を減らせる（Admin Console → セキュリティ → Google Cloud セッション制御）。
 
-## 7. 関連メモリ（.claude/.../memory/）
+## 9. 関連メモリ（.claude/.../memory/）
 - `serval-gas-deployment` / `serval-version-bump` / `serval-gas-white-screen` / `serval-gas-run-date-null` / `clasp-powershell-wedge`
