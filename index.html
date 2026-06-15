@@ -109,13 +109,19 @@
     50%{ filter:drop-shadow(0 0 26px rgba(255,193,7,1)) } }
 
   .body{display:flex; flex:1 1 auto; min-height:0}
+  /* 閲覧モードではstageをコンテンツ高さに合わせる（ブラケット下の空白を消す） */
+  body.view-mode{ overflow:auto }
+  body.view-mode .app{ height:auto }
+  body.view-mode .body{ flex:0 0 auto }
+  body.view-mode main.stage{ flex:0 0 auto; height:auto; overflow:visible }
 
   /* ---- 閲覧専用モード（観客向け）：操作UIを隠し、ブラケットのみ表示 ---- */
   body.view-mode .topbar,
   body.view-mode aside.controls,
   body.view-mode aside.inspector,
   body.view-mode #docKey,
-  body.view-mode #btnLoad,
+  body.view-mode #btnOpen,
+  body.view-mode #btnNew,
   body.view-mode #btnSave,
   body.view-mode #btnExport,
   body.view-mode #btnImport,
@@ -156,7 +162,7 @@
   /* ---- 中央：ブラケット ---- */
   main.stage{flex:1 1 auto; position:relative; overflow:auto; touch-action:pan-x pan-y; background:
     radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 0) 0 0/22px 22px, var(--bg);}
-  .stage-inner{position:relative; padding:46px 40px 30px}
+  .stage-inner{position:relative}
   .champion-tag{position:absolute; font-size:11px; color:var(--muted); white-space:nowrap}
   .event-title{position:absolute; font-size:18px; font-weight:700; color:var(--text); white-space:nowrap; letter-spacing:.02em}
   .match-no{position:absolute; font-size:13px; font-weight:700; color:var(--accent);
@@ -437,15 +443,16 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver25</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver41</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
     <input id="docKey" class="btn" style="width:160px" value="default" title="保存キー（ドキュメント名）">
-    <button class="btn" id="btnLoad">読込</button>
+    <button class="btn" id="btnOpen" title="保存済みトーナメントの一覧から開く">📂 開く</button>
+    <button class="btn" id="btnNew" title="新しいトーナメントを作成">✚ 新規</button>
     <button class="btn primary" id="btnSave">保存</button>
-    <button class="btn" id="btnExport">JSON↓</button>
-    <button class="btn" id="btnImport">JSON↑</button>
+    <button class="btn" id="btnExport" title="現在の内容をJSONファイルとして保存（バックアップ）">⬇ バックアップ</button>
+    <button class="btn" id="btnImport" title="JSONバックアップファイルから復元">⬆ 復元</button>
     <button class="btn" id="btnBoard" title="現在の試合を別画面で大写し（第2モニター用）">📺 別画面</button>
     <button class="btn" id="btnViewMode" title="閲覧専用モードを確認">👁 閲覧</button>
   </header>
@@ -504,8 +511,10 @@ window.addEventListener('unhandledrejection', function(ev){
       </div>
 
       <div class="group"><button class="btn" id="btnSettings" style="width:100%">⚙ 表示設定</button></div>
+      <div class="group"><button class="btn" id="btnEffects" style="width:100%">🎬 演出設定</button></div>
       <div class="group"><button class="btn" id="btnKanban" style="width:100%">📢 バナー設定</button></div>
       <div class="group"><button class="btn" id="btnBoardCfg" style="width:100%">📺 別画面設定</button></div>
+      <div class="group"><button class="btn" id="btnExportVideo" style="width:100%">🎞 動画用に書き出し</button></div>
     </aside>
 
     <!-- 中央：ブラケット描画 -->
@@ -574,6 +583,147 @@ window.addEventListener('unhandledrejection', function(ev){
     </div>
     <div class="admodal-actions">
       <button class="btn primary" id="boardCfgClose" style="width:100%">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 演出設定モーダル -->
+<div class="admodal" id="effectsModal" hidden>
+  <div class="admodal-card">
+    <h2>🎬 演出設定</h2>
+    <h3 style="font-size:12px;color:var(--muted);margin:0 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">自動演出（送信時）</h3>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAutoAdvance" checked>勝ち上がり演出を自動再生する</label>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAutoSpotlight" checked>次の試合カードを自動表示する</label>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAutoBlinkWins">勝者線を点滅させる</label>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAdminOnlyAnim">演出を管理側のみに表示する（閲覧者に配信しない）</label>
+    <label class="check" style="margin-bottom:4px"><input type="checkbox" id="efxAdminOnlySfx" checked>効果音を管理側のみで再生する（閲覧者では鳴らさない）</label>
+    <hr class="insp-rule">
+    <h3 style="font-size:12px;color:var(--muted);margin:12px 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">演出時間</h3>
+    <div class="row">
+      <div class="field">
+        <label>勝ち上がり演出（秒）</label>
+        <select id="efxAdvMs">
+          <option value="2000">2秒</option>
+          <option value="3000" selected>3秒（標準）</option>
+          <option value="4000">4秒</option>
+          <option value="5000">5秒</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>対戦カード演出（秒）</label>
+        <select id="efxSpMs">
+          <option value="1500">1.5秒</option>
+          <option value="2000" selected>2秒（標準）</option>
+          <option value="3000">3秒</option>
+          <option value="4000">4秒</option>
+        </select>
+      </div>
+    </div>
+    <hr class="insp-rule">
+    <h3 style="font-size:12px;color:var(--muted);margin:12px 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">効果音 — 勝ち上がり演出</h3>
+    <div class="field">
+      <div style="display:flex;gap:6px;align-items:center">
+        <select id="efxAdvSfxMode" style="flex:1">
+          <option value="none">なし</option>
+          <option value="preset1">プリセット1 — ファンファーレ</option>
+          <option value="preset2">プリセット2 — 勝利ドラム</option>
+          <option value="preset3">プリセット3 — 勝利チャイム</option>
+          <option value="url">URLを指定…</option>
+        </select>
+        <button class="btn sm" id="efxAdvSfxTest" title="試聴">▶</button>
+      </div>
+    </div>
+    <div class="field" id="efxAdvUrlRow" style="display:none">
+      <label>音声ファイルURL（mp3 / ogg 等）</label>
+      <input type="text" id="efxAdvSfxUrl" placeholder="https://example.com/sound.mp3">
+    </div>
+    <h3 style="font-size:12px;color:var(--muted);margin:14px 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">効果音 — 対戦カード演出</h3>
+    <div class="field">
+      <div style="display:flex;gap:6px;align-items:center">
+        <select id="efxSpSfxMode" style="flex:1">
+          <option value="none">なし</option>
+          <option value="preset1">プリセット1 — ドラムロール</option>
+          <option value="preset2">プリセット2 — 衝撃＆スウッシュ</option>
+          <option value="preset3">プリセット3 — カウントダウン</option>
+          <option value="url">URLを指定…</option>
+        </select>
+        <button class="btn sm" id="efxSpSfxTest" title="試聴">▶</button>
+      </div>
+    </div>
+    <div class="field" id="efxSpUrlRow" style="display:none">
+      <label>音声ファイルURL（mp3 / ogg 等）</label>
+      <input type="text" id="efxSpSfxUrl" placeholder="https://example.com/sound.mp3">
+    </div>
+    <div class="admodal-actions">
+      <button class="btn primary" id="effectsClose" style="width:100%">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 動画書き出しモーダル -->
+<div class="admodal" id="exportVideoModal" hidden>
+  <div class="admodal-card">
+    <h2>🎞 演出を動画用に書き出し</h2>
+    <p style="font-size:12px;color:var(--muted);line-height:1.7;margin:0 0 12px">
+      実施済みの全試合の演出を <b>PNG連番（固定30fps＝厳密CFR）</b> で書き出します。
+      演出ごと（スレート／勝ち上がり／暗転）に別フォルダ＝別ファイルになります。
+      ZIP内の <code>build_mp4</code> スクリプトでFFmpegにより 1920×864 / H.264 / yuv420p のMP4へ変換できます。
+    </p>
+    <div class="row">
+      <div class="field">
+        <label>解像度</label>
+        <select id="exvRes">
+          <option value="1920x864" selected>1920 × 864</option>
+          <option value="1920x1080">1920 × 1080</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>フレームレート</label>
+        <select id="exvFps" disabled><option>30fps（CFR・固定）</option></select>
+      </div>
+    </div>
+    <h3 style="font-size:12px;color:var(--muted);margin:6px 0 8px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">書き出す演出と尺（フレーム数）</h3>
+    <label class="check" style="margin-bottom:8px"><input type="checkbox" id="exvSlate" checked>試合スレート
+      <input type="number" id="exvSlateF" value="60" min="1" max="600" style="width:64px;height:28px;margin-left:auto">
+      <span style="font-size:11px;color:var(--muted)" id="exvSlateS">= 2.000s</span></label>
+    <label class="check" style="margin-bottom:8px"><input type="checkbox" id="exvAdvance" checked>勝ち上がり演出
+      <input type="number" id="exvAdvF" value="90" min="1" max="600" style="width:64px;height:28px;margin-left:auto">
+      <span style="font-size:11px;color:var(--muted)" id="exvAdvS">= 3.000s</span></label>
+    <label class="check" style="margin-bottom:8px"><input type="checkbox" id="exvProgress" checked>トーナメント進行（変化した線が赤点滅）
+      <input type="number" id="exvProgF" value="75" min="1" max="600" style="width:64px;height:28px;margin-left:auto">
+      <span style="font-size:11px;color:var(--muted)" id="exvProgS">= 2.500s</span></label>
+    <label class="check" style="margin-bottom:8px"><input type="checkbox" id="exvBlackout">暗転（区切り）
+      <input type="number" id="exvBlackF" value="15" min="1" max="600" style="width:64px;height:28px;margin-left:auto">
+      <span style="font-size:11px;color:var(--muted)" id="exvBlackS">= 0.500s</span></label>
+    <div class="field" style="margin-top:6px">
+      <label>対象範囲</label>
+      <select id="exvScope">
+        <option value="all" selected>全試合（番号順）</option>
+        <option value="current">現在表示中のトーナメントのみ</option>
+      </select>
+    </div>
+    <div id="exvEstimate" style="font-size:12px;color:var(--muted);margin:8px 0 4px"></div>
+    <div id="exvProgressWrap" style="display:none;margin:10px 0">
+      <div style="height:8px;background:var(--panel2);border-radius:5px;overflow:hidden">
+        <div id="exvProgressBar" style="height:100%;width:0;background:var(--accent2);transition:width .1s"></div>
+      </div>
+      <div id="exvProgressTxt" style="font-size:11.5px;color:var(--muted);margin-top:6px"></div>
+    </div>
+    <div class="admodal-actions" style="display:flex;gap:8px">
+      <button class="btn" id="exvCancel" style="flex:1">閉じる</button>
+      <button class="btn primary" id="exvStart" style="flex:2">書き出し開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- 開く（保存済み一覧）モーダル -->
+<div class="admodal" id="openModal" hidden>
+  <div class="admodal-card">
+    <h2>📂 保存済みトーナメントを開く</h2>
+    <div id="openList" style="max-height:52vh;overflow:auto;margin:6px 0 4px">読み込み中…</div>
+    <div class="admodal-actions" style="display:flex;gap:8px">
+      <button class="btn" id="openClose" style="flex:1">閉じる</button>
+      <button class="btn" id="openReload" style="flex:1">再読込</button>
     </div>
   </div>
 </div>
@@ -742,7 +892,9 @@ let state = {
   config:{ size:8, count:1, third:false, order:'block', players:0, seedCount:0, palette:clonePalette(),
            zoom:1, showAff:false, showNumber:false, showSeed:false, lineColor:'#33404f', autoSave:false,
            theme:'light', playerSize:'中', otherSize:'なし', recordTime:false, repMode:'tournament', hideByes:true,
-           avoidSameAff:true, showMatchNo:false, centerStyle:false, winLineColor:'#e23b3b' },
+           avoidSameAff:true, showMatchNo:false, centerStyle:false, winLineColor:'#e23b3b',
+           autoAdvance:true, autoSpotlight:true, autoBlinkWins:true,
+           adminOnlyAnim:false, adminOnlySfx:true },
   version: SCHEMA_VERSION,
   roster: [],          // CSV等で読み込んだ選手のマスター（情報保持用）
   rosterLabel: '',     // 名前リスト欄に表示するCSVファイル名
@@ -876,7 +1028,8 @@ function maybeShowBroadcast(){
   if(adv && adv.ts && adv.ts!==lastAdvanceTs){
     if(lastAdvanceTs!==null){
       const a=adv.a||{name:adv.aName, aff:adv.aAff}, b=adv.b||{name:adv.bName, aff:adv.bAff};   // 旧形式も後方互換
-      showAdvance(a, b, adv.win, adv.colA, adv.colB); delay=ADV_MS+CARD_GAP; advEnd=ADV_MS; advKey=adv.key||null;
+      if(!state.config.adminOnlySfx) playAdvSfx();
+      showAdvance(a, b, adv.win, adv.colA, adv.colB, _matchXY(adv.key||null)); delay=ADV_MS()+CARD_GAP; advEnd=ADV_MS(); advKey=adv.key||null;
     }
     lastAdvanceTs=adv.ts;
   }
@@ -885,8 +1038,8 @@ function maybeShowBroadcast(){
   if(sp && sp.ts && sp.ts!==lastSpotlightTs){
     if(lastSpotlightTs!==null){
       const a=sp.a||{name:sp.aName, aff:sp.aAff}, b=sp.b||{name:sp.bName, aff:sp.bAff};
-      setTimeout(()=> showSpotlight(a, b, sp.colTop, sp.colBot, sp.header||''), delay);
-      lastEnd=delay+SP_MS;
+      const spKey=sp.key||null; setTimeout(()=>{ if(!state.config.adminOnlySfx) playSpSfx(); showSpotlight(a, b, sp.colTop, sp.colBot, sp.header||'', _matchXY(spKey)); }, delay);
+      lastEnd=delay+SP_MS();
     }
     lastSpotlightTs=sp.ts;
   }
@@ -1048,7 +1201,7 @@ function spotlightForKey(key, header){
     const i=key.indexOf(':'); const t=tournById(+key.slice(0,i));
     if(t){ colTop=paletteHex(t.colorTop); colBot=paletteHex(t.colorBottom); }
   }
-  showSpotlightCtx({ a:{name:b.a,aff:''}, b:{name:b.b,aff:''}, colTop, colBot, header });
+  showSpotlightCtx({ a:{name:b.a,aff:''}, b:{name:b.b,aff:''}, colTop, colBot, header, matchKey:key });
 }
 
 function renderColorPickers(){
@@ -2529,14 +2682,19 @@ function sendResultCtx(ctx){
       const nk=nextMatchKey();
       const nextChanged = nk && nk!==oldNext;        // 次の試合が変わったときだけカード演出
       const hasWin = pend.kind!=='勝者なし';
+      const cfgAdv = state.config.autoAdvance !== false;
+      const cfgSp  = state.config.autoSpotlight !== false;
+      const cfgBlink = state.config.autoBlinkWins !== false;
       if(hasWin){
         if(animate) animate();
-        showAdvanceCtx({a:ctx.a, b:ctx.b, win:pend.win, colTop:ctx.colTop, colBot:ctx.colBot, noKey:ctx.noKey});  // ①勝ち上がり演出
-        if(nextChanged) setTimeout(()=> spotlightForKey(nk, '次の試合'), ADV_MS+CARD_GAP);    // ②次の試合の対戦カード演出
-        // ③演出後、勝ち上がった試合の赤線だけ点滅
-        const blinkAt = ADV_MS + (nextChanged? CARD_GAP+SP_MS : 0) + 200;
-        setTimeout(()=> blinkBracketWins(ctx.noKey), blinkAt);
-      } else if(nextChanged){
+        if(cfgAdv) showAdvanceCtx({a:ctx.a, b:ctx.b, win:pend.win, colTop:ctx.colTop, colBot:ctx.colBot, noKey:ctx.noKey});  // ①勝ち上がり演出
+        const advDelay = cfgAdv ? ADV_MS()+CARD_GAP : 0;
+        if(cfgSp && nextChanged) setTimeout(()=> spotlightForKey(nk, '次の試合'), advDelay);    // ②次の試合の対戦カード演出
+        if(cfgBlink){
+          const blinkAt = (cfgAdv ? ADV_MS() : 0) + (cfgSp && nextChanged ? CARD_GAP+SP_MS() : 0) + 200;
+          setTimeout(()=> blinkBracketWins(ctx.noKey), blinkAt);
+        }
+      } else if(cfgSp && nextChanged){
         spotlightForKey(nk, '次の試合');
       }
       if(nk) openMatchByKey(nk);                      // 送信後、運営画面を自動で次の試合へ
@@ -2580,8 +2738,178 @@ function stopStopwatch(){
   const sw=document.getElementById('swBtn'); if(sw) sw.textContent='計測';
 }
 
-/* 演出タイミング（ms）。ADV=勝ち上がり表示時間 / SP=対戦カード表示時間 / GAP=間隔（重なり防止） */
-const ADV_MS=3000, SP_MS=2000, CARD_GAP=400;
+/* 演出タイミング（ms）。config.advMs / config.spMs が設定されていればそちらを優先する。 */
+const _ADV_MS_DEF=3000, _SP_MS_DEF=2000, CARD_GAP=400;
+function ADV_MS(){ return state.config.advMs || _ADV_MS_DEF; }
+function SP_MS(){  return state.config.spMs  || _SP_MS_DEF;  }
+/* 演出設定モーダルの値をstateに同期 */
+function _sfxSel(id, val){ const s=document.getElementById(id); if(s) s.value=val||'none'; }
+function _sfxUrlRow(rowId, modeId){
+  const m=document.getElementById(modeId); const r=document.getElementById(rowId);
+  if(m&&r) r.style.display=(m.value==='url')?'':'none';
+}
+function syncEffectsModal(){
+  document.getElementById('efxAutoAdvance').checked   = state.config.autoAdvance    !== false;
+  document.getElementById('efxAutoSpotlight').checked  = state.config.autoSpotlight  !== false;
+  document.getElementById('efxAutoBlinkWins').checked  = state.config.autoBlinkWins  !== false;
+  document.getElementById('efxAdminOnlyAnim').checked  = !!state.config.adminOnlyAnim;
+  document.getElementById('efxAdminOnlySfx').checked   = state.config.adminOnlySfx   !== false;
+  const asel=document.getElementById('efxAdvMs'), ssel=document.getElementById('efxSpMs');
+  asel.value=String(state.config.advMs||_ADV_MS_DEF); if(!asel.value) asel.value=String(_ADV_MS_DEF);
+  ssel.value=String(state.config.spMs||_SP_MS_DEF);   if(!ssel.value) ssel.value=String(_SP_MS_DEF);
+  _sfxSel('efxAdvSfxMode', state.config.advSfxMode);
+  document.getElementById('efxAdvSfxUrl').value=state.config.advSfxUrl||'';
+  _sfxUrlRow('efxAdvUrlRow','efxAdvSfxMode');
+  _sfxSel('efxSpSfxMode', state.config.spSfxMode);
+  document.getElementById('efxSpSfxUrl').value=state.config.spSfxUrl||'';
+  _sfxUrlRow('efxSpUrlRow','efxSpSfxMode');
+}
+
+/* ---- 効果音（Web Audio API） ---- */
+function _sfxCtx(){ return window._sfxAC||(window._sfxAC=new(window.AudioContext||window.webkitAudioContext)()); }
+function playSfxUrl(url){ try{ const a=new Audio(url); a.play().catch(()=>{}); }catch(e){} }
+
+/* === 勝ち上がり演出用プリセット === */
+function sfxAdv1(){
+  // ファンファーレ：C4→E4→G4→C5 サビ感のあるブラス風上昇
+  const ac=_sfxCtx(), notes=[261.63,329.63,392.00,523.25];
+  notes.forEach((f,i)=>{
+    const osc=ac.createOscillator(), g=ac.createGain();
+    osc.connect(g); g.connect(ac.destination);
+    osc.type='sawtooth'; osc.frequency.value=f;
+    const t=ac.currentTime+i*0.13;
+    g.gain.setValueAtTime(0.28,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.32);
+    osc.start(t); osc.stop(t+0.32);
+  });
+}
+function sfxAdv2(){
+  // 勝利ドラム：キック→スネア×2→クラッシュ。エネルギッシュな勝利感
+  const ac=_sfxCtx();
+  function kick(t){
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.frequency.setValueAtTime(160,t); o.frequency.exponentialRampToValueAtTime(40,t+0.12);
+    g.gain.setValueAtTime(0.8,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+    o.start(t); o.stop(t+0.25);
+  }
+  function snare(t){
+    const buf=ac.createBuffer(1,Math.floor(0.15*ac.sampleRate),ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let j=0;j<d.length;j++) d[j]=(Math.random()*2-1)*Math.pow(1-j/d.length,1.5);
+    const s=ac.createBufferSource(), g=ac.createGain();
+    s.buffer=buf; s.connect(g); g.connect(ac.destination);
+    g.gain.setValueAtTime(0.55,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.15);
+    s.start(t);
+  }
+  function crash(t){
+    const buf=ac.createBuffer(1,Math.floor(0.9*ac.sampleRate),ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let j=0;j<d.length;j++) d[j]=(Math.random()*2-1)*Math.pow(1-j/d.length,0.3);
+    const s=ac.createBufferSource(), g=ac.createGain(), hp=ac.createBiquadFilter();
+    hp.type='highpass'; hp.frequency.value=3000;
+    s.buffer=buf; s.connect(hp); hp.connect(g); g.connect(ac.destination);
+    g.gain.setValueAtTime(0.5,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.9);
+    s.start(t);
+  }
+  const n=ac.currentTime;
+  kick(n); snare(n+0.22); snare(n+0.38); crash(n+0.52);
+}
+function sfxAdv3(){
+  // 勝利チャイム：C5→E5→G5→C6 の澄んだベル。授賞式・華やかな場面向け
+  const ac=_sfxCtx(), notes=[523.25,659.25,783.99,1046.5];
+  notes.forEach((f,i)=>{
+    const osc=ac.createOscillator(), g=ac.createGain();
+    osc.connect(g); g.connect(ac.destination);
+    osc.type='sine'; osc.frequency.value=f;
+    const t=ac.currentTime+i*0.20;
+    g.gain.setValueAtTime(0.32,t); g.gain.exponentialRampToValueAtTime(0.001,t+1.0);
+    osc.start(t); osc.stop(t+1.0);
+  });
+}
+
+/* === 対戦カード演出用プリセット === */
+function sfxSp1(){
+  // ドラムロール→クラッシュ：発表直前の緊張感ビルドアップ
+  const ac=_sfxCtx();
+  for(let i=0;i<12;i++){
+    const buf=ac.createBuffer(1,Math.floor(0.035*ac.sampleRate),ac.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let j=0;j<d.length;j++) d[j]=(Math.random()*2-1)*(1-j/d.length);
+    const s=ac.createBufferSource(), g=ac.createGain();
+    s.buffer=buf; s.connect(g); g.connect(ac.destination);
+    g.gain.value=0.12+i*0.018; s.start(ac.currentTime+i*0.048);
+  }
+  const cBuf=ac.createBuffer(1,Math.floor(0.8*ac.sampleRate),ac.sampleRate);
+  const cDat=cBuf.getChannelData(0);
+  for(let j=0;j<cDat.length;j++) cDat[j]=(Math.random()*2-1)*Math.pow(1-j/cDat.length,0.28);
+  const cs=ac.createBufferSource(), cg=ac.createGain(), hp=ac.createBiquadFilter();
+  hp.type='highpass'; hp.frequency.value=3500;
+  cs.buffer=cBuf; cs.connect(hp); hp.connect(cg); cg.connect(ac.destination);
+  const ct=ac.currentTime+0.58;
+  cg.gain.setValueAtTime(0.45,ct); cg.gain.exponentialRampToValueAtTime(0.001,ct+0.8);
+  cs.start(ct);
+}
+function sfxSp2(){
+  // 衝撃＆スウッシュ：ドスンとした低音インパクト＋高域スウッシュ。映画的な登場演出
+  const ac=_sfxCtx(), n=ac.currentTime;
+  // バスインパクト
+  const o=ac.createOscillator(), g=ac.createGain();
+  o.connect(g); g.connect(ac.destination);
+  o.frequency.setValueAtTime(80,n); o.frequency.exponentialRampToValueAtTime(30,n+0.35);
+  g.gain.setValueAtTime(0.9,n); g.gain.exponentialRampToValueAtTime(0.001,n+0.4);
+  o.start(n); o.stop(n+0.4);
+  // スウッシュ（上昇ノイズ）
+  const buf=ac.createBuffer(1,Math.floor(0.5*ac.sampleRate),ac.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let j=0;j<d.length;j++) d[j]=(Math.random()*2-1)*0.3*(j/d.length);
+  const s=ac.createBufferSource(), sg=ac.createGain(), lp=ac.createBiquadFilter();
+  lp.type='bandpass'; lp.frequency.value=2000; lp.Q.value=0.5;
+  s.buffer=buf; s.connect(lp); lp.connect(sg); sg.connect(ac.destination);
+  sg.gain.setValueAtTime(0.0,n+0.05); sg.gain.linearRampToValueAtTime(0.6,n+0.3);
+  sg.gain.exponentialRampToValueAtTime(0.001,n+0.55);
+  s.start(n+0.05);
+}
+function sfxSp3(){
+  // カウントダウン：3回の上昇ビープ→ポン。試合開始直前の緊張感
+  const ac=_sfxCtx(), beeps=[440,550,660,880];
+  beeps.forEach((f,i)=>{
+    const osc=ac.createOscillator(), g=ac.createGain();
+    osc.connect(g); g.connect(ac.destination);
+    osc.type='square'; osc.frequency.value=f;
+    const t=ac.currentTime+i*0.22;
+    const dur=i<3?0.10:0.18;
+    g.gain.setValueAtTime(0.18,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    osc.start(t); osc.stop(t+dur);
+  });
+}
+
+function _runSfx(mode, url){
+  if(mode==='preset1'||mode==='preset2'||mode==='preset3') return true; return false;
+}
+function playAdvSfx(){
+  const m=state.config.advSfxMode||'none';
+  if(m==='preset1') sfxAdv1();
+  else if(m==='preset2') sfxAdv2();
+  else if(m==='preset3') sfxAdv3();
+  else if(m==='url' && state.config.advSfxUrl) playSfxUrl(state.config.advSfxUrl);
+}
+function playSpSfx(){
+  const m=state.config.spSfxMode||'none';
+  if(m==='preset1') sfxSp1();
+  else if(m==='preset2') sfxSp2();
+  else if(m==='preset3') sfxSp3();
+  else if(m==='url' && state.config.spSfxUrl) playSfxUrl(state.config.spSfxUrl);
+}
+function testAdvSfx(){
+  const m=document.getElementById('efxAdvSfxMode').value;
+  if(m==='preset1') sfxAdv1(); else if(m==='preset2') sfxAdv2(); else if(m==='preset3') sfxAdv3();
+  else if(m==='url'){ const u=document.getElementById('efxAdvSfxUrl').value.trim(); if(u) playSfxUrl(u); }
+}
+function testSpSfx(){
+  const m=document.getElementById('efxSpSfxMode').value;
+  if(m==='preset1') sfxSp1(); else if(m==='preset2') sfxSp2(); else if(m==='preset3') sfxSp3();
+  else if(m==='url'){ const u=document.getElementById('efxSpSfxUrl').value.trim(); if(u) playSfxUrl(u); }
+}
 /* 演出カードの中身（対戦カード/勝ち上がり 共通）。上に色線、下に名前＋タイプ＋紹介文。
    extra=追加クラス（例 'adv-card'）。c={name,aff,type1,type2,intro}|null */
 </script>
@@ -2597,39 +2925,78 @@ function spotCardInner(c, col){
 function spotCard(c, col, extra){
   return '<div class="sp-card'+(extra?' '+extra:'')+'" style="border-color:'+col+'">'+spotCardInner(c,col)+'</div>';
 }
+/* ブラケット上の試合の交点 {x, y} を viewport 座標で返す。noKey="tid:r:j"。
+   X = ソーススロット右端とWinnerスロット左端の中点（コネクタ線の分岐点）
+   Y = 2スロットの中心Y平均 */
+function _matchXY(noKey){
+  if(!noKey) return null;
+  const p=noKey.split(':'); if(p.length<3) return null;
+  const tid=p[0], r=+p[1], j=+p[2];
+  const q=(dr,dj)=>document.querySelector(`.runwin[data-tid="${tid}"][data-r="${dr}"][data-j="${dj}"]`);
+  const rc=(el)=>el.getBoundingClientRect();
+  if(r>0){
+    const sA=q(r-1,j*2), sB=q(r-1,j*2+1), dest=q(r,j);
+    if(sA&&sB){
+      const rA=rc(sA), rB=rc(sB);
+      const y=(rA.top+rA.height/2 + rB.top+rB.height/2)/2;
+      const srcRight=Math.max(rA.right, rB.right);
+      const x=dest ? (srcRight+rc(dest).left)/2 : srcRight+50;
+      return {x, y};
+    }
+    if(sA){ const rA=rc(sA); return {x:rA.right+40, y:rA.top+rA.height/2}; }
+  }
+  const dest=q(r,j);
+  if(dest){ const rd=rc(dest); return {x:rd.left+rd.width/2, y:rd.top+rd.height/2}; }
+  return null;
+}
+/* オーバーレイのbodyコンテンツを {x,y} 中心にシフト（X・Y両方） */
+function _setOverlayXY(ov, bodyClass, xy){
+  const body=ov.querySelector(bodyClass); if(!body) return;
+  if(!xy){ body.style.marginTop=''; body.style.marginLeft=''; return; }
+  const vh=window.innerHeight, vw=window.innerWidth;
+  const cy=Math.max(vh*0.12, Math.min(vh*0.85, xy.y));
+  const cx=Math.max(vw*0.1,  Math.min(vw*0.9,  xy.x));
+  body.style.marginTop =(cy - vh/2)+'px';
+  body.style.marginLeft=(cx - vw/2)+'px';
+}
+
 /* 演出：対戦カードを大写しにするオーバーレイ（表示のみ）。a,b={name,aff,type1,type2,intro}|null */
 let spotlightTimer;
-function showSpotlight(a,b,colTop,colBot,header){
+function showSpotlight(a,b,colTop,colBot,header,xy){
   const ov=document.getElementById('spotlight');
   const head = header ? '<div class="sp-head">'+esc(header)+'</div>' : '';
   ov.querySelector('.sp-body').innerHTML = head + '<div class="sp-cards">'+spotCard(a,colTop)+'<div class="sp-vs">VS</div>'+spotCard(b,colBot)+'</div>';
+  _setOverlayXY(ov, '.sp-body', xy);
   ov.classList.add('show');
   clearTimeout(spotlightTimer);
-  spotlightTimer=setTimeout(()=> ov.classList.remove('show'), SP_MS);   // 自動で消える
+  spotlightTimer=setTimeout(()=> ov.classList.remove('show'), SP_MS());   // 自動で消える
 }
 /* 配信用：演出に出す選手情報（名前・所属・タイプ・紹介文）を抜き出す。 */
 function spotPersist(c){ return c ? {name:c.name||'', aff:c.aff||'', type1:c.type1||'', type2:c.type2||'', intro:c.intro||''} : null; }
 /* 管理者が演出ボタンを押したとき：自分で表示し、閲覧側にも配信（stateに合図を保存）。 */
 function showSpotlightCtx(ctx){
-  const {a,b,colTop,colBot,header}=ctx;
-  showSpotlight(a,b,colTop,colBot,header);
-  state.spotlight = { a:spotPersist(a), b:spotPersist(b), colTop, colBot, header:header||'', ts:Date.now() };
-  lastSpotlightTs = state.spotlight.ts;                 // 自分の表示は再表示しない
+  const {a,b,colTop,colBot,header,matchKey}=ctx;
+  playSpSfx();
+  showSpotlight(a,b,colTop,colBot,header, _matchXY(matchKey||null));
+  if(state.config.adminOnlyAnim){ lastSpotlightTs=Date.now(); return; }  // 閲覧側へ配信しない
+  state.spotlight = { a:spotPersist(a), b:spotPersist(b), colTop, colBot, header:header||'', key:matchKey||'', ts:Date.now() };
+  lastSpotlightTs = state.spotlight.ts;
   const key=document.getElementById('docKey').value||'default';
   Backend.save(key, JSON.stringify(state)).then(()=>markSaved()).catch(()=>{});
 }
 
 /* 勝ち上がり演出：両枠が火花→勝者拡大・敗者縮小＋赤線。win=0:a / 1:b */
 let advanceTimer;
-function showAdvance(a,b,win,colA,colB){
+function showAdvance(a,b,win,colA,colB,xy){
   const ov=document.getElementById('advance');
   // 対戦カード演出と同じカード構造（上の色線・名前・タイプ・紹介文）に勝敗の拡大縮小を重ねる
   ov.querySelector('.adv-body').innerHTML='<div class="sp-head">リザルト</div><div class="adv-cards sp-cards">'+spotCard(a,colA,'adv-card')+'<div class="adv-spark">⚡</div>'+spotCard(b,colB,'adv-card')+'</div><div class="adv-line"></div>';
+  _setOverlayXY(ov, '.adv-body', xy);
   ov.classList.remove('phase-result'); ov.classList.add('show');
   setTimeout(()=>{ const c=ov.querySelectorAll('.adv-card');
     if(c[win]) c[win].classList.add('win'); if(c[1-win]) c[1-win].classList.add('lose');
     ov.classList.add('phase-result'); }, 1150);
-  clearTimeout(advanceTimer); advanceTimer=setTimeout(()=> ov.classList.remove('show','phase-result'), ADV_MS);
+  clearTimeout(advanceTimer); advanceTimer=setTimeout(()=> ov.classList.remove('show','phase-result'), ADV_MS());
 }
 /* 勝ち上がった試合の勝者線だけを点滅（key=matchNoMapキー）。 */
 function blinkBracketWins(key){
@@ -2641,7 +3008,9 @@ function blinkBracketWins(key){
 /* 管理者：勝ち上がり演出を表示し閲覧へ配信。 */
 function showAdvanceCtx(ctx){
   const {a,b,win,colTop,colBot,noKey}=ctx;
-  showAdvance(a,b,win,colTop,colBot);
+  playAdvSfx();
+  showAdvance(a,b,win,colTop,colBot, _matchXY(noKey||null));
+  if(state.config.adminOnlyAnim){ lastAdvanceTs=Date.now(); return; }  // 閲覧側へ配信しない
   state.advance={ a:spotPersist(a), b:spotPersist(b), win, colA:colTop, colB:colBot, key:noKey||'', ts:Date.now() };
   lastAdvanceTs=state.advance.ts;
   const key=document.getElementById('docKey').value||'default';
@@ -2777,7 +3146,7 @@ function onBoardData(d){
       showAdvance(a, b, adv.win, adv.colA, adv.colB);               // 勝ち上がり演出を別画面でも再生
       renderBoard(d, true);                                          // 内容は裏で更新（入場アニメは抑止）
       const c=document.getElementById('bdContent'); if(c) c.style.visibility='hidden';   // 演出中は文字を隠す（背景はそのまま）
-      clearTimeout(_boardSwT); _boardSwT=setTimeout(playBoardSwitch, ADV_MS);  // 演出が消えると同時に入場
+      clearTimeout(_boardSwT); _boardSwT=setTimeout(playBoardSwitch, ADV_MS());  // 演出が消えると同時に入場
       return;
     }
   }
@@ -3100,7 +3469,8 @@ function loadParsed(obj){
                         (v<SCHEMA_VERSION) ? `書式v${v}→v${SCHEMA_VERSION}に移行しました` : `読み込みました`};
 }
 async function doLoad(){
-  if(!confirmIfResults('読み込むと現在の入力済み結果が置き換わります。続けますか？')) return;
+  // 警告は「実際に編集して未保存」のときだけ（開いた直後など未編集なら確認なしで切替）
+  if(isDirty() && !confirm('現在の編集内容が未保存です。読み込むと失われます。続けますか？')) return;
   const key = document.getElementById('docKey').value || 'default';
   let r; try{ r = await Backend.load(key); }catch(err){ toast('読込失敗: '+((err&&err.message)||err||''), true); return; }
   if(r && r.ok && r.json){
@@ -3125,6 +3495,73 @@ function doImport(){
       markSaved(); syncConfigInputs(); renderAll(); toast(res.msg); };
     rd.readAsText(f); };
   inp.click();
+}
+
+/* ===== 保存済みトーナメント一覧（開く） ===== */
+/* 保存JSONから主要データの概要を抽出 */
+function summarizeDoc(json){
+  try{ const o=JSON.parse(json); const ts=o.tournaments||[];
+    let players=0; ts.forEach(t=>(t.slots||[]).forEach(s=>{ if(s&&s.player&&s.player.playerName) players++; }));
+    return { players, tcount:ts.length,
+      names: ts.map(t=>t.name).filter(Boolean).join('、'),
+      sizes: ts.map(t=>t.size).join('+') };
+  }catch(e){ return null; }
+}
+function _fmtDate(v){ try{ const d=new Date(v); if(isNaN(d)) return '';
+  const p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}catch(e){ return ''; } }
+function openOpenModal(){ document.getElementById('openModal').hidden=false; refreshOpenList(); }
+async function refreshOpenList(){
+  const box=document.getElementById('openList'); box.textContent='読み込み中…';
+  let r; try{ r=await Backend.list(); }catch(e){
+    box.innerHTML='一覧の取得に失敗しました。<br><span style="font-size:11px;color:var(--muted)">'+esc((e&&e.message)||e||'')+'</span>'; return; }
+  try{ console.log('[開く] backend=', Backend.hasGas?'GAS':'local', ' raw=', r); }catch(e){}
+  const raw=(r&&r.keys)||[];
+  const diag='<div style="font-size:11px;color:var(--muted);margin-top:6px;border-top:1px solid var(--line);padding-top:6px">'
+    +'接続先: '+(Backend.hasGas?'GAS（サーバー保存）':'ローカル（このブラウザ内）')
+    +'｜取得レコード数: '+raw.length+'</div>';
+  const docs=raw.filter(k=>k.key && !/__adstats$/.test(k.key));
+  if(!docs.length){ box.innerHTML='保存済みのトーナメントはありません。'+diag; return; }
+  const cur=document.getElementById('docKey').value||'default';
+  box.innerHTML='';
+  docs.forEach(d=>{
+    const row=document.createElement('button'); row.className='btn';
+    row.style.cssText='width:100%;text-align:left;margin-bottom:8px;display:block;padding:10px 12px'
+      +(d.key===cur?';border-color:var(--accent)':'');
+    row.innerHTML='<b>'+esc(d.key)+(d.key===cur?' <span style="color:var(--accent);font-size:11px">（現在）</span>':'')
+      +'</b><br><span style="color:var(--muted);font-size:12px">概要を取得中…</span>';
+    row.onclick=()=>{ document.getElementById('openModal').hidden=true;
+      document.getElementById('docKey').value=d.key; doLoad(); };
+    box.appendChild(row);
+    Backend.load(d.key).then(res=>{
+      let sub='（空）';
+      if(res&&res.ok&&res.json){ const s=summarizeDoc(res.json);
+        if(s) sub=(s.names?esc(s.names)+'｜':'')+'選手'+s.players+'人｜'+s.tcount+'トーナメント（'+esc(s.sizes)+'枠）'; }
+      if(d.updatedAt){ const dt=_fmtDate(d.updatedAt); if(dt) sub+='｜更新 '+dt; }
+      row.innerHTML='<b>'+esc(d.key)+(d.key===cur?' <span style="color:var(--accent);font-size:11px">（現在）</span>':'')
+        +'</b><br><span style="color:var(--muted);font-size:12px">'+sub+'</span>';
+    }).catch(()=>{});
+  });
+  const dg=document.createElement('div'); dg.innerHTML=diag; box.appendChild(dg.firstChild);
+}
+
+/* ===== 新規トーナメント作成 ===== */
+function newDocument(){
+  if(!confirmIfResults('新規作成すると現在の入力内容が失われます（未保存の場合）。続けますか？')) return;
+  const name=prompt('新しいトーナメントの保存名を入力してください', '');
+  if(name===null) return;
+  const key=(name.trim()||'default');
+  const size=state.config.size||8;
+  state.tournaments=[makeTournament(1, size)];
+  state.active=0; state.repT=null; state.repLeague={}; state.skipped={}; state.priority=[];
+  state.roster=[]; state.rosterLabel=''; state.sel=null; state.runSel=null; state.pending=null;
+  state.spotlight=null; state.advance=null;
+  state.ads={ items:[{img:'',link:'',pos:null},{img:'',link:'',pos:null},{img:'',link:'',pos:null}] };
+  state.config.players=0; state.config.seedCount=0; state.config.count=1;
+  document.getElementById('docKey').value=key;
+  syncConfigInputs(); renderAll(); markSaved();
+  toast('新規トーナメントを作成しました（「保存」で確定）');
 }
 
 /* ============================================================
@@ -3335,7 +3772,11 @@ function init(){
   document.getElementById('cfgAvoidSameAff').onchange=(e)=>{ state.config.avoidSameAff=e.target.checked; };
 
   document.getElementById('btnSave').onclick=doSave;
-  document.getElementById('btnLoad').onclick=doLoad;
+  document.getElementById('btnOpen').onclick=openOpenModal;
+  document.getElementById('btnNew').onclick=newDocument;
+  document.getElementById('openClose').onclick=()=>{ document.getElementById('openModal').hidden=true; };
+  document.getElementById('openReload').onclick=refreshOpenList;
+  document.getElementById('openModal').onclick=(e)=>{ if(e.target.id==='openModal') document.getElementById('openModal').hidden=true; };
   document.getElementById('btnExport').onclick=doExport;
   document.getElementById('btnImport').onclick=doImport;
   document.getElementById('btnViewMode').onclick=enterViewMode;        // 管理者→閲覧プレビュー
@@ -3359,6 +3800,27 @@ function init(){
   document.getElementById('btnSettings').onclick=()=>{ document.getElementById('settingsModal').hidden=false; };
   document.getElementById('settingsClose').onclick=()=>{ document.getElementById('settingsModal').hidden=true; };
   document.getElementById('settingsModal').onclick=(e)=>{ if(e.target.id==='settingsModal') document.getElementById('settingsModal').hidden=true; };
+  // 演出設定（モーダル）
+  document.getElementById('btnEffects').onclick=()=>{ syncEffectsModal(); document.getElementById('effectsModal').hidden=false; };
+  document.getElementById('effectsClose').onclick=()=>{ document.getElementById('effectsModal').hidden=true; };
+  document.getElementById('effectsModal').onclick=(e)=>{ if(e.target.id==='effectsModal') document.getElementById('effectsModal').hidden=true; };
+  document.getElementById('efxAutoAdvance').onchange=(e)=>{ state.config.autoAdvance=e.target.checked; };
+  document.getElementById('efxAutoSpotlight').onchange=(e)=>{ state.config.autoSpotlight=e.target.checked; };
+  document.getElementById('efxAutoBlinkWins').onchange=(e)=>{ state.config.autoBlinkWins=e.target.checked; };
+  document.getElementById('efxAdminOnlyAnim').onchange=(e)=>{ state.config.adminOnlyAnim=e.target.checked; };
+  document.getElementById('efxAdminOnlySfx').onchange=(e)=>{ state.config.adminOnlySfx=e.target.checked; };
+  document.getElementById('efxAdvMs').onchange=(e)=>{ state.config.advMs=+e.target.value; };
+  document.getElementById('efxSpMs').onchange=(e)=>{ state.config.spMs=+e.target.value; };
+  document.getElementById('efxAdvSfxMode').onchange=(e)=>{
+    state.config.advSfxMode=e.target.value; _sfxUrlRow('efxAdvUrlRow','efxAdvSfxMode');
+  };
+  document.getElementById('efxAdvSfxUrl').onchange=(e)=>{ state.config.advSfxUrl=e.target.value.trim(); };
+  document.getElementById('efxAdvSfxTest').onclick=testAdvSfx;
+  document.getElementById('efxSpSfxMode').onchange=(e)=>{
+    state.config.spSfxMode=e.target.value; _sfxUrlRow('efxSpUrlRow','efxSpSfxMode');
+  };
+  document.getElementById('efxSpSfxUrl').onchange=(e)=>{ state.config.spSfxUrl=e.target.value.trim(); };
+  document.getElementById('efxSpSfxTest').onclick=testSpSfx;
   // 広告設定モーダル
   document.getElementById('btnKanban').onclick=openAdModal;
   document.getElementById('kanbanClose').onclick=closeAdModal;
@@ -3368,6 +3830,13 @@ function init(){
   document.getElementById('btnBoardCfg').onclick=openBoardModal;
   document.getElementById('boardCfgClose').onclick=closeBoardModal;
   document.getElementById('boardModal').onclick=(e)=>{ if(e.target.id==='boardModal') closeBoardModal(); };
+  // 動画書き出しモーダル
+  document.getElementById('btnExportVideo').onclick=openExportVideoModal;
+  document.getElementById('exvCancel').onclick=()=>{ if(!_exvRunning) document.getElementById('exportVideoModal').hidden=true; };
+  document.getElementById('exvStart').onclick=runExportVideo;
+  ['exvSlate','exvAdvance','exvProgress','exvBlackout','exvSlateF','exvAdvF','exvProgF','exvBlackF','exvScope'].forEach(id=>{
+    const el=document.getElementById(id); if(el){ el.oninput=exvUpdateEstimate; el.onchange=exvUpdateEstimate; }
+  });
   document.getElementById('setZoom').onchange=(e)=>{ state.config.zoom=+e.target.value; renderBracket(); };
   document.getElementById('setShowAff').onchange=(e)=>{ state.config.showAff=e.target.checked; renderBracket(); };
   document.getElementById('setShowNumber').onchange=(e)=>{ state.config.showNumber=e.target.checked; renderBracket(); };
@@ -3381,12 +3850,18 @@ function init(){
   updatePhaseUI();
   // 起動直後に素の空トーナメントを見せない：前回表示のキャッシュがあれば即それを描画、
   // なければバックエンド取得が終わるまで背景のみ（body.booting でステージを隠す）。
-  let bootShown=false;
+  let bootShown=false, _hasCached=false;
   try{
     const cached=localStorage.getItem('servalCache:'+(document.getElementById('docKey').value||'default'));
-    if(cached){ const o=JSON.parse(cached); if(loadParsed(o).ok){ syncConfigInputs(); bootShown=true; } }
+    if(cached){ _hasCached=true; const o=JSON.parse(cached); if(loadParsed(o).ok){ syncConfigInputs(); bootShown=true; } }
   }catch(e){}
-  if(!bootShown) document.body.classList.add('booting');
+  if(!bootShown){
+    document.body.classList.add('booting');
+    // スマホ（タッチ端末かつ幅768px未満）で初回起動時はブラケットをデフォルト50%表示
+    if(!_hasCached && window.innerWidth < 768 && navigator.maxTouchPoints > 0){
+      state.config.zoom = 0.5;
+    }
+  }
   renderAll();
   if(typeof DEMO_CSV==='string' && DEMO_CSV.trim()){        // ★デモ用：起動時にサンプルCSVを読込（不要なら DEMO_CSV を空に）
     applyCsv(DEMO_CSV, 'kawarobo_entry_list_large.csv');
@@ -3422,6 +3897,458 @@ function setupPinch(){
 let autoSaveTimer;
 </script>
 <script>
+/* ============================================================
+ *  演出の動画書き出し（FFmpeg連結用）
+ *   方針: 各演出を「時刻tの関数」として1フレームずつ専用canvasに
+ *   決定的に描画 → PNG連番化。これで固定30fps(CFR)を厳密に保証する
+ *   （MediaRecorder/captureStreamは必ずVFRになるため使わない）。
+ *   出力は無圧縮ZIP。演出ごと(スレート/勝ち上がり/暗転)に別フォルダ＝別連番。
+ *   同梱のbuild_mp4スクリプトで各連番→1920x864 H.264 yuv420p CFR mp4化。
+ * ============================================================ */
+const EXPORT_FPS = 30;
+const EXV_COL = { bg:'#0e1116', head:'#f1c453', card:'#0e141c', line:'#2a323d',
+  name:'#ffffff', types:'#f1c453', aff:'#9fb0c4', intro:'#cfd8e3', vs:'#f1c453',
+  win:'#e23b3b', white:'#ffffff' };
+const EXV_FONT = '"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif';
+
+function _exClamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function _exEaseOut(p){ return 1-Math.pow(1-p,3); }
+function _exEaseInOut(p){ return p<0.5 ? 2*p*p : 1-Math.pow(-2*p+2,2)/2; }
+
+/* 書き出すクリップ一覧を現在のstateから構築（matchNoMap順の実施済み試合）。 */
+function buildExportClips(opt){
+  let keys=Object.keys(matchNoMap).filter(k=>matchDecided(k));
+  if(opt.scope==='current' && state.tournaments.length>1){
+    const t=state.tournaments[state.active]; const pre=t.id+':';
+    keys=keys.filter(k=>k.indexOf(pre)===0);
+  }
+  keys.sort((a,b)=>(matchNoMap[a]||0)-(matchNoMap[b]||0));
+  const clips=[]; let seq=0;
+  keys.forEach(key=>{
+    const brief=matchBrief(key); const cs=matchCompetitors(key);
+    const res=matchKeyResult(key); const win=(res&&res.win!=null&&res.kind!=='勝者なし')?res.win:-1;
+    const a=cs[0]||{name:brief.a,aff:'',type1:'',type2:'',intro:'',colorIdx:0};
+    const b=cs[1]||{name:brief.b,aff:'',type1:'',type2:'',intro:'',colorIdx:1};
+    const colTop=paletteHex(a.colorIdx!=null?a.colorIdx:0);
+    const colBot=paletteHex(b.colorIdx!=null?b.colorIdx:1);
+    const tag='m'+String(brief.no||(seq+1)).padStart(2,'0');
+    const m={ no:brief.no, label:brief.label, a, b, win, colTop, colBot };
+    if(opt.slate)    clips.push({ seq:++seq, type:'slate',    tag, frames:opt.slateF, m });
+    if(opt.advance)  clips.push({ seq:++seq, type:'advance',  tag, frames:opt.advF,   m });
+    if(opt.progress) clips.push({ seq:++seq, type:'progress', tag, frames:opt.progF,  m, key });
+    if(opt.blackout) clips.push({ seq:++seq, type:'blackout', tag, frames:opt.blackF, m });
+  });
+  return clips;
+}
+
+/* ---- 描画プリミティブ ---- */
+function _exBg(ctx,W,H){
+  ctx.fillStyle=EXV_COL.bg; ctx.fillRect(0,0,W,H);
+  const g=ctx.createRadialGradient(W*0.5,H*0.42,0,W*0.5,H*0.42,H*0.95);
+  g.addColorStop(0,'rgba(44,58,78,0.40)'); g.addColorStop(1,'rgba(10,13,18,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+}
+function _exRR(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function _exWrap(ctx,text,maxW,maxLines){
+  text=String(text||''); if(!text) return [];
+  const lines=[]; let cur='';
+  for(const ch of text){
+    const test=cur+ch;
+    if(ctx.measureText(test).width>maxW && cur){ lines.push(cur); cur=ch;
+      if(lines.length>=maxLines){ lines[maxLines-1]+='…'; return lines.slice(0,maxLines); } }
+    else cur=test;
+  }
+  if(cur) lines.push(cur);
+  return lines.slice(0,maxLines);
+}
+/* 1選手カードを (cx,cy) 中心に描画。s=拡大率, alpha=不透明度, highlight=勝者枠 */
+function _exCard(ctx, c, color, cx, cy, s, alpha, highlight, baseH){
+  const W=baseH/864;                                   // 解像度スケール（864基準）
+  const cw=540*W, pad=34*W, innerW=cw-pad*2;
+  ctx.save(); ctx.translate(cx,cy); ctx.scale(s,s); ctx.globalAlpha=alpha;
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  // 内容の高さを計測
+  ctx.font='800 '+(64*W)+'px '+EXV_FONT;
+  const nameLines=_exWrap(ctx,c.name||'（無名）',innerW,2);
+  const types=[c.type1,c.type2].filter(Boolean).join('　/　');
+  ctx.font='400 '+(24*W)+'px '+EXV_FONT;
+  const introLines=c.intro?_exWrap(ctx,c.intro,innerW,3):[];
+  const barH=12*W, nameLH=72*W, typesH=types?40*W:0, affH=c.aff?34*W:0;
+  const introH=introLines.length?introLines.length*32*W:0;
+  const ch=pad*2+barH+18*W+nameLines.length*nameLH+typesH+affH+(introH?introH+10*W:0);
+  const x=-cw/2, y=-ch/2;
+  // 枠
+  ctx.shadowColor=highlight?'rgba(226,59,59,0.65)':'rgba(0,0,0,0.5)';
+  ctx.shadowBlur=highlight?34*W:14*W;
+  _exRR(ctx,x,y,cw,ch,18*W); ctx.fillStyle=EXV_COL.card; ctx.fill();
+  ctx.shadowBlur=0;
+  _exRR(ctx,x,y,cw,ch,18*W); ctx.lineWidth=(highlight?5:3)*W;
+  ctx.strokeStyle=highlight?EXV_COL.win:EXV_COL.line; ctx.stroke();
+  // カラーバー
+  _exRR(ctx,x+pad,y+pad,innerW,barH,barH/2); ctx.fillStyle=color; ctx.fill();
+  let yy=y+pad+barH+18*W;
+  // 名前
+  ctx.fillStyle=EXV_COL.name; ctx.font='800 '+(64*W)+'px '+EXV_FONT;
+  nameLines.forEach(ln=>{ yy+=nameLH; ctx.fillText(ln,0,yy-16*W); });
+  // タイプ
+  if(types){ ctx.fillStyle=EXV_COL.types; ctx.font='700 '+(30*W)+'px '+EXV_FONT;
+    yy+=typesH; ctx.fillText(types,0,yy-10*W); }
+  // 所属
+  if(c.aff){ ctx.fillStyle=EXV_COL.aff; ctx.font='400 '+(26*W)+'px '+EXV_FONT;
+    yy+=affH; ctx.fillText(c.aff,0,yy-8*W); }
+  // 紹介文
+  if(introLines.length){ ctx.fillStyle=EXV_COL.intro; ctx.font='400 '+(24*W)+'px '+EXV_FONT;
+    yy+=10*W; introLines.forEach(ln=>{ yy+=32*W; ctx.fillText(ln,0,yy-8*W); }); }
+  ctx.restore();
+}
+function _exHead(ctx,W,H,text,sub){
+  const k=H/864;
+  ctx.textAlign='center';
+  if(sub){ ctx.fillStyle=EXV_COL.aff; ctx.font='700 '+(28*k)+'px '+EXV_FONT;
+    ctx.fillText(sub, W/2, H*0.13); }
+  ctx.fillStyle=EXV_COL.head; ctx.font='900 '+(54*k)+'px '+EXV_FONT;
+  ctx.fillText(text, W/2, H*0.13+(sub?52*k:0));
+}
+function _exVS(ctx,W,H,alpha){
+  const k=H/864; ctx.save(); ctx.globalAlpha=alpha;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle=EXV_COL.vs; ctx.font='900 '+(56*k)+'px '+EXV_FONT;
+  ctx.fillText('VS', W/2, H*0.56); ctx.restore();
+}
+
+/* 各クリップの1フレームを描画。frame=0..frames-1 */
+function exDrawFrame(ctx, clip, frame, W, H){
+  const k=H/864, total=clip.frames, m=clip.m;
+  _exBg(ctx,W,H);
+  const fadeIn=_exClamp(frame/8,0,1);
+  const fadeOut=_exClamp((total-frame)/6,0,1);
+  const ga=Math.min(fadeIn,fadeOut);                   // クリップ端の素早いフェード（カット用）
+  const cardL=W*0.295, cardR=W*0.705, cardY=H*0.575;
+
+  if(clip.type==='blackout'){ ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H); return; }
+
+  if(clip.type==='slate'){
+    ctx.globalAlpha=ga; _exHead(ctx,W,H, m.label||'試合', m.no?('試合 '+m.no):'');
+    const pop=_exEaseOut(_exClamp(frame/8,0,1)), s=0.6+0.4*pop;
+    _exCard(ctx, m.a, m.colTop, cardL, cardY, s, ga, false, H);
+    _exCard(ctx, m.b, m.colBot, cardR, cardY, s, ga, false, H);
+    _exVS(ctx,W,H, ga);
+    ctx.globalAlpha=1; return;
+  }
+
+  // advance（勝ち上がり演出）
+  ctx.globalAlpha=ga;
+  _exHead(ctx,W,H,'リザルト','');
+  const pop=_exEaseOut(_exClamp(frame/8,0,1));
+  const revealStart=Math.min(30,Math.floor(total*0.34));
+  let sA=0.6+0.4*pop, sB=sA, aA=ga, aB=ga, hlA=false, hlB=false;
+  if(m.win>=0 && frame>=revealStart){
+    const p=_exEaseInOut(_exClamp((frame-revealStart)/15,0,1));
+    if(m.win===0){ sA=1+0.32*p; sB=1-0.34*p; aB=ga*(1-0.58*p); hlA=p>0.15; }
+    else         { sB=1+0.32*p; sA=1-0.34*p; aA=ga*(1-0.58*p); hlB=p>0.15; }
+  }
+  _exCard(ctx, m.a, m.colTop, cardL, cardY, sA, aA, hlA, H);
+  _exCard(ctx, m.b, m.colBot, cardR, cardY, sB, aB, hlB, H);
+  // ⚡ スパーク（リザルト前に明滅）
+  if(m.win<0 || frame<revealStart+6){
+    const puls=0.4+0.6*Math.abs(Math.sin(frame*0.5));
+    ctx.save(); ctx.globalAlpha=ga*puls; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font=(80*k)+'px '+EXV_FONT; ctx.fillText('⚡', W/2, cardY); ctx.restore();
+  }
+  // 勝者下の白い伸びる線
+  if(m.win>=0){
+    const lw=_exClamp((frame-(revealStart+15))/(total-(revealStart+15)-6),0,1);
+    if(lw>0){ const cx=(m.win===0)?cardL:cardR; const fullW=W*0.34, h=8*k;
+      ctx.save(); ctx.globalAlpha=ga; ctx.shadowColor='rgba(255,255,255,0.75)'; ctx.shadowBlur=14*k;
+      _exRR(ctx, cx-fullW*lw/2, cardY+H*0.30, fullW*lw, h, h/2);
+      ctx.fillStyle=EXV_COL.white; ctx.fill(); ctx.restore(); }
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ---- 無圧縮(store)ZIP ---- */
+function _crc32(buf){
+  let t=_crc32.t;
+  if(!t){ t=[]; for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } _crc32.t=t; }
+  let crc=0xFFFFFFFF;
+  for(let i=0;i<buf.length;i++) crc=(crc>>>8)^t[(crc^buf[i])&0xFF];
+  return (crc^0xFFFFFFFF)>>>0;
+}
+function _zipStore(files){
+  const enc=new TextEncoder();
+  const u16=n=>[n&0xFF,(n>>>8)&0xFF], u32=n=>[n&0xFF,(n>>>8)&0xFF,(n>>>16)&0xFF,(n>>>24)&0xFF];
+  const parts=[]; const central=[]; let offset=0;
+  files.forEach(f=>{
+    const nm=enc.encode(f.name), data=f.data, crc=_crc32(data), n=data.length;
+    const lh=new Uint8Array([].concat(u32(0x04034b50),u16(20),u16(0),u16(0),u16(0),u16(0),
+      u32(crc),u32(n),u32(n),u16(nm.length),u16(0)));
+    parts.push(lh,nm,data);
+    central.push(new Uint8Array([].concat(u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),
+      u32(crc),u32(n),u32(n),u16(nm.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset))), nm);
+    offset+=lh.length+nm.length+n;
+  });
+  let cdSize=0; central.forEach(c=>cdSize+=c.length);
+  const eocd=new Uint8Array([].concat(u32(0x06054b50),u16(0),u16(0),
+    u16(files.length),u16(files.length),u32(cdSize),u32(offset),u16(0)));
+  return new Blob([...parts,...central,eocd],{type:'application/zip'});
+}
+function _u8(blob){ return blob.arrayBuffer().then(b=>new Uint8Array(b)); }
+
+/* ---- 書き出し本体 ---- */
+let _exvRunning=false;
+async function runExportVideo(){
+  if(_exvRunning) return;
+  const [W,H]=document.getElementById('exvRes').value.split('x').map(Number);
+  const opt={
+    slate:document.getElementById('exvSlate').checked,
+    advance:document.getElementById('exvAdvance').checked,
+    progress:document.getElementById('exvProgress').checked,
+    blackout:document.getElementById('exvBlackout').checked,
+    slateF:+document.getElementById('exvSlateF').value||60,
+    advF:+document.getElementById('exvAdvF').value||90,
+    progF:+document.getElementById('exvProgF').value||75,
+    blackF:+document.getElementById('exvBlackF').value||15,
+    scope:document.getElementById('exvScope').value };
+  const clips=buildExportClips(opt);
+  if(!clips.length){ toast('実施済みの試合がありません', true); return; }
+  _exvRunning=true;
+  const startBtn=document.getElementById('exvStart'); startBtn.disabled=true;
+  document.getElementById('exvProgressWrap').style.display='block';
+  const bar=document.getElementById('exvProgressBar'), txt=document.getElementById('exvProgressTxt');
+  // 進行(ブラケット)クリップは、各試合時点の過去状態を一時再現してDOM→canvasへ転写しておく
+  const progClips=clips.filter(c=>c.type==='progress');
+  if(progClips.length){
+    txt.textContent='ブラケットを取り込み中…'; await new Promise(requestAnimationFrame);
+    prepProgressClips(progClips, (i,n)=>{ txt.textContent='ブラケット取り込み '+i+' / '+n; });
+    await new Promise(requestAnimationFrame);
+  }
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  const totalFrames=clips.reduce((s,c)=>s+c.frames,0);
+  const files=[]; const manifest=[]; let done=0;
+  for(const clip of clips){
+    const folder=String(clip.seq).padStart(2,'0')+'_'+clip.type+'_'+clip.tag;
+    manifest.push({ folder, type:clip.type, tag:clip.tag, frames:clip.frames,
+      sec:(clip.frames/EXPORT_FPS) });
+    for(let f=0; f<clip.frames; f++){
+      if(clip.type==='progress') exDrawProgressFrame(ctx, clip, f, W, H);
+      else exDrawFrame(ctx, clip, f, W, H);
+      const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+      files.push({ name:folder+'/'+String(f).padStart(4,'0')+'.png', data:await _u8(blob) });
+      done++;
+      if((done&7)===0 || done===totalFrames){
+        bar.style.width=(done/totalFrames*100).toFixed(1)+'%';
+        txt.textContent='描画中… '+done+' / '+totalFrames+' フレーム（'+folder+'）';
+        await new Promise(requestAnimationFrame);
+      }
+    }
+  }
+  // FFmpegスクリプト・尺一覧を同梱
+  txt.textContent='ZIPを生成中…'; await new Promise(requestAnimationFrame);
+  const enc=new TextEncoder();
+  const dur=manifest.map(x=>x.folder.padEnd(28)+String(x.frames).padStart(4)+' frames   '
+    +x.sec.toFixed(3)+' s').join('\n');
+  files.push({ name:'durations.txt', data:enc.encode(
+    '演出クリップ 尺一覧（'+W+'x'+H+' / '+EXPORT_FPS+'fps CFR）\n'+
+    '※ PNG連番なので厳密に '+EXPORT_FPS+'fps 固定（VFRではありません）\n\n'+dur+'\n') });
+  const sh='#!/bin/sh\n# 各PNG連番を 1920x'+H+' / H.264 / yuv420p / '+EXPORT_FPS+'fps CFR のmp4へ変換\n'+
+    'set -e\n'+manifest.map(x=>
+    'ffmpeg -y -framerate '+EXPORT_FPS+' -i "'+x.folder+'/%04d.png" -r '+EXPORT_FPS+
+    ' -vsync cfr -c:v libx264 -pix_fmt yuv420p -vf "scale='+W+':'+H+',setsar=1" "'+x.folder+'.mp4"'
+    ).join('\n')+'\n';
+  files.push({ name:'build_mp4.sh', data:enc.encode(sh) });
+  const bat='@echo off\r\nREM 各PNG連番を 1920x'+H+' / H.264 / yuv420p / '+EXPORT_FPS+'fps CFR のmp4へ変換\r\n'+
+    manifest.map(x=>
+    'ffmpeg -y -framerate '+EXPORT_FPS+' -i "'+x.folder+'\\%%04d.png" -r '+EXPORT_FPS+
+    ' -vsync cfr -c:v libx264 -pix_fmt yuv420p -vf "scale='+W+':'+H+',setsar=1" "'+x.folder+'.mp4"'
+    ).join('\r\n')+'\r\n';
+  files.push({ name:'build_mp4.bat', data:enc.encode(bat) });
+  files.push({ name:'concat_list.txt', data:enc.encode(
+    manifest.map(x=>"file '"+x.folder+".mp4'").join('\n')+'\n') });
+  files.push({ name:'README.txt', data:enc.encode(
+    '【演出クリップ書き出し】\n'+
+    '解像度: '+W+'x'+H+' / フレームレート: '+EXPORT_FPS+'fps 固定(CFR)\n'+
+    'PNG連番のため厳密にCFR。VFRにはなりません。\n\n'+
+    '1) build_mp4.sh (mac/Linux) か build_mp4.bat (Windows) を実行\n'+
+    '   → 各演出が <フォルダ名>.mp4（1920x'+H+' H.264 yuv420p CFR）になります。\n'+
+    '2) 試合動画(1920x'+H+' H.264)の間に各mp4を挿入して連結してください。\n'+
+    '   全演出を一括連結する場合:\n'+
+    '   ffmpeg -f concat -safe 0 -i concat_list.txt -c copy effects_all.mp4\n\n'+
+    '各ファイルの尺は durations.txt を参照。\n') });
+
+  const zip=_zipStore(files);
+  const a=document.createElement('a'); a.href=URL.createObjectURL(zip);
+  a.download='serval_effects_'+(document.getElementById('docKey').value||'tournament')+'.zip';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  txt.textContent='完了：'+clips.length+'クリップ / '+totalFrames+'フレームを書き出しました。';
+  bar.style.width='100%'; startBtn.disabled=false; _exvRunning=false;
+  // 尺一覧をコンソールへも
+  try{ console.log('[書き出し尺]\n'+dur); }catch(e){}
+}
+
+/* 推定フレーム数・サイズをモーダルに表示 */
+function exvUpdateEstimate(){
+  const g=id=>document.getElementById(id);
+  [['exvSlateF','exvSlateS'],['exvAdvF','exvAdvS'],['exvProgF','exvProgS'],['exvBlackF','exvBlackS']].forEach(([f,s])=>{
+    const n=+g(f).value||0; g(s).textContent='= '+(n/EXPORT_FPS).toFixed(3)+'s'; });
+  const opt={ slate:g('exvSlate').checked, advance:g('exvAdvance').checked,
+    progress:g('exvProgress').checked, blackout:g('exvBlackout').checked,
+    slateF:+g('exvSlateF').value||0, advF:+g('exvAdvF').value||0,
+    progF:+g('exvProgF').value||0, blackF:+g('exvBlackF').value||0,
+    scope:g('exvScope').value };
+  const clips=buildExportClips(opt);
+  const frames=clips.reduce((s,c)=>s+c.frames,0);
+  g('exvEstimate').textContent= clips.length
+    ? clips.length+'クリップ / 合計'+frames+'フレーム（約'+(frames/EXPORT_FPS).toFixed(1)+'秒・推定'+Math.ceil(frames*0.06)+'MB前後）'
+    : '実施済みの試合がありません。';
+}
+function openExportVideoModal(){ document.getElementById('exportVideoModal').hidden=false; exvUpdateEstimate(); }
+</script>
+<script>
+/* ============================================================
+ *  進行ブラケットの取り込み（DOM/SVG → canvas転写）
+ *   各試合時点の過去状態を一時再現し、アプリが描いた実座標の
+ *   スロット/線/ラベルを読み取ってcanvasに描き直す（再実装しない）。
+ *   変化した勝者線は data-wk（試合キー）で特定し、赤点滅させる。
+ * ============================================================ */
+function _clearResultInClone(cl, key){
+  if(key.slice(0,3)==='LG:'){ const p=key.slice(3).split(':'); if(cl.repLeague) delete cl.repLeague[p[0]+'-'+p[1]]; return; }
+  if(key.slice(0,4)==='REP:'){ const p=key.slice(4).split(':'); if(cl.repT&&cl.repT.results) delete cl.repT.results[p[0]+'-'+p[1]]; return; }
+  const i=key.indexOf(':'); const id=+key.slice(0,i); const rest=key.slice(i+1);
+  const t=cl.tournaments.find(x=>x.id===id); if(!t||!t.results) return;
+  if(rest==='3rd') delete t.results['3rd'];
+  else { const p=rest.split(':'); delete t.results[p[0]+'-'+p[1]]; }
+}
+function _col(el,prop){ return getComputedStyle(el)[prop]; }
+function _parsePath(d){              // "M x,y H x V y H x" の直交パス→点列
+  const pts=[]; let cx=0,cy=0; const toks=String(d||'').match(/[MLHV][^MLHVZ]*/gi)||[];
+  toks.forEach(tk=>{ const c=tk[0].toUpperCase(), r=tk.slice(1).trim();
+    if(c==='M'||c==='L'){ const [x,y]=r.split(/[ ,]+/).map(Number); cx=x; cy=y; pts.push([cx,cy]); }
+    else if(c==='H'){ cx=Number(r); pts.push([cx,cy]); }
+    else if(c==='V'){ cy=Number(r); pts.push([cx,cy]); } });
+  return pts;
+}
+/* 現在DOMに描かれているブラケットを構造体へ転写。keyN=点滅対象の試合キー */
+function transcribeBracket(keyN){
+  const inner=document.getElementById('stageInner'), svg=document.getElementById('lines');
+  const base=inner.getBoundingClientRect();
+  const W=+svg.getAttribute('width')||inner.scrollWidth||1000;
+  const H=+svg.getAttribute('height')||inner.scrollHeight||700;
+  const rel=el=>{ const r=el.getBoundingClientRect();
+    return {x:r.left-base.left, y:r.top-base.top, w:r.width, h:r.height}; };
+  const lines=[], blink=[];
+  svg.querySelectorAll('path,line').forEach(p=>{
+    let pts;
+    if(p.tagName.toLowerCase()==='line') pts=[[+p.getAttribute('x1'),+p.getAttribute('y1')],[+p.getAttribute('x2'),+p.getAttribute('y2')]];
+    else pts=_parsePath(p.getAttribute('d'));
+    if(pts.length<2) return;
+    const o={pts, stroke:_col(p,'stroke'), w:parseFloat(_col(p,'strokeWidth'))||2};
+    lines.push(o);
+    if(p.dataset && p.dataset.wk===keyN) blink.push(o);
+  });
+  const slots=[];
+  inner.querySelectorAll('.slot').forEach(s=>{
+    const r=rel(s); const stripeEl=s.querySelector('.stripe'), nameEl=s.querySelector('.name');
+    slots.push({ x:r.x,y:r.y,w:r.w,h:r.h,
+      bg:_col(s,'backgroundColor'), bd:_col(s,'borderColor'),
+      bw:parseFloat(_col(s,'borderTopWidth'))||1, rad:parseFloat(_col(s,'borderTopLeftRadius'))||6,
+      dash:_col(s,'borderTopStyle')==='dashed',
+      stripe: stripeEl?{w:stripeEl.getBoundingClientRect().width, color:_col(stripeEl,'backgroundColor')}:null,
+      name: nameEl?{text:nameEl.textContent.trim(), color:_col(nameEl,'color'),
+        size:parseFloat(_col(nameEl,'fontSize'))||13, italic:_col(nameEl,'fontStyle')==='italic'}:null });
+  });
+  const texts=[];
+  inner.querySelectorAll('.match-no').forEach(b=>{ const r=rel(b); if(!b.textContent.trim()) return;
+    texts.push({k:'badge', x:r.x,y:r.y,w:r.w,h:r.h, text:b.textContent.trim(),
+      color:_col(b,'color'), bg:_col(b,'backgroundColor'), bd:_col(b,'borderColor'),
+      size:parseFloat(_col(b,'fontSize'))||12}); });
+  inner.querySelectorAll('.mscore').forEach(b=>{ const r=rel(b); if(!b.textContent.trim()) return;
+    texts.push({k:'score', x:r.x,y:r.y,w:r.w,h:r.h, text:b.textContent.trim(),
+      color:_col(b,'color'), size:parseFloat(_col(b,'fontSize'))||11}); });
+  inner.querySelectorAll('.tname,.champion-tag,.event-title').forEach(b=>{ const r=rel(b); if(!b.textContent.trim()) return;
+    texts.push({k:'label', x:r.x,y:r.y,w:r.w,h:r.h, text:b.textContent.trim(),
+      color:_col(b,'color'), size:parseFloat(_col(b,'fontSize'))||13, weight:_col(b,'fontWeight')}); });
+  return {W,H, lines, blink, slots, texts, bg:_col(document.body,'backgroundColor')};
+}
+/* 各進行クリップについて、過去状態を再現→転写してclip.dataへ格納。終了後に元状態へ復帰。 */
+function prepProgressClips(prog, statusCb){
+  if(!prog.length) return;
+  const savedJSON=JSON.stringify(state);
+  const noMap=Object.assign({}, matchNoMap);
+  const savedView=viewMode, hadClass=document.body.classList.contains('view-mode');
+  viewMode=true; document.body.classList.add('view-mode');   // 閲覧画面の見た目で転写
+  try{
+    prog.forEach((pc,i)=>{
+      const N=(pc.m && pc.m.no!=null)?pc.m.no:(noMap[pc.key]||0);
+      const cl=JSON.parse(savedJSON);
+      Object.keys(noMap).forEach(k=>{ if((noMap[k]||0)>N) _clearResultInClone(cl,k); });
+      cl.config.zoom=1;                 // 転写は等倍で（実座標とSVG座標を一致させる）
+      state=cl; renderBracket();
+      pc.data=transcribeBracket(pc.key);
+      if(statusCb) statusCb(i+1, prog.length);
+    });
+  } finally {
+    viewMode=savedView; if(!hadClass) document.body.classList.remove('view-mode');
+    state=JSON.parse(savedJSON); applyViewMode(); renderAll();
+  }
+}
+/* 進行ブラケットを1920xHにフィット配置して描画。戻り値で変換情報。 */
+function drawBracketBase(ctx, d, W, H){
+  ctx.fillStyle=d.bg||EXV_COL.bg; ctx.fillRect(0,0,W,H);
+  const pad=Math.round(H*0.05);
+  const sc=Math.min((W-pad*2)/d.W, (H-pad*2)/d.H);
+  const ox=(W-d.W*sc)/2, oy=(H-d.H*sc)/2;
+  ctx.save(); ctx.translate(ox,oy); ctx.scale(sc,sc);
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  d.lines.forEach(L=>{ ctx.beginPath();
+    L.pts.forEach((p,i)=> i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+    ctx.strokeStyle=L.stroke; ctx.lineWidth=L.w; ctx.stroke(); });
+  d.slots.forEach(s=>{
+    _exRR(ctx,s.x,s.y,s.w,s.h,s.rad); ctx.fillStyle=s.bg; ctx.fill();
+    if(s.stripe && s.stripe.color){ ctx.save(); _exRR(ctx,s.x,s.y,Math.max(s.stripe.w,s.rad),s.h,s.rad);
+      ctx.clip(); ctx.fillStyle=s.stripe.color; ctx.fillRect(s.x,s.y,s.stripe.w,s.h); ctx.restore(); }
+    _exRR(ctx,s.x,s.y,s.w,s.h,s.rad); ctx.lineWidth=s.bw; ctx.strokeStyle=s.bd;
+    if(s.dash) ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+    if(s.name && s.name.text){ ctx.save(); ctx.beginPath(); ctx.rect(s.x,s.y,s.w,s.h); ctx.clip();
+      ctx.fillStyle=s.name.color; ctx.textBaseline='middle'; ctx.textAlign='left';
+      ctx.font=(s.name.italic?'italic ':'')+'600 '+s.name.size+'px '+EXV_FONT;
+      ctx.fillText(s.name.text, s.x+(s.stripe?s.stripe.w+8:8), s.y+s.h/2+1); ctx.restore(); }
+  });
+  d.texts.forEach(t=>{
+    if(t.k==='badge'){ _exRR(ctx,t.x,t.y,t.w,t.h,Math.min(9,t.h/2));
+      ctx.fillStyle=t.bg; ctx.fill(); ctx.lineWidth=1; ctx.strokeStyle=t.bd; ctx.stroke();
+      ctx.fillStyle=t.color; ctx.font='700 '+t.size+'px '+EXV_FONT;
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t.text, t.x+t.w/2, t.y+t.h/2+1); }
+    else { ctx.fillStyle=t.color; ctx.font=(t.weight||'600')+' '+t.size+'px '+EXV_FONT;
+      ctx.textAlign=(t.k==='score')?'center':'left'; ctx.textBaseline='middle';
+      ctx.fillText(t.text, t.x+(t.k==='score'?t.w/2:0), t.y+t.h/2+1); }
+  });
+  ctx.restore();
+  return {sc,ox,oy};
+}
+function drawBracketBlink(ctx, d, tf, frame){
+  if(!d.blink || !d.blink.length) return;
+  const puls=0.12+0.88*Math.abs(Math.cos(frame*0.45));   // 約0.5秒周期で明滅
+  ctx.save(); ctx.translate(tf.ox,tf.oy); ctx.scale(tf.sc,tf.sc);
+  ctx.globalAlpha=puls; ctx.strokeStyle=EXV_COL.win; ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.shadowColor='rgba(226,59,59,0.7)'; ctx.shadowBlur=10;
+  d.blink.forEach(L=>{ ctx.beginPath();
+    L.pts.forEach((p,i)=> i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+    ctx.lineWidth=Math.max(L.w,5)+3*puls; ctx.stroke(); });
+  ctx.restore();
+}
+function exDrawProgressFrame(ctx, clip, frame, W, H){
+  const d=clip.data;
+  if(!d){ ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H); return; }
+  const tf=drawBracketBase(ctx, d, W, H);
+  drawBracketBlink(ctx, d, tf, frame);
+  const ga=_exClamp(Math.min(frame/5,(clip.frames-frame)/5),0,1);   // 端を黒フェード
+  if(ga<1){ ctx.save(); ctx.globalAlpha=1-ga; ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H); ctx.restore(); }
+}
+
 function scheduleAutoSave(){
   if(!state.config || !state.config.autoSave) return;
   clearTimeout(autoSaveTimer);

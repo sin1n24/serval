@@ -2,5 +2,7 @@
 .clasp.json
 .claspignore
 deploy.sh
+bump.sh
 _bk/
 _checkjs.js
+DELETE/

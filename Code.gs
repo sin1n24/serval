@@ -101,7 +101,12 @@ function apiList() {
   var data = sh.getDataRange().getValues();
   var keys = [];
   for (var i = 1; i < data.length; i++) {
-    if (data[i][0]) keys.push({ key: data[i][0], updatedAt: data[i][2] });
+    if (!data[i][0]) continue;
+    // updatedAt は生のDateを返すと google.script.run のシリアライズに失敗し
+    // クライアントに null が渡る（保存/読込が文字列のみ返すのと違う）。必ず文字列化する。
+    var u = data[i][2];
+    var upd = (u instanceof Date) ? u.toISOString() : (u == null ? '' : String(u));
+    keys.push({ key: String(data[i][0]), updatedAt: upd });
   }
   return { ok: true, keys: keys };
 }
