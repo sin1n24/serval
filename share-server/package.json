@@ -1,0 +1,15 @@
+{
+  "name": "serval-share",
+  "version": "1.0.0",
+  "description": "OGP image host for Serval Twitter share",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

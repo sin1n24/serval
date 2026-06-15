@@ -443,7 +443,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver41</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver42</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -515,6 +515,7 @@ window.addEventListener('unhandledrejection', function(ev){
       <div class="group"><button class="btn" id="btnKanban" style="width:100%">📢 バナー設定</button></div>
       <div class="group"><button class="btn" id="btnBoardCfg" style="width:100%">📺 別画面設定</button></div>
       <div class="group"><button class="btn" id="btnExportVideo" style="width:100%">🎞 動画用に書き出し</button></div>
+      <div class="group"><button class="btn" id="btnShareX" style="width:100%">🐦 Xでシェア</button></div>
     </aside>
 
     <!-- 中央：ブラケット描画 -->
@@ -4359,6 +4360,66 @@ function scheduleAutoSave(){
 }
 window.addEventListener('DOMContentLoaded', init);
 
+</script>
+<script>
+/* =====================================================================
+ * Xシェア機能
+ * ブラケットを JPEG キャプチャ → Render サーバに POST → Twitter Web Intent
+ * SHARE_SERVER_URL は Render デプロイ後の URL に書き換える
+ * ===================================================================== */
+const SHARE_SERVER_URL = 'https://serval-share.onrender.com';
+
+async function shareToX() {
+  const btn = document.getElementById('btnShareX');
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '📷 キャプチャ中…';
+
+  try {
+    // 現在のブラケットを canvas に転写
+    const d = transcribeBracket(null);
+    const SHARE_W = 1200, SHARE_H = Math.round(1200 * d.H / d.W);
+    const cv = document.createElement('canvas');
+    cv.width = SHARE_W; cv.height = SHARE_H;
+    drawBracketBase(cv.getContext('2d'), d, SHARE_W, SHARE_H);
+    const imageBase64 = cv.toDataURL('image/jpeg', 0.88);
+
+    // 試合数カウント
+    const allKeys  = Object.keys(matchNoMap);
+    const total    = allKeys.length;
+    const done     = allKeys.filter(k => matchDecided(k)).length;
+
+    const eventName = (state.config && state.config.eventName) || 'トーナメント';
+    const matchText = `${done} / ${total} 試合完了`;
+    const title     = `${eventName} — ${matchText}`;
+
+    // Render サーバに画像を送信
+    btn.textContent = '📤 送信中…';
+    const resp = await fetch(`${SHARE_SERVER_URL}/share`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ imageBase64, title, matchText }),
+    });
+    if (!resp.ok) throw new Error(`server ${resp.status}`);
+    const { shareUrl } = await resp.json();
+
+    // Twitter Web Intent を開く
+    const tweetText = `${title} #serval`;
+    const twitterUrl = 'https://twitter.com/intent/tweet'
+      + '?text='  + encodeURIComponent(tweetText)
+      + '&url='   + encodeURIComponent(shareUrl);
+    window.open(twitterUrl, '_blank', 'width=600,height=400');
+  } catch (e) {
+    toast('シェアに失敗しました: ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnShareX').onclick = shareToX;
+});
 </script>
 </body>
 </html>
