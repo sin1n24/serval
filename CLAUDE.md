@@ -11,3 +11,8 @@
 - GAS制約: `<script>`は~22KBで分割 / iframe内はURL不可視→`__EXECURL__`注入 / **`google.script.run`はDateを返すとnull化→`toISOString()`で文字列化**。
 
 詳細・関数の場所・次の一手は HANDOFF.md を参照。
+
+## ファイル操作のルール
+- **ファイル削除は禁止**。不要になったファイルは `DELETE/` フォルダを作成してそこへ移動する。
+  （例: `New-Item -ItemType Directory -Force DELETE; Move-Item -Force 対象 DELETE\`）
+- `DELETE/` は `.gitignore` 済みなので git には入らない。実際の削除はユーザーが判断して行う。
