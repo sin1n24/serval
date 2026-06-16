@@ -443,7 +443,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver44</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver45</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -4372,13 +4372,50 @@ async function shareToX() {
   btn.textContent = '📷 キャプチャ中…';
 
   try {
-    const d = transcribeBracket(null);
-    if (!d || !d.W) throw new Error('ブラケットが空です');
-    const SW = 1200, SH = Math.max(Math.round(1200 * d.H / d.W), 1);
-    const cv = document.createElement('canvas');
-    cv.width = SW; cv.height = SH;
-    drawBracketBase(cv.getContext('2d'), d, SW, SH);
-    const imageBase64 = cv.toDataURL('image/jpeg', 0.88);
+    // zoom=1・閲覧モードで再描画してからキャプチャ（動画書き出しと同じ手順）
+    const savedJSON = JSON.stringify(state);
+    const hadViewMode = viewMode;
+    const hadClass = document.body.classList.contains('view-mode');
+    let imageBase64;
+    try {
+      const clone = JSON.parse(savedJSON);
+      clone.config.zoom = 1;
+      state = clone;
+      viewMode = true;
+      document.body.classList.add('view-mode');
+      renderBracket();
+      await new Promise(r => requestAnimationFrame(r));
+      await new Promise(r => requestAnimationFrame(r));
+
+      const d = transcribeBracket(null);
+      if (!d || !d.W) throw new Error('ブラケットが空です');
+      const SW = 1200, SH = Math.max(Math.round(1200 * d.H / d.W), 1);
+      const cv = document.createElement('canvas');
+      cv.width = SW; cv.height = SH;
+      const ctx = cv.getContext('2d');
+      const tf = drawBracketBase(ctx, d, SW, SH);
+
+      // バナー画像をcanvasに描画
+      const inner = document.getElementById('stageInner');
+      const base = inner.getBoundingClientRect();
+      inner.querySelectorAll('.kanban-box img').forEach(function(imgEl) {
+        if (!imgEl.complete || !imgEl.naturalWidth) return;
+        const r = imgEl.getBoundingClientRect();
+        ctx.save();
+        ctx.translate(tf.ox, tf.oy);
+        ctx.scale(tf.sc, tf.sc);
+        ctx.drawImage(imgEl, r.left - base.left, r.top - base.top, r.width, r.height);
+        ctx.restore();
+      });
+
+      imageBase64 = cv.toDataURL('image/jpeg', 0.88);
+    } finally {
+      state = JSON.parse(savedJSON);
+      viewMode = hadViewMode;
+      if (hadClass) document.body.classList.add('view-mode');
+      else document.body.classList.remove('view-mode');
+      applyViewMode();
+    }
 
     const allKeys   = Object.keys(matchNoMap);
     const done      = allKeys.filter(k => matchDecided(k)).length;
