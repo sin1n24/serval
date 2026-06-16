@@ -46,7 +46,7 @@ app.post('/share', (req, res) => {
   res.json({
     shareId:  id,
     shareUrl: `${base}/share/${id}`,
-    imageUrl: `${base}/share/${id}.jpg`,
+    imageUrl: `${base}/img/${id}`,
   });
 });
 
@@ -56,7 +56,7 @@ app.get('/share/:id', (req, res) => {
   if (!d || Date.now() > d.expires) return res.status(404).send('Not found or expired');
 
   const base     = `${req.protocol}://${req.get('host')}`;
-  const imageUrl = `${base}/share/${req.params.id}.jpg`;
+  const imageUrl = `${base}/img/${req.params.id}`;
   const title    = escHtml(d.title);
   const desc     = escHtml(d.matchText);
 
@@ -79,8 +79,8 @@ app.get('/share/:id', (req, res) => {
 </body></html>`);
 });
 
-// GET /share/:id.jpg  → JPEG 画像
-app.get('/share/:id.jpg', (req, res) => {
+// GET /img/:id  → JPEG 画像
+app.get('/img/:id', (req, res) => {
   const d = store.get(req.params.id);
   if (!d || Date.now() > d.expires) return res.status(404).send('Not found or expired');
   res.setHeader('Content-Type', 'image/jpeg');

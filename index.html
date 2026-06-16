@@ -443,7 +443,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver43</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver44</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -4362,11 +4362,7 @@ window.addEventListener('DOMContentLoaded', init);
 
 </script>
 <script>
-/* =====================================================================
- * Xシェア機能
- * ブラケットを JPEG キャプチャ → Render サーバに POST → Twitter Web Intent
- * SHARE_SERVER_URL は Render デプロイ後の URL に書き換える
- * ===================================================================== */
+/* Xシェア機能: ブラケットをJPEGキャプチャ → Renderにアップロード → モーダルでリンク表示 */
 const SHARE_SERVER_URL = 'https://serval-xr3j.onrender.com';
 
 async function shareToX() {
@@ -4376,39 +4372,65 @@ async function shareToX() {
   btn.textContent = '📷 キャプチャ中…';
 
   try {
-    // 現在のブラケットを canvas に転写
     const d = transcribeBracket(null);
-    const SHARE_W = 1200, SHARE_H = Math.round(1200 * d.H / d.W);
+    if (!d || !d.W) throw new Error('ブラケットが空です');
+    const SW = 1200, SH = Math.max(Math.round(1200 * d.H / d.W), 1);
     const cv = document.createElement('canvas');
-    cv.width = SHARE_W; cv.height = SHARE_H;
-    drawBracketBase(cv.getContext('2d'), d, SHARE_W, SHARE_H);
+    cv.width = SW; cv.height = SH;
+    drawBracketBase(cv.getContext('2d'), d, SW, SH);
     const imageBase64 = cv.toDataURL('image/jpeg', 0.88);
 
-    // 試合数カウント
-    const allKeys  = Object.keys(matchNoMap);
-    const total    = allKeys.length;
-    const done     = allKeys.filter(k => matchDecided(k)).length;
-
+    const allKeys   = Object.keys(matchNoMap);
+    const done      = allKeys.filter(k => matchDecided(k)).length;
+    const total     = allKeys.length;
     const eventName = (state.config && state.config.eventName) || 'トーナメント';
-    const matchText = `${done} / ${total} 試合完了`;
-    const title     = `${eventName} — ${matchText}`;
+    const matchText = done + ' / ' + total + ' 試合完了';
+    const title     = eventName + ' — ' + matchText;
+    const tweetText = title + ' #serval';
 
-    // Render サーバに画像を送信
+    // モーダルを即表示（window.open はユーザーが直接クリックする形にする）
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--panel,#fff);border-radius:12px;padding:20px;max-width:560px;width:92%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,.4)';
+    const preview = document.createElement('img');
+    preview.src = imageBase64;
+    preview.style.cssText = 'width:100%;border-radius:6px;border:1px solid var(--line,#ddd)';
+    const textEl = document.createElement('div');
+    textEl.style.cssText = 'font-size:13px;color:var(--text,#222);line-height:1.6;word-break:break-all';
+    textEl.textContent = tweetText;
+    const tweetLink = document.createElement('a');
+    tweetLink.textContent = '⏳ 画像をアップロード中…';
+    tweetLink.style.cssText = 'display:block;text-align:center;padding:11px;background:#aaa;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;pointer-events:none';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '閉じる';
+    closeBtn.className = 'btn';
+    closeBtn.style.cssText = 'align-self:flex-end';
+    closeBtn.onclick = () => overlay.remove();
+    box.append(preview, textEl, tweetLink, closeBtn);
+    overlay.append(box);
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+
     btn.textContent = '📤 送信中…';
-    const resp = await fetch(`${SHARE_SERVER_URL}/share`, {
+    const resp = await fetch(SHARE_SERVER_URL + '/share', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ imageBase64, title, matchText }),
     });
-    if (!resp.ok) throw new Error(`server ${resp.status}`);
+    if (!resp.ok) throw new Error('サーバーエラー ' + resp.status);
     const { shareUrl } = await resp.json();
 
-    // Twitter Web Intent を開く
-    const tweetText = `${title} #serval`;
     const twitterUrl = 'https://twitter.com/intent/tweet'
-      + '?text='  + encodeURIComponent(tweetText)
-      + '&url='   + encodeURIComponent(shareUrl);
-    window.open(twitterUrl, '_blank', 'width=600,height=400');
+      + '?text=' + encodeURIComponent(tweetText)
+      + '&url='  + encodeURIComponent(shareUrl);
+    tweetLink.href   = twitterUrl;
+    tweetLink.target = '_blank';
+    tweetLink.rel    = 'noopener';
+    tweetLink.textContent = '🐦 Xで投稿する →';
+    tweetLink.style.background    = '#1da1f2';
+    tweetLink.style.pointerEvents = '';
+
   } catch (e) {
     toast('シェアに失敗しました: ' + e.message, true);
   } finally {
@@ -4417,8 +4439,9 @@ async function shareToX() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('btnShareX').onclick = shareToX;
+document.addEventListener('DOMContentLoaded', function() {
+  var b = document.getElementById('btnShareX');
+  if (b) b.onclick = shareToX;
 });
 </script>
 </body>
