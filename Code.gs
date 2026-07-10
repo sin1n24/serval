@@ -15,10 +15,62 @@
 
 var STORE_SHEET = 'Store';
 
-/** Webアプリのエントリポイント。Index.html を返す。 */
+/**
+ * 管理者トークン検証。スクリプトプロパティ ADMIN_TOKEN と照合する。
+ * 未設定の場合は認可なし（移行期間の後方互換: ADMIN_TOKENが無いうちは全許可）。
+ * デプロイ後にユーザーが ADMIN_TOKEN=sin1serval をスクリプトプロパティへ設定すること。
+ */
+function _checkAdmin_(token) {
+  var t = PropertiesService.getScriptProperties().getProperty('ADMIN_TOKEN');
+  if (!t) return true;  // 未設定時は後方互換で許可
+  return !!token && token === t;
+}
+
+/** JSON APIレスポンス（GitHub Pagesポータル等、外部からのfetch用） */
+function _jsonOut_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * 外部ポータル用の書き込みAPI。GitHub Pages等からのクロスオリジンfetchを想定し、
+ * Content-Type: text/plain のPOSTボディ（JSON文字列）で受ける（preflight回避）。
+ * body = { action, token, ...args }
+ */
+function doPost(e) {
+  var req = {};
+  try { req = JSON.parse((e && e.postData && e.postData.contents) || '{}'); }
+  catch (err) { return _jsonOut_({ ok: false, error: 'リクエストJSONが不正です' }); }
+  var act = String(req.action || '');
+  var token = req.token || '';
+  if (act === 'seriesList')    return _jsonOut_(apiSeriesList(!!req.deleted));
+  if (act === 'seriesCreate')  return _jsonOut_(apiSeriesCreate(req.name, token));
+  if (act === 'seriesUpdate')  return _jsonOut_(apiSeriesUpdate(req.id, JSON.stringify(req.series || {}), token));
+  if (act === 'seriesDelete')  return _jsonOut_(apiSeriesDelete(req.id, token));
+  if (act === 'seriesRestore') return _jsonOut_(apiSeriesRestore(req.id, token));
+  return _jsonOut_({ ok: false, error: '不明なaction: ' + act });
+}
+
+/** Webアプリのエントリポイント。Index.html（?portal 時は portal.html、?api= 時はJSON API）を返す。 */
 function doGet(e) {
+  var p0 = (e && e.parameter) || {};
+  if (p0.api != null) {                                                   // ?api=serieslist 読み取り専用JSON API
+    var act = String(p0.api);
+    if (act === 'serieslist') return _jsonOut_(apiSeriesList(p0.deleted != null));
+    return _jsonOut_({ ok: false, error: '不明なapi: ' + act });
+  }
+  if (p0.portal != null) {                                                // ?portal シリーズ管理ポータル
+    var pout = HtmlService.createHtmlOutputFromFile('portal')
+      .setTitle('serval ポータル')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    var pjs = '';
+    try { pjs += 'window.__EXECURL__=' + JSON.stringify(ScriptApp.getService().getUrl() || '') + ';'; } catch (err) {}
+    if (pjs) pout.append('<script>' + pjs + '<\/script>');
+    return pout;
+  }
   // index.html を配信。巨大な1つのインラインscriptはGASのHTML処理で脱落するため、JSは複数の小さな<script>に分割済み。
-  var out = HtmlService.createHtmlOutputFromFile('index')
+  var out = HtmlService.createHtmlOutputFromFile('app')
     .setTitle('トーナメント管理システム')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL); // 配信/呼び出しシステムからiframe埋め込み可
@@ -30,10 +82,12 @@ function doGet(e) {
   try { js += 'window.__EXECURL__=' + JSON.stringify(ScriptApp.getService().getUrl() || '') + ';'; } catch (err) {}
   var doc = p.doc ? String(p.doc).slice(0, 100) : '';                    // ?doc=◯◯ 大会（保存キー）
   if (doc) js += 'window.__DOCKEY__=' + JSON.stringify(doc) + ';';
-  if (p.board != null) js += 'window.__BOARD__=true;';                   // ?board 大型表示（別画面）
+  if (p.board != null) js += 'window.__BOARD__=true;';                   // ?board 大型表示（別画面１）
+  if (p.lane  != null) js += 'window.__LANE__=true;';                    // ?lane  横長バナー（別画面２）
+  if (p.sub   != null) js += 'window.__SUB__=true;';                     // ?sub   大型表示（別画面３）
   if (p.admin != null) {                                                  // ?admin 管理者モード
-    // 早期FOUC対策スクリプト（body直後）はiframe内でURLを読めないため、ここでview-mode解除も行う
-    js += 'window.__ADMIN__=true;try{document.body.classList.remove("view-mode")}catch(err){}';
+    // view-mode解除はinit()でパスワード確認後に enterAdmin() → applyViewMode() が行う
+    js += 'window.__ADMIN__=true;';
   }
   if (js) out.append('<script>' + js + '<\/script>');
   return out;
@@ -64,23 +118,30 @@ function getStoreSheet_() {
 }
 
 /** 1ドキュメントを保存。key単位で上書き。 */
-function apiSave(key, jsonString) {
+function apiSave(key, jsonString, token) {
+  if (!_checkAdmin_(token)) return { ok: false, key: key, error: '認証エラー' };
   // スプレッドシートの1セルは最大50,000文字。超える場合は明示エラーを返す（setValuesの例外を避ける）。
   if (jsonString && jsonString.length > 49500) {
     return { ok: false, key: key,
       error: 'データが大きすぎます（' + jsonString.length + '文字 > 上限49500）。選手数やトーナメント数を減らしてください。' };
   }
-  var sh = getStoreSheet_();
-  var data = sh.getDataRange().getValues();
-  var now = new Date();
-  for (var i = 1; i < data.length; i++) {
-    if (data[i][0] === key) {
-      sh.getRange(i + 1, 2, 1, 2).setValues([[jsonString, now]]);
-      return { ok: true, key: key, updatedAt: now.toISOString() };
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { ok: false, key: key, error: 'ロック取得タイムアウト。もう一度試してください。' }; }
+  try {
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var now = new Date();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === key) {
+        sh.getRange(i + 1, 2, 1, 2).setValues([[jsonString, now]]);
+        return { ok: true, key: key, updatedAt: now.toISOString() };
+      }
     }
+    sh.appendRow([key, jsonString, now]);
+    return { ok: true, key: key, updatedAt: now.toISOString() };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
   }
-  sh.appendRow([key, jsonString, now]);
-  return { ok: true, key: key, updatedAt: now.toISOString() };
 }
 
 /** 1ドキュメントを読み込み。 */
@@ -116,10 +177,10 @@ function apiList() {
  * payload = { tournamentId, matchId, result, time } を受け取り、
  * 現在の状態ドキュメントに反映して保存し直す想定。骨組み段階ではエコー＋保存のみ。
  */
-function apiSubmitResult(key, payloadJson) {
+function apiSubmitResult(key, payloadJson, token) {
   // payloadJson はフロントで反映済みの最新state全体を渡す方式にしておくと衝突が少ない。
   // 保存に成功したらOKを返し、フロントの「進むアニメーション」を発火させる。
-  var r = apiSave(key, payloadJson);
+  var r = apiSave(key, payloadJson, token);
   if (!r || !r.ok) return r || { ok: false, key: key, error: '保存に失敗しました' };  // サイズ超過等はそのまま返す
   return { ok: true, key: key, receivedAt: new Date().toISOString() };
 }
@@ -128,9 +189,14 @@ function apiSubmitResult(key, payloadJson) {
  *  スポンサー広告の集計（表示回数 / クリック回数）
  *  - 本体stateとは別レコード「<key>__adstats」に保存する。
  *    閲覧者が大量に書き込んでも試合データ(state)を上書きしないため。
- *  - 形: { views: 全体閲覧数, clicks: [広告1, 広告2, 広告3] }
+ *  - 形: { views: 全体閲覧数, clicks: [広告A, 広告B, 広告C, 広告D, 広告E] }
  * ============================================================ */
 function _adStatsKey_(key) { return String(key || 'default') + '__adstats'; }
+
+function _adEnsureClicks_(stats) {
+  if (!Array.isArray(stats.clicks)) stats.clicks = [0,0,0,0,0,0,0,0];
+  while (stats.clicks.length < 8) stats.clicks.push(0);
+}
 
 /** 広告イベントを加算。kind='view'(全体閲覧) または 'click'(index番の広告)。 */
 function apiAdEvent(key, kind, index) {
@@ -140,7 +206,7 @@ function apiAdEvent(key, kind, index) {
     var statsKey = _adStatsKey_(key);
     var sh = getStoreSheet_();
     var data = sh.getDataRange().getValues();
-    var rowIdx = -1, stats = { views: 0, clicks: [0, 0, 0] };
+    var rowIdx = -1, stats = { views: 0, clicks: [0,0,0,0,0,0,0,0] };
     for (var i = 1; i < data.length; i++) {
       if (data[i][0] === statsKey) {
         rowIdx = i;
@@ -148,11 +214,11 @@ function apiAdEvent(key, kind, index) {
         break;
       }
     }
-    if (!stats.clicks) stats.clicks = [0, 0, 0];
+    _adEnsureClicks_(stats);
     if (kind === 'view') {
       stats.views = (stats.views || 0) + 1;
     } else if (kind === 'click') {
-      var ix = Math.max(0, Math.min(2, parseInt(index, 10) || 0));
+      var ix = Math.max(0, Math.min(7, parseInt(index, 10) || 0));
       stats.clicks[ix] = (stats.clicks[ix] || 0) + 1;
     }
     var now = new Date();
@@ -171,8 +237,260 @@ function apiAdStats(key) {
   var statsKey = _adStatsKey_(key);
   for (var i = 1; i < data.length; i++) {
     if (data[i][0] === statsKey) {
-      try { return { ok: true, stats: JSON.parse(data[i][1]) }; } catch (e) {}
+      try {
+        var s = JSON.parse(data[i][1]);
+        _adEnsureClicks_(s);
+        return { ok: true, stats: s };
+      } catch (e) {}
     }
   }
-  return { ok: true, stats: { views: 0, clicks: [0, 0, 0] } };
+  return { ok: true, stats: { views: 0, clicks: [0,0,0,0,0,0,0,0] } };
+}
+
+/** 広告集計をリセット。 */
+function apiAdReset(key, token) {
+  if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) {}
+  try {
+    var statsKey = _adStatsKey_(key);
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var stats = { views: 0, clicks: [0,0,0,0,0,0,0,0] };
+    var now = new Date();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === statsKey) {
+        sh.getRange(i + 1, 2, 1, 2).setValues([[JSON.stringify(stats), now]]);
+        return { ok: true, stats: stats };
+      }
+    }
+    sh.appendRow([statsKey, JSON.stringify(stats), now]);
+    return { ok: true, stats: stats };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+/* ============================================================
+ *  応援ハート / 推し投票
+ * ============================================================ */
+
+/** ハートを送信（連打バッチ対応）。tsJson はタイムスタンプ配列のJSON文字列。試合別累計も記録。 */
+function apiSendHeart(key, tsJson, matchKey, matchBrief) {
+  var lock = LockService.getScriptLock();
+  // 一斉送信時のロック競合を分散（0〜500msのランダム遅延）
+  Utilities.sleep(Math.floor(Math.random() * 500));
+  var locked = false;
+  try { lock.waitLock(4000); locked = true; } catch (e) {}
+  if (!locked) return { ok: false };
+  try {
+    var hkey = String(key || '') + '__hearts';
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var rowIdx = -1, obj = { ts: [], byMatch: {} };
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === hkey) { rowIdx = i; try { obj = JSON.parse(data[i][1]); } catch (e) {} break; }
+    }
+    var now = Date.now();
+    if (!Array.isArray(obj.ts)) obj.ts = [];
+    if (!obj.byMatch) obj.byMatch = {};
+    // タイムスタンプ配列を受け取る（旧形式の数値countにも後方互換）
+    var tsList;
+    try { tsList = JSON.parse(tsJson); } catch (e) { tsList = null; }
+    if (!Array.isArray(tsList)) tsList = [now]; // fallback
+    tsList = tsList.slice(0, 30); // 最大30件
+    for (var k = 0; k < tsList.length; k++) obj.ts.push(Number(tsList[k]) || now);
+    obj.ts = obj.ts.filter(function (t) { return now - t < 120000; }); // 直近2分のみ保持
+    // 試合別累計（pruneしない）
+    if (matchKey) {
+      var mk = String(matchKey).slice(0, 20);
+      if (!obj.byMatch[mk]) obj.byMatch[mk] = { cnt: 0, brief: String(matchBrief || mk).slice(0, 60) };
+      obj.byMatch[mk].cnt += tsList.length;
+    }
+    var nowDate = new Date();
+    if (rowIdx >= 0) sh.getRange(rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(obj), nowDate]]);
+    else sh.appendRow([hkey, JSON.stringify(obj), nowDate]);
+    return { ok: true };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/** since より後のタイムスタンプ一覧と試合別応援集計を返す。 */
+function apiGetHearts(key, since) {
+  var hkey = String(key || '') + '__hearts';
+  var sh = getStoreSheet_();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === hkey) {
+      try {
+        var obj = JSON.parse(data[i][1]);
+        var items = (obj.ts || []).filter(function (t) { return t > (since || 0); });
+        return { ok: true, items: items, byMatch: obj.byMatch || {} };
+      } catch (e) {}
+    }
+  }
+  return { ok: true, items: [], byMatch: {} };
+}
+
+/** 推し投票: playerName に1票追加して累計を返す。 */
+function apiAddVote(key, playerName) {
+  if (!playerName) return { ok: false };
+  var lock = LockService.getScriptLock();
+  // 一斉タップ時のロック競合を分散（0〜1秒のランダム遅延）
+  Utilities.sleep(Math.floor(Math.random() * 1000));
+  var locked = false;
+  try { lock.waitLock(5000); locked = true; } catch (e) {}
+  if (!locked) return { ok: false };
+  try {
+    var vkey = String(key || '') + '__votes';
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var rowIdx = -1, votes = {};
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === vkey) { rowIdx = i; try { votes = JSON.parse(data[i][1]); } catch (e) {} break; }
+    }
+    votes[playerName] = (votes[playerName] || 0) + 1;
+    var now = new Date();
+    if (rowIdx >= 0) sh.getRange(rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(votes), now]]);
+    else sh.appendRow([vkey, JSON.stringify(votes), now]);
+    return { ok: true, count: votes[playerName] };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/** 投票ランキング（全件）を返す。 */
+function apiGetVotes(key) {
+  var vkey = String(key || '') + '__votes';
+  var sh = getStoreSheet_();
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === vkey) {
+      try { return { ok: true, votes: JSON.parse(data[i][1]) }; } catch (e) {}
+    }
+  }
+  return { ok: true, votes: {} };
+}
+
+/* ============================================================
+ *  シリーズ（複数トーナメントdocを束ねるメタレコード）
+ *  - key: __series__<id> で Store シートに保存。実体docは従来どおり個別key。
+ *  - シリーズ本体は軽量メタのみ: { id, name, docs:[{key,title}...], deleted, createdAt, updatedAt, ... }
+ *    docs の要素形式はポータル側の自由（GASは中身を検証しない）。
+ *  - 削除はソフトデリート（deleted:true）。ポータル一覧から消えるだけでデータは残る。
+ * ============================================================ */
+var SERIES_PREFIX = '__series__';
+
+function _seriesKey_(id) { return SERIES_PREFIX + String(id); }
+
+/** シリーズID発行（日付+乱数。人が読めて衝突しにくい形式） */
+function _newSeriesId_() {
+  var d = new Date();
+  var ymd = d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
+  return 's' + ymd + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+/** Storeシートからシリーズ行を探す。{ rowIdx(1-based行番号-1), obj } を返す。無ければ null。 */
+function _findSeries_(sh, id) {
+  var key = _seriesKey_(id);
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === key) {
+      var obj = null;
+      try { obj = JSON.parse(data[i][1]); } catch (e) {}
+      return { rowIdx: i, obj: obj };
+    }
+  }
+  return null;
+}
+
+/** シリーズ一覧。deleted:true は includeDeleted 指定時のみ含める。 */
+function apiSeriesList(includeDeleted) {
+  var sh = getStoreSheet_();
+  var data = sh.getDataRange().getValues();
+  var list = [];
+  for (var i = 1; i < data.length; i++) {
+    var k = String(data[i][0] || '');
+    if (k.indexOf(SERIES_PREFIX) !== 0) continue;
+    var obj = null;
+    try { obj = JSON.parse(data[i][1]); } catch (e) { continue; }
+    if (!obj) continue;
+    if (obj.deleted && !includeDeleted) continue;
+    list.push(obj);
+  }
+  // 更新日時の新しい順
+  list.sort(function (a, b) { return String(b.updatedAt || '') < String(a.updatedAt || '') ? -1 : 1; });
+  return { ok: true, series: list };
+}
+
+/** シリーズ1件取得。 */
+function apiSeriesGet(id) {
+  var found = _findSeries_(getStoreSheet_(), id);
+  if (!found || !found.obj) return { ok: false, error: 'シリーズが見つかりません: ' + id };
+  return { ok: true, series: found.obj };
+}
+
+/** シリーズ新規作成。name のみ必須。作成したシリーズオブジェクトを返す。 */
+function apiSeriesCreate(name, token) {
+  if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
+  if (!name) return { ok: false, error: 'シリーズ名を指定してください' };
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト' }; }
+  try {
+    var sh = getStoreSheet_();
+    var id = _newSeriesId_();
+    while (_findSeries_(sh, id)) id = _newSeriesId_();   // 万一の衝突は引き直し
+    var now = new Date().toISOString();
+    var obj = { id: id, name: String(name).slice(0, 100), docs: [], deleted: false, createdAt: now, updatedAt: now };
+    sh.appendRow([_seriesKey_(id), JSON.stringify(obj), new Date()]);
+    return { ok: true, series: obj };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/**
+ * シリーズ更新。jsonString はシリーズオブジェクト全体（ポータルが編集した形をそのまま渡す）。
+ * id と createdAt はサーバ側で保持し、updatedAt を更新する。
+ */
+function apiSeriesUpdate(id, jsonString, token) {
+  if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
+  if (jsonString && jsonString.length > 49500) {
+    return { ok: false, error: 'シリーズデータが大きすぎます（' + jsonString.length + '文字 > 上限49500）' };
+  }
+  var incoming = null;
+  try { incoming = JSON.parse(jsonString); } catch (e) { return { ok: false, error: 'JSONが不正です' }; }
+  if (!incoming || typeof incoming !== 'object') return { ok: false, error: 'JSONが不正です' };
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト' }; }
+  try {
+    var sh = getStoreSheet_();
+    var found = _findSeries_(sh, id);
+    if (!found) return { ok: false, error: 'シリーズが見つかりません: ' + id };
+    incoming.id = id;                                                     // idの書き換えは不可
+    if (found.obj && found.obj.createdAt) incoming.createdAt = found.obj.createdAt;
+    incoming.updatedAt = new Date().toISOString();
+    sh.getRange(found.rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(incoming), new Date()]]);
+    return { ok: true, series: incoming };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/** ソフトデリート（deleted:true）。ポータル一覧から見えなくなるだけでデータは残る。 */
+function apiSeriesDelete(id, token) {
+  return _seriesSetDeleted_(id, true, token);
+}
+
+/** 削除の取り消し（復元）。 */
+function apiSeriesRestore(id, token) {
+  return _seriesSetDeleted_(id, false, token);
+}
+
+function _seriesSetDeleted_(id, deleted, token) {
+  if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト' }; }
+  try {
+    var sh = getStoreSheet_();
+    var found = _findSeries_(sh, id);
+    if (!found || !found.obj) return { ok: false, error: 'シリーズが見つかりません: ' + id };
+    found.obj.deleted = !!deleted;
+    found.obj.updatedAt = new Date().toISOString();
+    sh.getRange(found.rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(found.obj), new Date()]]);
+    return { ok: true, series: found.obj };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
 }

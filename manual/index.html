@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>serval 取扱説明書</title>
+<link rel="icon" href="../serval.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#0D141F; --panel:#16202E; --panel2:#1B2736; --line:#263447;
+    --serval:#E9A93D; --serval-dim:#8A6B2E;
+    --text:#E8EDF4; --muted:#8A97A8; --danger:#E05B5B; --ok:#5BBB7B;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --disp:'Zen Kaku Gothic New',system-ui,sans-serif;
+    --shadow:rgba(0,0,0,.4);
+  }
+  [data-theme="light"]{
+    --night:#F0F2F5; --panel:#FFFFFF; --panel2:#F5F6FA; --line:#DDE2EA;
+    --serval:#C57C0E; --serval-dim:#A86A0C;
+    --text:#1A2230; --muted:#5B6778; --danger:#C0392B; --ok:#27AE60;
+    --shadow:rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box; margin:0}
+  html,body{min-height:100%}
+  body{
+    background:var(--night); color:var(--text);
+    font-family:var(--disp); font-weight:400; font-size:15px; line-height:1.75;
+    transition:background .25s, color .25s;
+  }
+
+  /* ─── 上部ナビ ─── */
+  .topnav{
+    position:sticky; top:0; z-index:10;
+    background:var(--panel); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:14px; padding:10px 20px;
+  }
+  .topnav .brand{display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--text)}
+  .topnav .brand img{width:28px; height:28px; object-fit:contain}
+  [data-theme="dark"] .topnav .brand img{filter:invert(1); opacity:.9}
+  .topnav .brand-name{font-weight:700; font-size:15px; letter-spacing:.1em}
+  .topnav .brand-sub{font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.2em}
+  .topnav .sp{flex:1}
+  #themeBtn{
+    display:flex; align-items:center; justify-content:center;
+    width:32px; height:32px; padding:0; border-radius:50%;
+    background:transparent; border:1px solid var(--line); cursor:pointer;
+    font-size:15px; font-family:inherit;
+  }
+  #themeBtn:hover{border-color:var(--serval-dim)}
+  .back-link{
+    font-size:12px; font-family:var(--mono); color:var(--muted); text-decoration:none;
+    letter-spacing:.05em; padding:6px 10px; border:1px solid var(--line); border-radius:7px;
+  }
+  .back-link:hover{color:var(--text); border-color:var(--serval-dim)}
+
+  /* ─── レイアウト ─── */
+  .layout{display:flex; max-width:1060px; margin:0 auto; padding:0 20px}
+  .sidebar{
+    width:220px; flex-shrink:0; position:sticky; top:57px; align-self:flex-start;
+    height:calc(100vh - 57px); overflow-y:auto; padding:28px 0 60px;
+  }
+  .sidebar nav a{
+    display:block; font-size:12.5px; color:var(--muted); text-decoration:none;
+    padding:5px 12px; border-radius:6px; margin-bottom:1px;
+  }
+  .sidebar nav a:hover{background:var(--panel); color:var(--text)}
+  .sidebar nav .group{
+    font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.2em;
+    text-transform:uppercase; padding:16px 12px 4px; opacity:.7;
+  }
+  .content{flex:1; min-width:0; padding:36px 0 100px 40px}
+
+  @media(max-width:720px){
+    .sidebar{display:none}
+    .content{padding:24px 0 80px}
+  }
+
+  /* ─── コンテンツタイポグラフィ ─── */
+  .content h1{font-size:26px; font-weight:700; margin-bottom:8px; letter-spacing:.04em}
+  .content .subtitle{color:var(--muted); font-size:14px; margin-bottom:36px}
+  .content h2{
+    font-size:17px; font-weight:700; margin:44px 0 14px;
+    padding-bottom:10px; border-bottom:1px solid var(--line);
+  }
+  .content h3{font-size:14.5px; font-weight:700; margin:28px 0 10px; color:var(--serval)}
+  .content p{margin-bottom:14px}
+  .content ul,.content ol{margin:0 0 16px 22px; padding:0}
+  .content li{margin-bottom:5px}
+  .content code{
+    font-family:var(--mono); font-size:12.5px; background:var(--panel);
+    border:1px solid var(--line); border-radius:4px; padding:1px 6px;
+  }
+  .content pre{
+    background:var(--panel); border:1px solid var(--line); border-radius:9px;
+    padding:16px 18px; overflow-x:auto; margin-bottom:18px;
+    font-family:var(--mono); font-size:12.5px; line-height:1.65;
+  }
+  .content a{color:var(--serval); text-decoration:none}
+  .content a:hover{text-decoration:underline}
+
+  /* ─── コールアウト ─── */
+  .callout{
+    border-left:3px solid var(--serval); background:var(--panel); border-radius:0 9px 9px 0;
+    padding:14px 18px; margin:18px 0; font-size:13.5px;
+  }
+  .callout.warn{border-color:var(--danger); background:rgba(224,91,91,.07)}
+  .callout.tip{border-color:var(--ok)}
+  .callout .label{font-size:10.5px; font-weight:700; letter-spacing:.18em; margin-bottom:5px; opacity:.75}
+  .callout.warn .label{color:var(--danger)}
+  .callout.tip .label{color:var(--ok)}
+
+  /* ─── ステップ番号 ─── */
+  .steps{list-style:none; margin:0 0 18px; padding:0; counter-reset:step}
+  .steps li{
+    counter-increment:step; display:flex; gap:14px; margin-bottom:16px;
+  }
+  .steps li::before{
+    content:counter(step); flex-shrink:0; width:26px; height:26px;
+    background:var(--serval); color:#151004; font-weight:700; font-size:13px;
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    margin-top:2px;
+  }
+
+  /* ─── 機能表 ─── */
+  table{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:20px}
+  th{text-align:left; font-size:11px; letter-spacing:.1em; color:var(--muted); padding:6px 10px; border-bottom:1px solid var(--line)}
+  td{padding:10px 10px; border-bottom:1px solid var(--panel2); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .badge{
+    display:inline-block; font-family:var(--mono); font-size:10px; padding:2px 7px;
+    border-radius:4px; font-weight:500; letter-spacing:.05em;
+  }
+  .badge.new{background:rgba(233,169,61,.18); color:var(--serval)}
+  .badge.adv{background:rgba(91,187,123,.12); color:var(--ok)}
+
+  /* ─── TOC アンカー ─── */
+  [id]{scroll-margin-top:72px}
+</style>
+</head>
+<body>
+
+<!-- 上部ナビ -->
+<nav class="topnav">
+  <a class="brand" href="../">
+    <img src="../serval.png" alt="serval">
+    <div>
+      <div class="brand-name">serval</div>
+      <div class="brand-sub">TOURNAMENT MANAGER</div>
+    </div>
+  </a>
+  <span class="sp"></span>
+  <a class="back-link" href="../">← ポータルへ戻る</a>
+  <button id="themeBtn" aria-label="テーマ切り替え">🌙</button>
+</nav>
+
+<div class="layout">
+
+  <!-- サイドバー目次 -->
+  <aside class="sidebar">
+    <nav>
+      <div class="group">はじめに</div>
+      <a href="#overview">servalとは</a>
+      <a href="#structure">システム構成</a>
+      <div class="group">セットアップ</div>
+      <a href="#new-series">新規シリーズの作り方</a>
+      <a href="#settings">初期設定</a>
+      <div class="group">基本操作</div>
+      <a href="#players">選手・機体登録</a>
+      <a href="#tournament">トーナメント進行</a>
+      <a href="#league">リーグ戦進行</a>
+      <a href="#board">別画面表示</a>
+      <div class="group">応用機能</div>
+      <a href="#repair">修理タイマー</a>
+      <a href="#line">LINE通知</a>
+      <a href="#announce">アナウンス</a>
+      <a href="#ads">バナー広告</a>
+      <a href="#xshare">X（Twitter）シェア</a>
+      <div class="group">管理</div>
+      <a href="#portal">ポータル管理</a>
+      <a href="#backup">データ管理</a>
+      <a href="#trouble">トラブルシュート</a>
+    </nav>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <main class="content">
+    <h1 id="top">serval 取扱説明書</h1>
+    <p class="subtitle">トーナメント・リーグ戦管理システム — Google Apps Script ウェブアプリ</p>
+
+    <!-- ─── はじめに ─── -->
+    <h2 id="overview">servalとは</h2>
+    <p>
+      <strong>serval</strong> はロボット競技大会を対象としたトーナメント・リーグ戦管理ウェブアプリです。
+      Google スプレッドシートをデータベースとして利用し、Google Apps Script（GAS）のウェブアプリとしてブラウザ上で動作します。インストール不要、サーバー不要。
+    </p>
+    <ul>
+      <li>シングル・ダブルエリミネーション形式のトーナメント管理</li>
+      <li>リーグ戦（総当たり）の得点管理</li>
+      <li>修理タイマー・試合タイマー</li>
+      <li>別画面（観客向け表示）のリアルタイム同期</li>
+      <li>LINE通知（次の試合の呼び出し）</li>
+      <li>X（旧Twitter）への試合結果シェア</li>
+    </ul>
+
+    <h2 id="structure">システム構成</h2>
+    <p>
+      大会（シリーズ）ごとに独立した GAS プロジェクトを使います。すべてのシリーズは
+      <a href="../">serval ポータル</a> から一元管理します。
+    </p>
+    <table>
+      <tr><th>要素</th><th>役割</th></tr>
+      <tr><td>GASウェブアプリ（/exec）</td><td>トーナメント管理アプリ本体。選手・試合データの入力・管理</td></tr>
+      <tr><td>Googleスプレッドシート</td><td>GASに自動紐付けされるデータ保存先。「Store」シートに全データを保存</td></tr>
+      <tr><td>ポータル（sin1.studio/serval/）</td><td>シリーズ一覧の管理・新規作成の受け付け</td></tr>
+    </table>
+
+    <div class="callout">
+      <div class="label">ポイント</div>
+      1つのGASプロジェクト = 1つのシリーズ（大会）です。大会ごとにデータが完全に分離されるため、容量超過を防げます。
+    </div>
+
+    <!-- ─── セットアップ ─── -->
+    <h2 id="new-series">新規シリーズの作り方</h2>
+    <ol class="steps">
+      <li>
+        <div>
+          <strong>ポータルで「新規作成依頼」</strong><br>
+          <a href="../">serval ポータル</a> を開き、「＋ 新規作成依頼」からシリーズ名を登録します。この時点ではGAS URLなしの「準備中」カードが作られます。
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>GASプロジェクトをコピー作成</strong><br>
+          <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> にアクセスし、既存の serval プロジェクトを開いて「コピーを作成」します。新しいスプレッドシートとGASが自動で作られます。
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>ウェブアプリとしてデプロイ</strong><br>
+          コピーしたGASを開き「デプロイ → 新しいデプロイ → ウェブアプリ」を選択。「アクセスできるユーザー：全員」に設定し「デプロイ」を実行。表示された <code>/exec</code> URLをコピーします。
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>スクリプトプロパティを設定</strong><br>
+          GASエディタの「プロジェクトの設定 → スクリプトプロパティ」を開き、<code>ADMIN_TOKEN</code> に任意の管理者パスワードを設定します。LINE通知を使う場合は <code>LINE_TOKEN</code>、<code>LINE_CALL_URL</code> も設定します。
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>ポータルにURLを登録</strong><br>
+          serval ポータルの準備中カードの「編集（URLを登録）」を開き、コピーした <code>/exec</code> URLを貼り付けて保存します。カードが黄色バーに変わり「開く」ボタンが表示されます。
+        </div>
+      </li>
+    </ol>
+
+    <h2 id="settings">初期設定</h2>
+    <p>GASウェブアプリを開き、右上の歯車アイコンから「設定」を開きます。</p>
+    <table>
+      <tr><th>項目</th><th>説明</th></tr>
+      <tr><td>大会名</td><td>試合結果の表示やXシェアに使われます</td></tr>
+      <tr><td>試合時間</td><td>1試合あたりの制限時間（秒）。デフォルト 120秒</td></tr>
+      <tr><td>修理時間</td><td>修理タイマーのデフォルト上限（秒）。デフォルト 300秒</td></tr>
+      <tr><td>フリガナ表示</td><td>ON にすると、漢字・英字を含む選手名にフリガナを表示</td></tr>
+      <tr><td>別画面（観客用）</td><td>表示する情報を選択。URL末尾に <code>?board</code> を付けてアクセス</td></tr>
+    </table>
+
+    <!-- ─── 基本操作 ─── -->
+    <h2 id="players">選手・機体登録</h2>
+    <p>左サイドバーの「選手」タブから登録します。</p>
+    <ul>
+      <li><strong>選手名</strong>：表示名（漢字・英字可）</li>
+      <li><strong>フリガナ</strong>：カタカナ。漢字・英字名がある場合のみ表示されます</li>
+      <li><strong>所属</strong>：チーム名・学校名など（任意）</li>
+      <li><strong>番号</strong>：LINE通知で使う呼び出し番号（数字のみ）</li>
+      <li><strong>シード</strong>：トーナメントの山の組み分けに影響します</li>
+    </ul>
+
+    <h2 id="tournament">トーナメント進行</h2>
+    <h3>対戦組み合わせ生成</h3>
+    <p>「トーナメント」タブを開き「組み合わせを生成」ボタンをクリックします。登録済みの選手から自動的にブラケットが生成されます。</p>
+
+    <h3>試合の進行</h3>
+    <ol>
+      <li>対象の試合の「▶ 開始」ボタンをクリックしてタイマーを開始</li>
+      <li>試合終了後、「1本目」「2本目」「3本目」の結果を入力</li>
+      <li>勝者機体を選択して「確定」</li>
+      <li>次の試合に勝者が自動的に進出</li>
+    </ol>
+
+    <div class="callout tip">
+      <div class="label">ヒント</div>
+      1-1（引き分け）の場合でも機体選択ボタンが有効です。3本目の勝者を選んで確定できます。
+    </div>
+
+    <h2 id="league">リーグ戦進行</h2>
+    <p>「リーグ」タブで総当たり戦を管理します。各対戦の勝敗ポイントを入力すると自動的に順位表が更新されます。</p>
+
+    <h2 id="board">別画面表示（観客用）</h2>
+    <p>GASウェブアプリのURLの末尾に <code>?board</code> を付けてアクセスすると、観客向けの表示専用画面になります。</p>
+    <pre>https://script.google.com/macros/s/…/exec?board</pre>
+    <p>運営画面での操作がリアルタイムで別画面に反映されます。別画面に表示する情報は設定から選べます。</p>
+    <table>
+      <tr><th>表示オプション</th><th>内容</th></tr>
+      <tr><td>次の試合</td><td>次に行われる試合の選手名・機体名</td></tr>
+      <tr><td>現在の試合</td><td>進行中の試合のタイマー・スコア</td></tr>
+      <tr><td>修理時間</td><td>修理中の機体名と経過時間</td></tr>
+      <tr><td>順位表</td><td>リーグ戦の現在の順位</td></tr>
+    </table>
+
+    <!-- ─── 応用機能 ─── -->
+    <h2 id="repair">修理タイマー</h2>
+    <p>試合終了後に修理時間を計測できます。試合の右カラムの「修理開始」ボタンで計測開始。設定で指定した上限時間に達すると別画面の表示から自動的に消えます。</p>
+
+    <h2 id="line">LINE通知</h2>
+    <p>次の試合に呼ばれる選手にLINEで自動通知します。</p>
+
+    <h3>設定手順</h3>
+    <ol class="steps">
+      <li>
+        <div>
+          <a href="https://notify-bot.line.me/" target="_blank" rel="noopener">LINE Notify</a> でトークンを取得（「トークへの通知」で自分のトークに送るのが簡単）
+        </div>
+      </li>
+      <li>
+        <div>
+          呼び出しサーバーを起動。<a href="https://github.com/sin1n24/line-call-system" target="_blank" rel="noopener">line-call-system</a> を PC でローカル起動し、cloudflared などで外部公開URLを取得。
+        </div>
+      </li>
+      <li>
+        <div>
+          GASのスクリプトプロパティに設定：
+          <ul>
+            <li><code>LINE_TOKEN</code>：LINE Notifyのトークン</li>
+            <li><code>LINE_CALL_URL</code>：呼び出しサーバーの外部URL（例：<code>https://xxxx.trycloudflare.com</code>）</li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <div>
+          選手の「番号」欄に呼び出し用の番号（数字のみ）を登録
+        </div>
+      </li>
+    </ol>
+
+    <div class="callout warn">
+      <div class="label">注意</div>
+      公共WiFiで再認証が発生するとcloudflaredのトンネルURLが失効します。大会中は安定したネットワーク環境を推奨します。
+    </div>
+
+    <h2 id="announce">アナウンス</h2>
+    <p>
+      「設定 → アナウンス」に短いテキストを入力すると、別画面の「応援」ボタンと試合キューの間に表示されます。
+      休憩時間のお知らせや「14時まで 自由練習」などを一時的に表示するのに使います。空にすると非表示になります。
+    </p>
+
+    <h2 id="ads">バナー広告</h2>
+    <p>
+      「設定 → バナー」から画像URLと表示時間を設定できます。別画面で試合と試合の間にバナーが自動的に表示されます。
+    </p>
+
+    <h2 id="xshare">X（Twitter）シェア</h2>
+    <p>
+      試合確定後に「Xシェア」ボタンが表示されます。試合結果の画像を生成してXに投稿できます。
+      Renderにデプロイされたシェアサーバーが画像生成を担当します。
+    </p>
+
+    <!-- ─── 管理 ─── -->
+    <h2 id="portal">ポータル管理</h2>
+    <p>
+      <a href="../">serval ポータル</a> からシリーズの一覧表示・編集・削除ができます。
+      削除はソフトデリート（非表示）で、「削除済みも表示」から復元できます。GASのデータ自体は削除されません。
+    </p>
+    <p>
+      ポータルの書き込み操作（作成・更新・削除）には管理者パスワードが必要です。
+      初回アクセス時にプロンプトが表示され、ブラウザのlocalStorageに保存されます。
+    </p>
+
+    <h2 id="backup">データ管理</h2>
+    <p>
+      全データはGASに紐付いたGoogleスプレッドシートの「Store」シートに保存されています。
+      Googleドライブ上でそのまま閲覧・ダウンロード・バックアップができます。
+    </p>
+    <div class="callout warn">
+      <div class="label">容量上限について</div>
+      GASのHTMLサービスには1プロジェクトあたり約25KBの上限があります。servalは試合数が増えると容量が増加します。管理画面のデータサイズバーで使用率を確認してください。70%を超えたら新規シリーズへの移行を検討してください。
+    </div>
+
+    <h2 id="trouble">トラブルシュート</h2>
+    <table>
+      <tr><th>症状</th><th>対処</th></tr>
+      <tr>
+        <td>画面が白いまま / 古いバージョンが表示される</td>
+        <td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> でキャッシュをクリアして再読み込み</td>
+      </tr>
+      <tr>
+        <td>「init is not defined」エラー</td>
+        <td>GASのスクリプトにSyntaxErrorがある可能性。管理者に報告</td>
+      </tr>
+      <tr>
+        <td>LINE通知が来ない</td>
+        <td>
+          <ol>
+            <li><code>LINE_TOKEN</code> と <code>LINE_CALL_URL</code> が正しく設定されているか確認</li>
+            <li>cloudflaredのトンネルが生きているか確認（公共WiFi再認証後は失効する）</li>
+            <li>選手の「番号」欄が数字のみになっているか確認</li>
+          </ol>
+        </td>
+      </tr>
+      <tr>
+        <td>別画面が更新されない</td>
+        <td>別画面は定期的にポーリングしています。ネットワーク状況を確認し、ページを再読み込みしてください</td>
+      </tr>
+      <tr>
+        <td>ポータルにアクセスできない（CORS エラー）</td>
+        <td>レジストリGASのデプロイが最新か確認。GASを再デプロイ（バージョン更新）してください</td>
+      </tr>
+    </table>
+  </main>
+
+</div><!-- /.layout -->
+
+<script>
+/* ─── テーマ ─── */
+(function(){
+  var saved=localStorage.getItem('servalTheme')||'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('themeBtn').textContent=saved==='dark'?'🌙':'☀️';
+})();
+document.getElementById('themeBtn').onclick=function(){
+  var cur=document.documentElement.getAttribute('data-theme');
+  var next=cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('servalTheme', next);
+  this.textContent=next==='dark'?'🌙':'☀️';
+};
+
+/* ─── サイドバーのアクティブリンク ─── */
+var links=document.querySelectorAll('.sidebar nav a');
+var headings=document.querySelectorAll('.content [id]');
+var observer=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting){
+      links.forEach(function(l){l.style.background='';l.style.color='';});
+      var a=document.querySelector('.sidebar nav a[href="#'+e.target.id+'"]');
+      if(a){a.style.background='var(--panel)';a.style.color='var(--text)';}
+    }
+  });
+},{rootMargin:'-30% 0px -60% 0px'});
+headings.forEach(function(h){observer.observe(h);});
+</script>
+</body>
+</html>
