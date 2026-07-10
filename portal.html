@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>serval ポータル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#0D141F; --panel:#16202E; --panel2:#1B2736; --line:#263447;
+    --serval:#E9A93D; --serval-dim:#8A6B2E;
+    --text:#E8EDF4; --muted:#8A97A8; --danger:#E05B5B;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --disp:'Zen Kaku Gothic New',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box; margin:0}
+  html,body{height:100%}
+  body{
+    background:var(--night); color:var(--text);
+    font-family:var(--disp); font-weight:500; font-size:14px; line-height:1.6;
+    /* サーバル斑点：ごく薄く背景に */
+    background-image:
+      radial-gradient(circle 3px at 12% 22%, #1A2432 99%, transparent),
+      radial-gradient(circle 4px at 78% 8%,  #1A2432 99%, transparent),
+      radial-gradient(circle 2px at 55% 45%, #18212E 99%, transparent),
+      radial-gradient(circle 3px at 88% 68%, #18212E 99%, transparent),
+      radial-gradient(circle 2px at 30% 82%, #1A2432 99%, transparent);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:28px 20px 80px}
+
+  /* ── ヘッダー：serval ロゴ（vの上に耳） ── */
+  header{display:flex; align-items:baseline; gap:14px; margin-bottom:6px}
+  .logo{font-weight:700; font-size:26px; letter-spacing:.14em; position:relative; user-select:none}
+  .logo .v{position:relative; display:inline-block}
+  .logo .v::before,.logo .v::after{
+    content:''; position:absolute; top:-7px; border-left:4px solid transparent; border-right:4px solid transparent;
+    border-bottom:8px solid var(--serval);
+  }
+  .logo .v::before{left:-2px; transform:rotate(-14deg)}
+  .logo .v::after{right:-2px; transform:rotate(14deg)}
+  .logo-sub{font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.28em}
+  .tagline{color:var(--muted); font-size:12.5px; margin-bottom:26px}
+
+  /* ── ツールバー ── */
+  .toolbar{display:flex; align-items:center; gap:10px; margin-bottom:18px}
+  .toolbar .sp{flex:1}
+  button{
+    font-family:var(--disp); font-weight:700; font-size:13px; cursor:pointer;
+    border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text);
+    padding:8px 16px; transition:border-color .15s, background .15s;
+  }
+  button:hover{border-color:var(--serval-dim)}
+  button:focus-visible{outline:2px solid var(--serval); outline-offset:2px}
+  button.primary{background:var(--serval); border-color:var(--serval); color:#151004}
+  button.primary:hover{background:#F2BA55}
+  button.ghost{background:transparent; border-color:transparent; color:var(--muted); font-weight:500}
+  button.ghost:hover{color:var(--text); border-color:var(--line)}
+  button.danger{color:var(--danger)}
+  button:disabled{opacity:.45; cursor:default}
+
+  /* ── シリーズカード ── */
+  .card{
+    display:flex; gap:0; background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    margin-bottom:14px; overflow:hidden;
+    animation:cardIn .35s ease both;
+  }
+  @keyframes cardIn{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion: reduce){ .card{animation:none} }
+  .card.deleted{opacity:.55}
+  .bracket{flex:0 0 46px; padding:14px 0 14px 12px}
+  .bracket svg{display:block; height:100%; min-height:64px}
+  .card-body{flex:1; padding:14px 16px 14px 4px; min-width:0}
+  .card-head{display:flex; align-items:center; gap:10px}
+  .card-name{font-size:17px; font-weight:700; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .card-meta{font-family:var(--mono); font-size:10.5px; color:var(--muted); letter-spacing:.02em; margin:2px 0 10px}
+  .doc-row{display:flex; flex-wrap:wrap; gap:6px}
+  .doc-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--panel2); border:1px solid var(--line); border-radius:6px;
+    padding:4px 8px 4px 10px; font-size:12.5px; text-decoration:none; color:var(--text);
+    transition:border-color .15s;
+  }
+  .doc-chip:hover{border-color:var(--serval-dim)}
+  .doc-chip .k{font-family:var(--mono); font-size:10px; color:var(--muted)}
+  .doc-chip .adm{
+    font-size:11px; color:var(--muted); text-decoration:none; padding:1px 4px; border-radius:4px;
+  }
+  .doc-chip .adm:hover{color:var(--serval); background:rgba(233,169,61,.1)}
+  .doc-none{color:var(--muted); font-size:12px; font-style:italic}
+  .del-tag{font-family:var(--mono); font-size:10px; color:var(--danger); border:1px solid var(--danger); border-radius:4px; padding:1px 6px}
+
+  /* ── 空状態 ── */
+  .empty{
+    text-align:center; padding:70px 20px; color:var(--muted); border:1px dashed var(--line); border-radius:12px;
+  }
+  .empty svg{margin-bottom:14px}
+  .empty p{margin-bottom:18px}
+
+  /* ── モーダル ── */
+  dialog{
+    background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:14px;
+    padding:22px; width:min(560px, calc(100vw - 32px)); font-family:var(--disp);
+  }
+  dialog::backdrop{background:rgba(5,9,14,.72)}
+  dialog h2{font-size:16px; font-weight:700; margin-bottom:16px}
+  label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px; letter-spacing:.05em}
+  input[type=text]{
+    width:100%; background:var(--night); border:1px solid var(--line); border-radius:7px;
+    color:var(--text); font-family:var(--disp); font-size:14px; padding:8px 10px;
+  }
+  input[type=text]:focus-visible{outline:2px solid var(--serval); outline-offset:1px; border-color:var(--serval-dim)}
+  .fld{margin-bottom:16px}
+  .doclist-head{display:flex; align-items:center; margin:18px 0 6px}
+  .doclist-head label{margin:0; flex:1}
+  .doc-edit{display:flex; gap:6px; margin-bottom:6px; align-items:center}
+  .doc-edit input.dk{flex:0 0 130px; font-family:var(--mono); font-size:12px}
+  .doc-edit input.dt{flex:1}
+  .doc-edit button{padding:6px 9px; font-size:12px; font-weight:500}
+  .modal-foot{display:flex; gap:10px; justify-content:flex-end; margin-top:22px}
+
+  /* ── トースト ── */
+  #toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+    background:var(--panel2); border:1px solid var(--line); border-radius:9px;
+    padding:9px 18px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s;
+    max-width:min(520px, calc(100vw - 40px));
+  }
+  #toast.show{opacity:1}
+  #toast.err{border-color:var(--danger); color:#F2A9A9}
+
+  .loading{text-align:center; color:var(--muted); padding:60px 0; font-family:var(--mono); font-size:12px; letter-spacing:.2em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="logo">ser<span class="v">v</span>al</span>
+    <span class="logo-sub">SERIES PORTAL</span>
+  </header>
+  <p class="tagline">シリーズ（大会のまとまり）を作成・編集し、各トーナメントを開きます。</p>
+
+  <div class="toolbar">
+    <button class="primary" id="btnNew">＋ 新しいシリーズ</button>
+    <span class="sp"></span>
+    <label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-size:12px">
+      <input type="checkbox" id="chkDeleted">削除済みも表示
+    </label>
+    <button class="ghost" id="btnReload" title="一覧を再読み込み">↻</button>
+  </div>
+
+  <div id="list"><div class="loading">LOADING…</div></div>
+</div>
+
+<!-- 編集モーダル -->
+<dialog id="editDlg">
+  <h2 id="dlgTitle">シリーズを編集</h2>
+  <div class="fld">
+    <label for="fName">シリーズ名</label>
+    <input type="text" id="fName" maxlength="100" placeholder="第7回 中島杯">
+  </div>
+  <div class="doclist-head">
+    <label>トーナメント（doc）</label>
+    <button class="ghost" id="btnAddDoc">＋ 追加</button>
+  </div>
+  <div id="docEdits"></div>
+  <datalist id="docKeys"></datalist>
+  <div class="modal-foot">
+    <button id="btnCancel">キャンセル</button>
+    <button class="primary" id="btnSave">保存</button>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+/* ============ ユーティリティ / API ============ */
+var hasGas = (typeof google!=='undefined') && google.script && google.script.run;
+var TOKEN_KEY='servalPortalToken';
+var _series=[];        // 現在の一覧
+var _editing=null;     // 編集中シリーズ（新規はnull idなし）
+var _docEdits=[];      // モーダル内のdoc編集行 [{key,title}]
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+function toast(msg, isErr){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.className='show'+(isErr?' err':'');
+  clearTimeout(toast._t); toast._t=setTimeout(function(){ t.className=''; }, 3200);
+}
+
+function run(fn){
+  var args=Array.prototype.slice.call(arguments,1);
+  return new Promise(function(res, rej){
+    if(!hasGas){ rej(new Error('GAS未接続（ローカルプレビュー）')); return; }
+    var r=google.script.run.withSuccessHandler(res).withFailureHandler(rej);
+    r[fn].apply(r, args);
+  });
+}
+
+function getToken(){
+  var t=localStorage.getItem(TOKEN_KEY);
+  if(!t){
+    t=prompt('管理者パスワードを入力してください');
+    if(t) localStorage.setItem(TOKEN_KEY, t);
+  }
+  return t||'';
+}
+function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+
+function fmtDate(iso){
+  if(!iso) return '';
+  var d=new Date(iso);
+  if(isNaN(d)) return String(iso).slice(0,16);
+  var mm=('0'+(d.getMonth()+1)).slice(-2), dd=('0'+d.getDate()).slice(-2);
+  var hh=('0'+d.getHours()).slice(-2), mi=('0'+d.getMinutes()).slice(-2);
+  return d.getFullYear()+'/'+mm+'/'+dd+' '+hh+':'+mi;
+}
+
+function docUrl(key, admin){
+  var base=window.__EXECURL__||'';
+  return base+'?doc='+encodeURIComponent(key)+(admin?'&admin':'');
+}
+</script>
+
+<script>
+/* ============ 描画 ============ */
+
+/* シグネチャー：doc数ぶんの枝が1本に合流するブラケット */
+function bracketSvg(n){
+  var branches=Math.max(1, Math.min(4, n||0));
+  var w=34, h=Math.max(64, branches*20+8);
+  var midY=h/2, joinX=w-6;
+  var lines='';
+  if(branches===1 || n===0){
+    lines='<line x1="2" y1="'+midY+'" x2="'+w+'" y2="'+midY+'"/>';
+  } else {
+    var gap=(h-8)/(branches-1);
+    for(var i=0;i<branches;i++){
+      var y=4+i*gap;
+      lines+='<polyline points="2,'+y+' '+joinX+','+y+' '+joinX+','+midY+'" fill="none"/>';
+    }
+    lines+='<line x1="'+joinX+'" y1="'+midY+'" x2="'+w+'" y2="'+midY+'"/>';
+    if(n>4) lines+='<text x="2" y="'+(h-1)+'" font-size="8" fill="#8A6B2E" font-family="monospace">+'+(n-4)+'</text>';
+  }
+  return '<svg viewBox="0 0 '+w+' '+h+'" width="'+w+'" stroke="#8A6B2E" stroke-width="1.5">'+lines+'</svg>';
+}
+
+function renderList(){
+  var el=document.getElementById('list');
+  var showDel=document.getElementById('chkDeleted').checked;
+  var items=_series.filter(function(s){ return showDel || !s.deleted; });
+  if(!items.length){
+    el.innerHTML='<div class="empty">'
+      +'<svg viewBox="0 0 60 40" width="90" stroke="#263447" stroke-width="2" fill="none">'
+      +'<polyline points="2,6 30,6 30,20"/><polyline points="2,34 30,34 30,20"/><line x1="30" y1="20" x2="58" y2="20"/></svg>'
+      +'<p>シリーズがまだありません。<br>最初のシリーズを作成して、大会のトーナメントを束ねましょう。</p>'
+      +'<button class="primary" onclick="openEdit(null)">＋ 新しいシリーズ</button></div>';
+    return;
+  }
+  var html='';
+  items.forEach(function(s, i){
+    var docs=Array.isArray(s.docs)?s.docs:[];
+    var chips='';
+    if(!docs.length){
+      chips='<span class="doc-none">トーナメント未登録</span>';
+    } else {
+      docs.forEach(function(d){
+        var key=(d&&d.key)||String(d||'');
+        var title=(d&&d.title)||key;
+        chips+='<a class="doc-chip" href="'+esc(docUrl(key,false))+'" target="_blank" rel="noopener">'
+          +esc(title)+' <span class="k">'+esc(key)+'</span>'
+          +'<a class="adm" href="'+esc(docUrl(key,true))+'" target="_blank" rel="noopener" title="管理画面で開く" onclick="event.stopPropagation()">⚙</a>'
+          +'</a>';
+      });
+    }
+    html+='<div class="card'+(s.deleted?' deleted':'')+'" style="animation-delay:'+(i*40)+'ms">'
+      +'<div class="bracket">'+bracketSvg(docs.length)+'</div>'
+      +'<div class="card-body">'
+      +'<div class="card-head"><span class="card-name">'+esc(s.name||'（無名）')+'</span>'
+      +(s.deleted
+        ? '<span class="del-tag">削除済み</span><button class="ghost" onclick="restoreSeries(\''+esc(s.id)+'\')">復元</button>'
+        : '<button class="ghost" onclick="openEdit(\''+esc(s.id)+'\')">編集</button>'
+          +'<button class="ghost danger" onclick="deleteSeries(\''+esc(s.id)+'\')">削除</button>')
+      +'</div>'
+      +'<div class="card-meta">'+esc(s.id||'')+' ・ 更新 '+esc(fmtDate(s.updatedAt))+'</div>'
+      +'<div class="doc-row">'+chips+'</div>'
+      +'</div></div>';
+  });
+  el.innerHTML=html;
+}
+
+function renderDocEdits(){
+  var el=document.getElementById('docEdits');
+  var html='';
+  _docEdits.forEach(function(d, i){
+    html+='<div class="doc-edit">'
+      +'<input type="text" class="dk" list="docKeys" placeholder="docキー" value="'+esc(d.key)+'" oninput="_docEdits['+i+'].key=this.value">'
+      +'<input type="text" class="dt" placeholder="表示名（例：予選Aブロック）" value="'+esc(d.title)+'" oninput="_docEdits['+i+'].title=this.value">'
+      +'<button title="上へ" onclick="moveDoc('+i+',-1)" '+(i===0?'disabled':'')+'>↑</button>'
+      +'<button title="下へ" onclick="moveDoc('+i+',1)" '+(i===_docEdits.length-1?'disabled':'')+'>↓</button>'
+      +'<button class="danger" title="この行を外す" onclick="removeDoc('+i+')">×</button>'
+      +'</div>';
+  });
+  if(!html) html='<div class="doc-none" style="margin:4px 0 2px">「＋ 追加」でトーナメントのdocキーを登録します。</div>';
+  el.innerHTML=html;
+}
+function moveDoc(i, dir){
+  var j=i+dir; if(j<0||j>=_docEdits.length) return;
+  var t=_docEdits[i]; _docEdits[i]=_docEdits[j]; _docEdits[j]=t;
+  renderDocEdits();
+}
+function removeDoc(i){ _docEdits.splice(i,1); renderDocEdits(); }
+</script>
+
+<script>
+/* ============ 操作 ============ */
+
+function loadList(){
+  document.getElementById('list').innerHTML='<div class="loading">LOADING…</div>';
+  run('apiSeriesList', true).then(function(r){
+    if(r && r.ok){ _series=r.series||[]; renderList(); }
+    else toast('一覧の取得に失敗しました', true);
+  }).catch(function(e){
+    _series=[];
+    renderList();
+    toast('取得エラー: '+(e&&e.message||e), true);
+  });
+}
+
+function openEdit(id){
+  var dlg=document.getElementById('editDlg');
+  if(id){
+    var s=null;
+    _series.forEach(function(x){ if(x.id===id) s=x; });
+    if(!s){ toast('シリーズが見つかりません', true); return; }
+    _editing=s;
+    document.getElementById('dlgTitle').textContent='シリーズを編集';
+    document.getElementById('fName').value=s.name||'';
+    _docEdits=(Array.isArray(s.docs)?s.docs:[]).map(function(d){
+      return { key:(d&&d.key)||String(d||''), title:(d&&d.title)||'' };
+    });
+  } else {
+    _editing=null;
+    document.getElementById('dlgTitle').textContent='新しいシリーズ';
+    document.getElementById('fName').value='';
+    _docEdits=[];
+  }
+  renderDocEdits();
+  loadDocKeys();
+  dlg.showModal();
+  document.getElementById('fName').focus();
+}
+
+/* 既存docキーをdatalistへ（__series__等の内部キーは除外） */
+function loadDocKeys(){
+  run('apiList').then(function(r){
+    if(!(r&&r.ok)) return;
+    var dl=document.getElementById('docKeys'); var html='';
+    (r.keys||[]).forEach(function(k){
+      var key=k.key||'';
+      if(key.indexOf('__series__')===0) return;
+      if(/__adstats$|__hearts$|__votes$/.test(key)) return;
+      html+='<option value="'+esc(key)+'">';
+    });
+    dl.innerHTML=html;
+  }).catch(function(){});
+}
+
+function saveEdit(){
+  var name=document.getElementById('fName').value.trim();
+  if(!name){ toast('シリーズ名を入力してください', true); return; }
+  var docs=_docEdits
+    .map(function(d){ return { key:String(d.key||'').trim(), title:String(d.title||'').trim() }; })
+    .filter(function(d){ return d.key; });
+  var token=getToken();
+  var btn=document.getElementById('btnSave'); btn.disabled=true;
+  var done=function(r){
+    btn.disabled=false;
+    if(r && r.ok){
+      document.getElementById('editDlg').close();
+      toast('保存しました');
+      loadList();
+    } else {
+      var msg=(r&&r.error)||'保存に失敗しました';
+      if(msg.indexOf('認証')>=0) clearToken();
+      toast(msg, true);
+    }
+  };
+  var fail=function(e){ btn.disabled=false; toast('保存エラー: '+(e&&e.message||e), true); };
+  if(_editing){
+    var obj={ id:_editing.id, name:name, docs:docs, deleted:!!_editing.deleted,
+              createdAt:_editing.createdAt, updatedAt:_editing.updatedAt };
+    run('apiSeriesUpdate', _editing.id, JSON.stringify(obj), token).then(done).catch(fail);
+  } else {
+    run('apiSeriesCreate', name, token).then(function(r){
+      if(!(r&&r.ok)){ done(r); return; }
+      if(!docs.length){ done(r); return; }
+      var obj=r.series; obj.docs=docs;
+      run('apiSeriesUpdate', obj.id, JSON.stringify(obj), token).then(done).catch(fail);
+    }).catch(fail);
+  }
+}
+
+function deleteSeries(id){
+  var s=null; _series.forEach(function(x){ if(x.id===id) s=x; });
+  if(!confirm('「'+((s&&s.name)||id)+'」をポータルから削除しますか？\n（データは残ります。「削除済みも表示」から復元できます）')) return;
+  run('apiSeriesDelete', id, getToken()).then(function(r){
+    if(r&&r.ok){ toast('削除しました'); loadList(); }
+    else { if(r&&r.error&&r.error.indexOf('認証')>=0) clearToken(); toast((r&&r.error)||'削除に失敗', true); }
+  }).catch(function(e){ toast('削除エラー: '+(e&&e.message||e), true); });
+}
+
+function restoreSeries(id){
+  run('apiSeriesRestore', id, getToken()).then(function(r){
+    if(r&&r.ok){ toast('復元しました'); loadList(); }
+    else { if(r&&r.error&&r.error.indexOf('認証')>=0) clearToken(); toast((r&&r.error)||'復元に失敗', true); }
+  }).catch(function(e){ toast('復元エラー: '+(e&&e.message||e), true); });
+}
+
+/* ============ 初期化 ============ */
+document.getElementById('btnNew').onclick=function(){ openEdit(null); };
+document.getElementById('btnReload').onclick=loadList;
+document.getElementById('chkDeleted').onchange=renderList;
+document.getElementById('btnAddDoc').onclick=function(){ _docEdits.push({key:'',title:''}); renderDocEdits(); };
+document.getElementById('btnSave').onclick=saveEdit;
+document.getElementById('btnCancel').onclick=function(){ document.getElementById('editDlg').close(); };
+
+loadList();
+</script>
+</body>
+</html>

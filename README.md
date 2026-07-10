@@ -20,6 +20,8 @@
 | `Code.gs` | GAS バックエンド（`doGet` で HTML 配信、保存/読込/結果送信 API） |
 | `LineCall.gs` | [line-call-system](https://github.com/sin1n24/line-call-system) への LINE 呼出連携（任意）。スクリプト プロパティ `LINE_CALL_BASE_URL`・`LINE_CALL_TOKEN` を設定して使用 |
 | `appsscript.json` | GAS ウェブアプリ設定 |
+| `share-server/` | X（Twitter）シェア用 OGP サーバー（Express）。Render にデプロイして使用 |
+| `go/index.html` | GAS ウェブアプリへの短縮転送ページ |
 
 ## 使い方（単独・スタンドアロン）
 
@@ -37,8 +39,7 @@
 ## モード
 
 - **閲覧モード（既定）**: 操作 UI を隠し、ブラケットのみを表示。約7秒ごとに自動更新。観客・スマホ向け。
-- **管理モード**: タイトルを**トリプルクリック**→パスワードで切替（簡易・非セキュア）。URL に `?admin` を付けて開くと最初から管理モード（ローカル/通常ホスティング時）。
-  - パスワードは `index.html` 内の定数 `ADMIN_PASS`（要変更）。
+- **管理モード**: URL に `?admin` を付けて開くと管理モードで起動。
 - 作成と運用は統合：管理モードでは枠の編集・D&D と試合番号クリックでの結果送信が同時に行え、勝者線も常時反映されます。
 
 ## 主な機能
@@ -65,12 +66,46 @@
 ### 代表戦（複数ブロック時）
 - 代表トーナメント、または代表リーグ戦（3ブロック時、2名トーナメント×3を縦並べ）
 
+### 別画面・配信連携
+- **別画面１（`?board`）**: 縦型の大型表示。OBS などでの配信に対応
+- **別画面２（`?lane`）**: 横長バナー表示（画面下3分の1など）
+- **別画面３（`?sub`）**: 追加の大型表示
+- 管理画面からの演出（勝ち上がり・対戦カード）が別画面にリアルタイム配信（BroadcastChannel）
+- 各別画面で背景・表示項目・フォント・ウィンドウサイズを個別設定
+
+### 応援ハート・推し投票
+- 閲覧者が「❤ 応援！」ボタンまたはスマホシェイクでハートを送信 → board/sub 画面に炎上アニメーション
+- 閲覧者が選手枠をタップ → 「☆ 推す」で推し投票（端末1票制、localStorage）
+- 管理画面で応援ランキング・推しランキングを閲覧
+
+### Xシェア・フォント
+- ブラケットを画像としてキャプチャし、OGP 付きシェアURLを生成して X（Twitter）に投稿
+- フォント選択機能（選手名・数字・ベースの3系統を個別に設定）。Google Fonts から11種の和文フォントを動的ロード
+
 ## データ入出力
 - JSON 保存/読込/書き出し/取込（書式バージョン付き）
 - CSV 取込（選手名・所属・番号・代表者・連絡先）
 
 
 ※SEフォルダにはOtoLogicの素材を入れてますので、効果音として使用することも出来ます。（DLはしないで下さい）
+
+## 使用フォント
+
+フォント選択機能で選べる和文フォントはすべて [Google Fonts](https://fonts.google.com/) 経由で読み込まれます。いずれも [SIL Open Font License 1.1](https://openfontlicense.org/) のもとで公開されています。
+
+| フォント | 著作者 |
+|---|---|
+| [Dela Gothic One](https://fonts.google.com/specimen/Dela+Gothic+One) | Copyright 2020 The Dela Gothic Project Authors |
+| [Stick](https://fonts.google.com/specimen/Stick) | Copyright 2020 The Stick Project Authors |
+| [DotGothic16](https://fonts.google.com/specimen/DotGothic16) | Copyright 2020 The DotGothic16 Project Authors |
+| [Yuji Boku](https://fonts.google.com/specimen/Yuji+Boku) | Copyright 2021 The Yuji Project Authors |
+| [Yuji Mai](https://fonts.google.com/specimen/Yuji+Mai) | Copyright 2021 The Yuji Project Authors |
+| [Shippori Antique](https://fonts.google.com/specimen/Shippori+Antique) | Copyright 2020 The Shippori Antique Project Authors |
+| [Klee One](https://fonts.google.com/specimen/Klee+One) | Copyright 2020 The Klee Project Authors |
+| [Kaisei Decol](https://fonts.google.com/specimen/Kaisei+Decol) | Copyright 2020 The Kaisei Project Authors |
+| [Hina Mincho](https://fonts.google.com/specimen/Hina+Mincho) | Copyright 2020 The Hina Mincho Project Authors |
+| [Zen Antique Soft](https://fonts.google.com/specimen/Zen+Antique+Soft) | Copyright 2021 The Zen Antique Project Authors |
+| [M PLUS Rounded 1c](https://fonts.google.com/specimen/M+PLUS+Rounded+1c) | Copyright 2021 The M+ FONTS Project Authors |
 
 ## ライセンス
 

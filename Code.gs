@@ -44,7 +44,7 @@ function doPost(e) {
   var act = String(req.action || '');
   var token = req.token || '';
   if (act === 'bookList')    return _jsonOut_(apiBookList(!!req.deleted));
-  if (act === 'bookCreate')  return _jsonOut_(apiBookCreate(req.name, req.page, req.docKey, token));
+  if (act === 'bookCreate')  return _jsonOut_(apiBookCreate(req.name, token));
   if (act === 'bookUpdate')  return _jsonOut_(apiBookUpdate(req.id, JSON.stringify(req.book || {}), token));
   if (act === 'bookDelete')  return _jsonOut_(apiBookDelete(req.id, token));
   if (act === 'bookRestore') return _jsonOut_(apiBookRestore(req.id, token));
@@ -429,8 +429,8 @@ function apiBookGet(id) {
   return { ok: true, book: found.obj };
 }
 
-/** ブック新規作成。name 必須、page・docKey は任意。 */
-function apiBookCreate(name, page, docKey, token) {
+/** ブック新規作成。name 必須。tournaments は後から bookUpdate で追加する。 */
+function apiBookCreate(name, token) {
   if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
   if (!name) return { ok: false, error: 'ブック名を指定してください' };
   var lock = LockService.getScriptLock();
@@ -440,9 +440,7 @@ function apiBookCreate(name, page, docKey, token) {
     var id = _newBookId_();
     while (_findBook_(sh, id)) id = _newBookId_();
     var now = new Date().toISOString();
-    var pg = (page !== undefined && page !== null && page !== '') ? Number(page) : null;
-    var dk = docKey ? String(docKey).slice(0, 100) : '';
-    var obj = { id: id, name: String(name).slice(0, 100), page: pg, docKey: dk, url: '', note: '', deleted: false, createdAt: now, updatedAt: now };
+    var obj = { id: id, name: String(name).slice(0, 100), url: '', note: '', tournaments: [], deleted: false, createdAt: now, updatedAt: now };
     sh.appendRow([_bookKey_(id), JSON.stringify(obj), new Date()]);
     return { ok: true, book: obj };
   } finally { try { lock.releaseLock(); } catch (e) {} }

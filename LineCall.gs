@@ -69,8 +69,12 @@ function callCustom(numbers, text) { return callLineTeams(numbers, 'custom', tex
  * @param {Array} numbers チーム番号(数字)の配列
  * @param {string} [type] 既定 'preparation'
  * @param {string} [customText] type='custom' のときの本文
+ * @param {string} [token] 管理者トークン（Code.gs の _checkAdmin_ と照合）
  */
-function apiCallTeams(numbers, type, customText) {
+function apiCallTeams(numbers, type, customText, token) {
+  const p = PropertiesService.getScriptProperties();
+  const adminToken = p.getProperty('ADMIN_TOKEN');
+  if (adminToken && token !== adminToken) return { ok: false, error: '認証エラー' };
   try {
     const body = callLineTeams(numbers, type || 'preparation', customText);
     return { ok: true, sent: body.sent, type: body.type, results: body.results };

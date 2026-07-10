@@ -28,27 +28,26 @@
   body{
     background:var(--night); color:var(--text);
     font-family:var(--disp); font-weight:500; font-size:14px; line-height:1.6;
-    transition:background .25s, color .25s;
+    transition:background .25s,color .25s;
   }
   .wrap{max-width:880px; margin:0 auto; padding:32px 20px 100px}
 
+  /* ── ヘッダー ── */
   .site-header{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:8px}
   .logo-block{display:flex; align-items:center; gap:14px}
   .logo-img{width:48px; height:48px; object-fit:contain; transition:filter .25s}
   [data-theme="dark"] .logo-img{filter:invert(1); opacity:.95}
-  [data-theme="light"] .logo-img{filter:none; opacity:1}
   .logo-text .logo{font-weight:700; font-size:28px; letter-spacing:.14em; user-select:none; line-height:1}
   .logo-text .logo-sub{font-family:var(--mono); font-size:10.5px; color:var(--muted); letter-spacing:.32em; display:block; margin-top:3px}
   .header-right{display:flex; align-items:center; gap:8px; padding-top:4px}
-
   #themeBtn{
     display:flex; align-items:center; justify-content:center;
     width:34px; height:34px; padding:0; border-radius:50%;
-    background:var(--panel); border:1px solid var(--line); cursor:pointer;
-    font-size:16px; transition:border-color .15s; flex-shrink:0;
+    background:var(--panel); border:1px solid var(--line); cursor:pointer; font-size:16px;
   }
   #themeBtn:hover{border-color:var(--serval-dim)}
 
+  /* ── ヒーロー ── */
   .hero{
     background:var(--panel); border:1px solid var(--line); border-radius:14px;
     padding:20px 24px; margin:18px 0 28px;
@@ -57,70 +56,104 @@
   .hero-desc{font-size:13.5px; color:var(--muted); line-height:1.75}
   .hero-desc strong{color:var(--text); font-weight:700}
   .hero-actions{display:flex; flex-direction:column; gap:8px; flex-shrink:0}
-  @media(max-width:560px){
-    .hero{grid-template-columns:1fr}
-    .hero-actions{flex-direction:row}
-  }
+  @media(max-width:560px){.hero{grid-template-columns:1fr}.hero-actions{flex-direction:row}}
 
   .section-title{
-    font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.22em;
-    text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px;
+    font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.22em; text-transform:uppercase;
+    margin-bottom:14px; display:flex; align-items:center; gap:8px;
   }
   .section-title::after{content:''; flex:1; height:1px; background:var(--line)}
 
   .toolbar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap}
   .toolbar .sp{flex:1}
 
+  /* ── ボタン ── */
   button{
     font-family:var(--disp); font-weight:700; font-size:13px; cursor:pointer;
     border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text);
-    padding:8px 16px; transition:border-color .15s, background .15s;
+    padding:8px 16px; transition:border-color .15s,background .15s;
   }
   button:hover{border-color:var(--serval-dim)}
   button:focus-visible{outline:2px solid var(--serval); outline-offset:2px}
   button.primary{background:var(--serval); border-color:var(--serval); color:#151004}
   button.primary:hover{filter:brightness(1.1)}
-  button.ghost{background:transparent; border-color:transparent; color:var(--muted); font-weight:500}
+  button.ghost{background:transparent; border-color:transparent; color:var(--muted); font-weight:500; padding:6px 10px}
   button.ghost:hover{color:var(--text); border-color:var(--line)}
   button.danger{color:var(--danger)}
+  button.sm{font-size:12px; padding:5px 10px}
   button:disabled{opacity:.45; cursor:default}
   a.btnlike{
     display:inline-block; text-decoration:none; font-weight:700; font-size:13px;
     border:1px solid var(--line); border-radius:8px; background:var(--panel2); color:var(--text);
-    padding:7px 15px; transition:border-color .15s;
+    padding:6px 13px; transition:border-color .15s;
   }
   a.btnlike:hover{border-color:var(--serval-dim)}
   a.btnlike.primary{background:var(--serval); border-color:var(--serval); color:#151004}
   a.btnlike.outline{border-color:var(--line)}
 
-  /* ── カード ── */
-  .card{
-    display:flex; background:var(--panel); border:1px solid var(--line); border-radius:12px;
-    margin-bottom:12px; overflow:hidden; box-shadow:0 2px 8px var(--shadow);
+  /* ── ブックカード ── */
+  .book-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    margin-bottom:14px; overflow:hidden; box-shadow:0 2px 8px var(--shadow);
     animation:cardIn .35s ease both;
   }
-  @keyframes cardIn{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
-  @media(prefers-reduced-motion:reduce){.card{animation:none}}
-  .card.deleted{opacity:.5}
-  .status-bar{flex:0 0 5px}
-  .status-bar.live{background:var(--serval)}
-  .status-bar.pending{background:repeating-linear-gradient(180deg, var(--line) 0 8px, transparent 8px 14px)}
-  .card-body{flex:1; padding:16px 18px; min-width:0}
-  .card-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:2px}
-  .card-name{font-size:17px; font-weight:700; flex:1; min-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .page-badge{
-    font-family:var(--mono); font-size:11px; font-weight:500;
-    background:rgba(233,169,61,.15); border:1px solid var(--serval-dim);
-    border-radius:5px; padding:2px 8px; color:var(--serval); white-space:nowrap; flex-shrink:0;
+  @keyframes cardIn{from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){.book-card{animation:none}}
+  .book-card.deleted{opacity:.5}
+  .book-header{
+    display:flex; align-items:center; gap:10px; padding:14px 18px;
+    border-bottom:1px solid var(--line); flex-wrap:wrap;
   }
-  .card-meta{font-family:var(--mono); font-size:10.5px; color:var(--muted); letter-spacing:.02em; margin-bottom:10px}
-  .card-note{font-size:12.5px; color:var(--muted); margin:-4px 0 10px}
-  .card-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-  .del-tag{font-family:var(--mono); font-size:10px; color:var(--danger); border:1px solid var(--danger); border-radius:4px; padding:1px 6px}
+  .status-dot{
+    width:10px; height:10px; border-radius:50%; flex-shrink:0;
+    background:var(--serval);
+  }
+  .status-dot.pending{background:var(--line)}
+  .book-name{font-size:18px; font-weight:700; flex:1; min-width:100px}
+  .book-id{font-family:var(--mono); font-size:10px; color:var(--muted)}
+  .book-note{font-size:12.5px; color:var(--muted); margin-top:1px}
+  .book-meta{flex:1}
+  .book-actions{display:flex; gap:6px; align-items:center; flex-shrink:0}
 
+  /* ── トーナメント一覧 ── */
+  .tournament-list{padding:0 18px 12px}
+  .tournament-row{
+    display:flex; align-items:center; gap:10px; padding:9px 0;
+    border-bottom:1px solid var(--panel2); flex-wrap:wrap;
+  }
+  .tournament-row:last-child{border-bottom:none}
+  .t-page{
+    font-family:var(--mono); font-size:11.5px; font-weight:500;
+    background:rgba(233,169,61,.15); border:1px solid var(--serval-dim);
+    border-radius:5px; padding:2px 9px; color:var(--serval); white-space:nowrap; flex-shrink:0;
+  }
+  .t-key{font-family:var(--mono); font-size:11px; color:var(--muted); flex:1; min-width:80px}
+  .t-note{font-size:12px; color:var(--muted); flex:1}
+  .t-btns{display:flex; gap:6px; flex-shrink:0}
+
+  /* 「トーナメントを追加」行 */
+  .add-row{
+    display:flex; align-items:center; gap:8px; padding:10px 18px 14px;
+    border-top:1px solid var(--panel2);
+  }
+  .add-row input{
+    background:var(--night); border:1px solid var(--line); border-radius:7px;
+    color:var(--text); font-family:var(--mono); font-size:12.5px; padding:6px 9px;
+  }
+  .add-row input:focus-visible{outline:2px solid var(--serval); outline-offset:1px; border-color:var(--serval-dim)}
+  .add-row .inp-page{width:70px}
+  .add-row .inp-key{flex:1; min-width:80px; max-width:200px}
+  .add-row label{font-size:11px; color:var(--muted); white-space:nowrap}
+  .add-row-inner{display:flex; align-items:center; gap:8px; flex:1; flex-wrap:wrap}
+
+  /* 空状態・準備中 */
+  .no-tournaments{
+    padding:14px 18px; font-size:13px; color:var(--muted);
+    border-top:1px solid var(--panel2);
+  }
   .setup{
     background:var(--panel2); border:1px dashed var(--serval-dim); border-radius:9px;
-    padding:12px 14px; margin-top:4px; font-size:12.5px;
+    padding:12px 14px; margin:12px 18px 0; font-size:12.5px;
   }
   .setup b{color:var(--serval); font-weight:700}
   .setup ol{margin:6px 0 0 18px; padding:0}
@@ -131,38 +164,36 @@
   .empty img{width:64px; margin-bottom:14px; opacity:.4}
   [data-theme="dark"] .empty img{filter:invert(1)}
   .empty p{margin-bottom:18px}
+  .del-tag{font-family:var(--mono); font-size:10px; color:var(--danger); border:1px solid var(--danger); border-radius:4px; padding:1px 6px}
 
-  /* ── モーダル ── */
+  /* ── ブック編集モーダル ── */
   dialog{
     background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:14px;
-    padding:24px; width:min(580px, calc(100vw - 32px)); font-family:var(--disp);
+    padding:24px; width:min(540px,calc(100vw - 32px)); font-family:var(--disp);
     box-shadow:0 8px 40px var(--shadow);
   }
   dialog::backdrop{background:rgba(5,9,14,.72)}
   dialog h2{font-size:16px; font-weight:700; margin-bottom:18px}
-  label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px; letter-spacing:.05em}
-  input[type=text],input[type=url],input[type=number]{
+  label.lbl{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px; letter-spacing:.05em}
+  input[type=text],input[type=url]{
     width:100%; background:var(--night); border:1px solid var(--line); border-radius:7px;
     color:var(--text); font-family:var(--disp); font-size:14px; padding:8px 10px;
   }
-  input[type=number]{width:90px}
   input:focus-visible{outline:2px solid var(--serval); outline-offset:1px; border-color:var(--serval-dim)}
   input.mono{font-family:var(--mono); font-size:12px}
   .fld{margin-bottom:16px}
   .fld .hint{font-size:11px; color:var(--muted); margin-top:3px}
-  .row2{display:flex; gap:12px}
-  .row2 .fld:first-child{flex:1}
   .modal-foot{display:flex; gap:10px; justify-content:flex-end; margin-top:22px}
 
+  /* ── トースト ── */
   #toast{
     position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
     background:var(--panel2); border:1px solid var(--line); border-radius:9px;
     padding:9px 20px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s;
-    max-width:min(520px, calc(100vw - 40px)); box-shadow:0 4px 20px var(--shadow);
+    max-width:min(520px,calc(100vw - 40px)); box-shadow:0 4px 20px var(--shadow);
   }
   #toast.show{opacity:1}
   #toast.err{border-color:var(--danger); color:#F2A9A9}
-
   .loading{text-align:center; color:var(--muted); padding:60px 0; font-family:var(--mono); font-size:12px; letter-spacing:.2em}
 </style>
 </head>
@@ -185,8 +216,7 @@
   <div class="hero">
     <div class="hero-desc">
       <strong>serval</strong> はロボット競技向けの<strong>トーナメント・リーグ管理システム</strong>です。
-      大会（<strong>ブック</strong>）ごとに独立したGASプロジェクトを使い、このポータルから一元管理します。
-      ブック名＋ページ番号で大会シリーズを整理できます。
+      大会シリーズ（<strong>ブック</strong>）ごとにGASプロジェクトを用意し、第1回・第2回…の各<strong>トーナメント</strong>を一元管理します。
     </div>
     <div class="hero-actions">
       <a class="btnlike outline" href="manual/">📖 取扱説明書</a>
@@ -196,7 +226,7 @@
   <div class="section-title">ブック一覧</div>
 
   <div class="toolbar">
-    <button class="primary" id="btnNew">＋ 新規ブック登録</button>
+    <button class="primary" id="btnNew">＋ 新規ブック</button>
     <span class="sp"></span>
     <label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-size:12px">
       <input type="checkbox" id="chkDeleted">削除済みも表示
@@ -208,36 +238,25 @@
 
 </div>
 
-<!-- 編集モーダル -->
-<dialog id="editDlg">
-  <h2 id="dlgTitle">ブックを編集</h2>
-  <div class="row2">
-    <div class="fld">
-      <label for="fName">ブック名（表示名）</label>
-      <input type="text" id="fName" maxlength="100" placeholder="中島杯">
-    </div>
-    <div class="fld">
-      <label for="fPage">ページ番号（回次）</label>
-      <input type="number" id="fPage" min="1" max="999" placeholder="7">
-    </div>
+<!-- ブック編集モーダル -->
+<dialog id="bookDlg">
+  <h2 id="bookDlgTitle">ブックを編集</h2>
+  <div class="fld">
+    <label class="lbl" for="fName">ブック名（大会シリーズ名）</label>
+    <input type="text" id="fName" maxlength="100" placeholder="中島杯">
   </div>
   <div class="fld">
-    <label for="fDocKey">データキー（docKey）</label>
-    <input type="text" id="fDocKey" class="mono" maxlength="100" placeholder="JimaCup7">
-    <div class="hint">GAS側のデータ保存キー。「開く」URLの <code>?doc=</code> に使われます。例: JimaCup7</div>
-  </div>
-  <div class="fld">
-    <label for="fUrl">GAS WebアプリURL（/exec）</label>
+    <label class="lbl" for="fUrl">GAS WebアプリURL（/exec）</label>
     <input type="url" id="fUrl" class="mono" placeholder="https://script.google.com/macros/s/…/exec">
-    <div class="hint">GASをコピー作成・デプロイ後のURLをここに貼ります。空のままなら「準備中」扱い。</div>
+    <div class="hint">GASをコピー作成・デプロイ後のURLを貼ります。空のままなら「準備中」扱い。</div>
   </div>
   <div class="fld">
-    <label for="fNote">メモ（任意）</label>
-    <input type="text" id="fNote" maxlength="200" placeholder="開催日・会場など">
+    <label class="lbl" for="fNote">メモ（任意）</label>
+    <input type="text" id="fNote" maxlength="200" placeholder="担当者・連絡先など">
   </div>
   <div class="modal-foot">
-    <button id="btnCancel">キャンセル</button>
-    <button class="primary" id="btnSave">保存</button>
+    <button id="btnBookCancel">キャンセル</button>
+    <button class="primary" id="btnBookSave">保存</button>
   </div>
 </dialog>
 
@@ -247,24 +266,24 @@
 var API_BASE='https://script.google.com/macros/s/AKfycbxXvPz1A_5MO08BFpvye_sYMUi5ho8QL1jokvem48ii5Q0rQZ4Ja_1_nIXxzzSLbWhdVA/exec';
 var TOKEN_KEY='servalPortalToken';
 var _books=[];
-var _editing=null;
+var _editingBook=null;
 
 /* ── テーマ ── */
 (function(){
-  var saved=localStorage.getItem('servalTheme')||'dark';
-  document.documentElement.setAttribute('data-theme', saved);
-  document.getElementById('themeBtn').textContent=saved==='dark'?'🌙':'☀️';
+  var s=localStorage.getItem('servalTheme')||'dark';
+  document.documentElement.setAttribute('data-theme',s);
+  document.getElementById('themeBtn').textContent=s==='dark'?'🌙':'☀️';
 })();
 document.getElementById('themeBtn').onclick=function(){
-  var cur=document.documentElement.getAttribute('data-theme');
-  var next=cur==='dark'?'light':'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('servalTheme', next);
-  this.textContent=next==='dark'?'🌙':'☀️';
+  var c=document.documentElement.getAttribute('data-theme');
+  var n=c==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',n);
+  localStorage.setItem('servalTheme',n);
+  this.textContent=n==='dark'?'🌙':'☀️';
 };
 
 /* ── ユーティリティ ── */
-function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 
 function toast(msg,isErr){
   var t=document.getElementById('toast');
@@ -276,94 +295,118 @@ function apiGetList(){
   return fetch(API_BASE+'?api=booklist&deleted=1').then(function(r){return r.json();});
 }
 function apiPost(body){
-  return fetch(API_BASE,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).then(function(r){return r.json();});
+  var bytes=[]; var s=JSON.stringify(body);
+  var encoded=encodeURIComponent(s).replace(/%([0-9A-F]{2})/g,function(_,p){return String.fromCharCode('0x'+p);});
+  return fetch(API_BASE,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:s}).then(function(r){return r.json();});
 }
 
-/* 認証: localStorageにトークンがあれば true、なければ入力を促す */
 function ensureAuth(){
-  var t=localStorage.getItem(TOKEN_KEY);
-  if(t) return true;
-  t=prompt('管理者パスワードを入力してください');
-  if(t){ localStorage.setItem(TOKEN_KEY,t); return true; }
+  var t=localStorage.getItem(TOKEN_KEY); if(t) return true;
+  t=prompt('管理者パスワードを入力してください'); if(t){localStorage.setItem(TOKEN_KEY,t);return true;}
   return false;
 }
-function getToken(){ return localStorage.getItem(TOKEN_KEY)||''; }
-function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+function getToken(){return localStorage.getItem(TOKEN_KEY)||'';}
+function clearToken(){localStorage.removeItem(TOKEN_KEY);}
 
 function fmtDate(iso){
   if(!iso) return '';
-  var d=new Date(iso);
-  if(isNaN(d)) return String(iso).slice(0,16);
-  var mm=('0'+(d.getMonth()+1)).slice(-2),dd=('0'+d.getDate()).slice(-2);
-  var hh=('0'+d.getHours()).slice(-2),mi=('0'+d.getMinutes()).slice(-2);
-  return d.getFullYear()+'/'+mm+'/'+dd+' '+hh+':'+mi;
+  var d=new Date(iso); if(isNaN(d)) return String(iso).slice(0,16);
+  return d.getFullYear()+'/'+(('0'+(d.getMonth()+1)).slice(-2))+'/'+(('0'+d.getDate()).slice(-2))+' '+(('0'+d.getHours()).slice(-2))+':'+(('0'+d.getMinutes()).slice(-2));
 }
 
-/* ページ番号を「第N回」形式に */
-function fmtPage(page){
-  if(page==null||page==='') return '';
-  return '第'+page+'回';
+function apiPostUtf8(body){
+  var s=JSON.stringify(body);
+  return fetch(API_BASE,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:s}).then(function(r){return r.json();});
 }
-
-/* 「開く」「管理」のURL生成 */
-function buildOpenUrl(b){ return b.url+(b.docKey?'?doc='+encodeURIComponent(b.docKey):''); }
-function buildAdminUrl(b){ return b.url+(b.docKey?'?doc='+encodeURIComponent(b.docKey)+'&admin':'?admin'); }
 </script>
 
 <script>
 /* ── 描画 ── */
+function buildOpenUrl(b,t){return b.url+(t.docKey?'?doc='+encodeURIComponent(t.docKey):'');}
+function buildAdminUrl(b,t){return b.url+(t.docKey?'?doc='+encodeURIComponent(t.docKey)+'&admin':'?admin');}
+function fmtPage(p){return (p!=null&&p!=='')? '第'+p+'回' : '?回';}
+
 function renderList(){
   var el=document.getElementById('list');
   var showDel=document.getElementById('chkDeleted').checked;
   var items=_books.filter(function(b){return showDel||!b.deleted;});
   if(!items.length){
-    el.innerHTML='<div class="empty">'
-      +'<img src="serval.png" alt="">'
-      +'<p>ブックがまだありません。<br>「新規ブック登録」からブック名を登録し、GASを用意して紐づけます。</p>'
-      +'<button class="primary" onclick="openEdit(null)">＋ 新規ブック登録</button></div>';
+    el.innerHTML='<div class="empty"><img src="serval.png" alt=""><p>ブックがまだありません。<br>「＋ 新規ブック」から大会シリーズを登録してください。</p><button class="primary" onclick="openBookEdit(null)">＋ 新規ブック</button></div>';
     return;
   }
   var html='';
   items.forEach(function(b,i){
     var hasUrl=!!(b.url&&String(b.url).trim());
-    var pageLabel=fmtPage(b.page);
-    var openUrl=hasUrl?buildOpenUrl(b):'#';
-    var adminUrl=hasUrl?buildAdminUrl(b):'#';
-    var actions='';
+    var tours=Array.isArray(b.tournaments)?b.tournaments:[];
+    /* ── ブックヘッダー ── */
+    html+='<div class="book-card'+(b.deleted?' deleted':'')+'" style="animation-delay:'+(i*40)+'ms" data-book-id="'+esc(b.id)+'">';
+    html+='<div class="book-header">';
+    html+='<span class="status-dot'+(hasUrl?'':' pending')+'" title="'+(hasUrl?'GAS登録済み':'準備中')+'"></span>';
+    html+='<div class="book-meta"><div class="book-name">'+esc(b.name||'（無名）')+'</div>';
+    html+='<div class="book-id">'+esc(b.id||'')+(b.note?' ・ '+esc(b.note):'')+'</div></div>';
+    html+='<div class="book-actions">';
     if(b.deleted){
-      actions='<span class="del-tag">削除済み</span>'
-        +'<button class="ghost" onclick="restoreBook(\''+esc(b.id)+'\')">復元</button>';
-    }else if(hasUrl){
-      actions='<a class="btnlike primary" href="'+esc(openUrl)+'" target="_blank" rel="noopener">開く</a>'
-        +'<a class="btnlike" href="'+esc(adminUrl)+'" target="_blank" rel="noopener">管理</a>'
-        +'<button class="ghost" onclick="openEdit(\''+esc(b.id)+'\')">編集</button>'
-        +'<button class="ghost danger" onclick="deleteBook(\''+esc(b.id)+'\')">削除</button>';
+      html+='<span class="del-tag">削除済み</span><button class="ghost sm" onclick="restoreBook(\''+esc(b.id)+'\')">復元</button>';
     }else{
-      actions='<button class="ghost" onclick="openEdit(\''+esc(b.id)+'\')">編集（URLを登録）</button>'
-        +'<button class="ghost danger" onclick="deleteBook(\''+esc(b.id)+'\')">削除</button>';
+      html+='<button class="ghost sm" onclick="openBookEdit(\''+esc(b.id)+'\')">編集</button>';
+      html+='<button class="ghost sm danger" onclick="deleteBook(\''+esc(b.id)+'\')">削除</button>';
     }
-    var setup='';
+    html+='</div></div>'; /* /book-header */
+
+    /* ── GAS未設定の場合はセットアップ案内 ── */
     if(!hasUrl&&!b.deleted){
-      setup='<div class="setup"><b>GAS準備中</b> — セットアップ手順:'
+      html+='<div class="setup"><b>GAS準備中</b> — セットアップ手順:'
         +'<ol>'
-        +'<li>script.google.com で既存のservalプロジェクトを開き「コピーを作成」</li>'
-        +'<li>コピー先で「デプロイ → 新しいデプロイ → ウェブアプリ（全員がアクセス可）」</li>'
+        +'<li>script.google.com で既存の serval プロジェクトを開き「コピーを作成」</li>'
+        +'<li>「デプロイ → 新しいデプロイ → ウェブアプリ（全員がアクセス可）」でURLを取得</li>'
         +'<li>スクリプトプロパティに <code>ADMIN_TOKEN</code> を設定</li>'
-        +'<li>WebアプリURL（/exec）をこのカードの「編集」から貼り付け</li>'
+        +'<li>このカードの「編集」からURLを登録</li>'
         +'</ol></div>';
     }
-    html+='<div class="card'+(b.deleted?' deleted':'')+'" style="animation-delay:'+(i*40)+'ms">'
-      +'<div class="status-bar '+(hasUrl?'live':'pending')+'"></div>'
-      +'<div class="card-body">'
-      +'<div class="card-head">'
-      +'<span class="card-name">'+esc(b.name||'（無名）')+'</span>'
-      +(pageLabel?'<span class="page-badge">'+esc(pageLabel)+'</span>':'')
-      +'</div>'
-      +'<div class="card-meta">'+esc(b.id||'')+(b.docKey?' ・ doc: '+esc(b.docKey):'')+'</div>'
-      +'<div class="card-actions">'+actions+'</div>'
-      +(b.note?'<div class="card-note" style="margin-top:8px">'+esc(b.note)+'</div>':'')
-      +setup
-      +'</div></div>';
+
+    /* ── トーナメント一覧 ── */
+    if(tours.length){
+      html+='<div class="tournament-list">';
+      // ページ降順で表示
+      var sorted=tours.slice().sort(function(a,b){return (b.page||0)-(a.page||0);});
+      sorted.forEach(function(t,ti){
+        var openUrl=hasUrl?buildOpenUrl(b,t):'';
+        var adminUrl=hasUrl?buildAdminUrl(b,t):'';
+        html+='<div class="tournament-row">';
+        html+='<span class="t-page">'+esc(fmtPage(t.page))+'</span>';
+        html+='<span class="t-key">'+esc(t.docKey||'')+'</span>';
+        if(t.note) html+='<span class="t-note">'+esc(t.note)+'</span>';
+        html+='<div class="t-btns">';
+        if(hasUrl){
+          html+='<a class="btnlike primary" href="'+esc(openUrl)+'" target="_blank" rel="noopener">開く</a>';
+          html+='<a class="btnlike" href="'+esc(adminUrl)+'" target="_blank" rel="noopener">管理</a>';
+        }
+        if(!b.deleted){
+          var tIdx=tours.indexOf(t);
+          html+='<button class="ghost sm danger" onclick="removeTournament(\''+esc(b.id)+'\','+tIdx+')">×</button>';
+        }
+        html+='</div></div>';
+      });
+      html+='</div>';
+    }else if(hasUrl){
+      html+='<div class="no-tournaments">トーナメントがまだありません。下の行から追加してください。</div>';
+    }
+
+    /* ── トーナメント追加行 ── */
+    if(!b.deleted&&hasUrl){
+      html+='<div class="add-row" id="add-row-'+esc(b.id)+'">';
+      html+='<div class="add-row-inner">';
+      html+='<label>第</label>';
+      html+='<input class="inp-page" type="number" min="1" max="999" placeholder="8" id="add-page-'+esc(b.id)+'">';
+      html+='<label>回  トーナメント名</label>';
+      html+='<input class="inp-key" type="text" maxlength="100" placeholder="JimaCup8" id="add-key-'+esc(b.id)+'">';
+      html+='<input type="text" maxlength="200" placeholder="メモ（任意）" style="flex:1;min-width:80px" id="add-note-'+esc(b.id)+'">';
+      html+='</div>';
+      html+='<button class="sm primary" onclick="addTournament(\''+esc(b.id)+'\')">＋ 追加</button>';
+      html+='</div>';
+    }
+
+    html+='</div>'; /* /book-card */
   });
   el.innerHTML=html;
 }
@@ -377,29 +420,26 @@ function loadList(){
     if(r&&r.ok){_books=r.books||[];renderList();}
     else toast((r&&r.error)||'一覧の取得に失敗しました',true);
   }).catch(function(){
-    document.getElementById('list').innerHTML='<div class="empty"><img src="serval.png" alt=""><p>一覧を取得できませんでした。<br>ネットワークまたはレジストリGASを確認してください。</p><button onclick="loadList()">再試行</button></div>';
+    document.getElementById('list').innerHTML='<div class="empty"><img src="serval.png" alt=""><p>一覧を取得できませんでした。</p><button onclick="loadList()">再試行</button></div>';
   });
 }
 
-function openEdit(id){
+/* ブック作成・編集 */
+function openBookEdit(id){
   if(!ensureAuth()) return;
-  var dlg=document.getElementById('editDlg');
+  var dlg=document.getElementById('bookDlg');
   if(id){
-    var b=null;_books.forEach(function(x){if(x.id===id)b=x;});
+    var b=null; _books.forEach(function(x){if(x.id===id)b=x;});
     if(!b){toast('ブックが見つかりません',true);return;}
-    _editing=b;
-    document.getElementById('dlgTitle').textContent='ブックを編集';
+    _editingBook=b;
+    document.getElementById('bookDlgTitle').textContent='ブックを編集';
     document.getElementById('fName').value=b.name||'';
-    document.getElementById('fPage').value=(b.page!=null&&b.page!=='')?b.page:'';
-    document.getElementById('fDocKey').value=b.docKey||'';
     document.getElementById('fUrl').value=b.url||'';
     document.getElementById('fNote').value=b.note||'';
   }else{
-    _editing=null;
-    document.getElementById('dlgTitle').textContent='新規ブック登録';
+    _editingBook=null;
+    document.getElementById('bookDlgTitle').textContent='新規ブック';
     document.getElementById('fName').value='';
-    document.getElementById('fPage').value='';
-    document.getElementById('fDocKey').value='';
     document.getElementById('fUrl').value='';
     document.getElementById('fNote').value='';
   }
@@ -407,61 +447,99 @@ function openEdit(id){
   document.getElementById('fName').focus();
 }
 
-function saveEdit(){
+function saveBook(){
   var name=document.getElementById('fName').value.trim();
   if(!name){toast('ブック名を入力してください',true);return;}
-  var pageVal=document.getElementById('fPage').value.trim();
-  var page=(pageVal!=='')?parseInt(pageVal,10):null;
-  var docKey=document.getElementById('fDocKey').value.trim();
   var url=document.getElementById('fUrl').value.trim();
   if(url&&!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){
     if(!confirm('URLがGASの /exec 形式ではないようです。このまま保存しますか？'))return;
   }
   var note=document.getElementById('fNote').value.trim();
-  var token=getToken();
-  if(!token){toast('パスワードが未設定です',true);return;}
-  var btn=document.getElementById('btnSave');btn.disabled=true;
+  var token=getToken(); if(!token){toast('パスワードが未設定です',true);return;}
+  var btn=document.getElementById('btnBookSave'); btn.disabled=true;
   var done=function(r){
     btn.disabled=false;
-    if(r&&r.ok){document.getElementById('editDlg').close();toast('保存しました');loadList();}
+    if(r&&r.ok){document.getElementById('bookDlg').close();toast('保存しました');loadList();}
     else{var msg=(r&&r.error)||'保存に失敗しました';if(msg.indexOf('認証')>=0)clearToken();toast(msg,true);}
   };
   var fail=function(e){btn.disabled=false;toast('保存エラー: '+(e&&e.message||e),true);};
-  if(_editing){
-    var obj={id:_editing.id,name:name,page:page,docKey:docKey,url:url,note:note,deleted:!!_editing.deleted,createdAt:_editing.createdAt,updatedAt:_editing.updatedAt};
-    apiPost({action:'bookUpdate',id:_editing.id,book:obj,token:token}).then(done).catch(fail);
+  if(_editingBook){
+    var obj=Object.assign({},_editingBook,{name:name,url:url,note:note});
+    apiPostUtf8({action:'bookUpdate',id:_editingBook.id,book:obj,token:token}).then(done).catch(fail);
   }else{
-    apiPost({action:'bookCreate',name:name,page:page,docKey:docKey,token:token}).then(function(r){
+    apiPostUtf8({action:'bookCreate',name:name,token:token}).then(function(r){
       if(!(r&&r.ok)){done(r);return;}
       if(!url&&!note){done(r);return;}
-      var obj=r.book;obj.url=url;obj.note=note;
-      apiPost({action:'bookUpdate',id:obj.id,book:obj,token:token}).then(done).catch(fail);
+      var obj=Object.assign({},r.book,{url:url,note:note});
+      apiPostUtf8({action:'bookUpdate',id:obj.id,book:obj,token:token}).then(done).catch(fail);
     }).catch(fail);
   }
 }
 
+/* トーナメント追加 */
+function addTournament(bookId){
+  if(!ensureAuth()) return;
+  var b=null; _books.forEach(function(x){if(x.id===bookId)b=x;});
+  if(!b){toast('ブックが見つかりません',true);return;}
+  var pageEl=document.getElementById('add-page-'+bookId);
+  var keyEl=document.getElementById('add-key-'+bookId);
+  var noteEl=document.getElementById('add-note-'+bookId);
+  var page=pageEl?parseInt(pageEl.value,10):null;
+  var docKey=(keyEl?keyEl.value.trim():'');
+  var tnote=(noteEl?noteEl.value.trim():'');
+  if(!page||isNaN(page)){toast('回次（番号）を入力してください',true);return;}
+  if(!docKey){toast('トーナメント名を入力してください',true);return;}
+  var tours=Array.isArray(b.tournaments)?b.tournaments.slice():[];
+  tours.push({page:page,docKey:docKey,note:tnote});
+  var obj=Object.assign({},b,{tournaments:tours});
+  var token=getToken();
+  apiPostUtf8({action:'bookUpdate',id:b.id,book:obj,token:token}).then(function(r){
+    if(r&&r.ok){toast('追加しました');loadList();}
+    else{if(r&&r.error&&r.error.indexOf('認証')>=0)clearToken();toast((r&&r.error)||'追加に失敗',true);}
+  }).catch(function(e){toast('エラー: '+(e&&e.message||e),true);});
+}
+
+/* トーナメント削除 */
+function removeTournament(bookId,idx){
+  if(!ensureAuth()) return;
+  var b=null; _books.forEach(function(x){if(x.id===bookId)b=x;});
+  if(!b) return;
+  var tours=Array.isArray(b.tournaments)?b.tournaments.slice():[];
+  var t=tours[idx];
+  if(!confirm('「'+fmtPage(t&&t.page)+(t&&t.docKey?' ('+t.docKey+')':'')+' 」を削除しますか？\n（GASのデータは残ります）'))return;
+  tours.splice(idx,1);
+  var obj=Object.assign({},b,{tournaments:tours});
+  apiPostUtf8({action:'bookUpdate',id:b.id,book:obj,token:getToken()}).then(function(r){
+    if(r&&r.ok){toast('削除しました');loadList();}
+    else{toast((r&&r.error)||'削除に失敗',true);}
+  }).catch(function(e){toast('エラー: '+(e&&e.message||e),true);});
+}
+
+/* ブック削除・復元 */
 function deleteBook(id){
   if(!ensureAuth()) return;
-  var b=null;_books.forEach(function(x){if(x.id===id)b=x;});
-  if(!confirm('「'+((b&&b.name)||id)+'」をポータルから削除しますか？\n（GASとデータは残ります。「削除済みも表示」から復元できます）'))return;
-  apiPost({action:'bookDelete',id:id,token:getToken()}).then(function(r){
+  var b=null; _books.forEach(function(x){if(x.id===id)b=x;});
+  if(!confirm('「'+((b&&b.name)||id)+'」をポータルから削除しますか？\n（GASとデータは残ります。復元できます）'))return;
+  apiPostUtf8({action:'bookDelete',id:id,token:getToken()}).then(function(r){
     if(r&&r.ok){toast('削除しました');loadList();}
     else{if(r&&r.error&&r.error.indexOf('認証')>=0)clearToken();toast((r&&r.error)||'削除に失敗',true);}
-  }).catch(function(e){toast('削除エラー: '+(e&&e.message||e),true);});
+  }).catch(function(e){toast('エラー: '+(e&&e.message||e),true);});
 }
 
 function restoreBook(id){
-  apiPost({action:'bookRestore',id:id,token:getToken()}).then(function(r){
+  apiPostUtf8({action:'bookRestore',id:id,token:getToken()}).then(function(r){
     if(r&&r.ok){toast('復元しました');loadList();}
-    else{if(r&&r.error&&r.error.indexOf('認証')>=0)clearToken();toast((r&&r.error)||'復元に失敗',true);}
-  }).catch(function(e){toast('復元エラー: '+(e&&e.message||e),true);});
+    else{toast((r&&r.error)||'復元に失敗',true);}
+  }).catch(function(e){toast('エラー: '+(e&&e.message||e),true);});
 }
 
-document.getElementById('btnNew').onclick=function(){ openEdit(null); };
+/* ── 初期化 ── */
+function fmtPage(p){return(p!=null&&p!=='')? '第'+p+'回':'?回';}
+document.getElementById('btnNew').onclick=function(){openBookEdit(null);};
 document.getElementById('btnReload').onclick=loadList;
 document.getElementById('chkDeleted').onchange=renderList;
-document.getElementById('btnSave').onclick=saveEdit;
-document.getElementById('btnCancel').onclick=function(){document.getElementById('editDlg').close();};
+document.getElementById('btnBookSave').onclick=saveBook;
+document.getElementById('btnBookCancel').onclick=function(){document.getElementById('bookDlg').close();};
 
 loadList();
 </script>
