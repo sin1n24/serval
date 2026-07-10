@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>serval ポータル — シリーズ一覧</title>
+<link rel="icon" href="../serval.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#0D141F; --panel:#16202E; --panel2:#1B2736; --line:#263447;
+    --serval:#E9A93D; --serval-dim:#8A6B2E;
+    --text:#E8EDF4; --muted:#8A97A8; --danger:#E05B5B; --ok:#5BBB7B;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --disp:'Zen Kaku Gothic New',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box; margin:0}
+  html,body{height:100%}
+  body{
+    background:var(--night); color:var(--text);
+    font-family:var(--disp); font-weight:500; font-size:14px; line-height:1.6;
+    /* サーバル斑点：ごく薄く背景に */
+    background-image:
+      radial-gradient(circle 3px at 12% 22%, #1A2432 99%, transparent),
+      radial-gradient(circle 4px at 78% 8%,  #1A2432 99%, transparent),
+      radial-gradient(circle 2px at 55% 45%, #18212E 99%, transparent),
+      radial-gradient(circle 3px at 88% 68%, #18212E 99%, transparent),
+      radial-gradient(circle 2px at 30% 82%, #1A2432 99%, transparent);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:28px 20px 80px}
+
+  /* ── ヘッダー ── */
+  header{display:flex; align-items:center; gap:14px; margin-bottom:6px}
+  .logo-img{width:44px; height:44px; filter:invert(1); opacity:.95}
+  .logo{font-weight:700; font-size:26px; letter-spacing:.14em; user-select:none}
+  .logo-sub{font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.28em}
+  .tagline{color:var(--muted); font-size:12.5px; margin:4px 0 26px}
+
+  /* ── ツールバー ── */
+  .toolbar{display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap}
+  .toolbar .sp{flex:1}
+  button{
+    font-family:var(--disp); font-weight:700; font-size:13px; cursor:pointer;
+    border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text);
+    padding:8px 16px; transition:border-color .15s, background .15s;
+  }
+  button:hover{border-color:var(--serval-dim)}
+  button:focus-visible{outline:2px solid var(--serval); outline-offset:2px}
+  button.primary{background:var(--serval); border-color:var(--serval); color:#151004}
+  button.primary:hover{background:#F2BA55}
+  button.ghost{background:transparent; border-color:transparent; color:var(--muted); font-weight:500}
+  button.ghost:hover{color:var(--text); border-color:var(--line)}
+  button.danger{color:var(--danger)}
+  button:disabled{opacity:.45; cursor:default}
+  a.btnlike{
+    display:inline-block; text-decoration:none; font-weight:700; font-size:13px;
+    border:1px solid var(--line); border-radius:8px; background:var(--panel2); color:var(--text);
+    padding:7px 15px; transition:border-color .15s;
+  }
+  a.btnlike:hover{border-color:var(--serval-dim)}
+  a.btnlike.primary{background:var(--serval); border-color:var(--serval); color:#151004}
+
+  /* ── シリーズカード ── */
+  .card{
+    display:flex; background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    margin-bottom:14px; overflow:hidden;
+    animation:cardIn .35s ease both;
+  }
+  @keyframes cardIn{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion: reduce){ .card{animation:none} }
+  .card.deleted{opacity:.55}
+  .status-bar{flex:0 0 5px}
+  .status-bar.live{background:var(--serval)}
+  .status-bar.pending{background:repeating-linear-gradient(180deg, var(--line) 0 8px, transparent 8px 14px)}
+  .card-body{flex:1; padding:16px 18px; min-width:0}
+  .card-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .card-name{font-size:17px; font-weight:700; flex:1; min-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .card-meta{font-family:var(--mono); font-size:10.5px; color:var(--muted); letter-spacing:.02em; margin:2px 0 12px}
+  .card-note{font-size:12.5px; color:var(--muted); margin:-6px 0 10px}
+  .card-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  .del-tag{font-family:var(--mono); font-size:10px; color:var(--danger); border:1px solid var(--danger); border-radius:4px; padding:1px 6px}
+
+  /* GAS未設定の依頼カード：セットアップ手順 */
+  .setup{
+    background:var(--panel2); border:1px dashed var(--serval-dim); border-radius:9px;
+    padding:12px 14px; margin-top:4px; font-size:12.5px;
+  }
+  .setup b{color:var(--serval); font-weight:700}
+  .setup ol{margin:6px 0 0 18px; padding:0}
+  .setup li{margin-bottom:3px}
+  .setup code{font-family:var(--mono); font-size:11px; background:var(--night); border-radius:4px; padding:1px 5px}
+
+  /* ── 空状態 ── */
+  .empty{text-align:center; padding:70px 20px; color:var(--muted); border:1px dashed var(--line); border-radius:12px}
+  .empty img{width:64px; filter:invert(.55); margin-bottom:14px}
+  .empty p{margin-bottom:18px}
+
+  /* ── モーダル ── */
+  dialog{
+    background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:14px;
+    padding:22px; width:min(560px, calc(100vw - 32px)); font-family:var(--disp);
+  }
+  dialog::backdrop{background:rgba(5,9,14,.72)}
+  dialog h2{font-size:16px; font-weight:700; margin-bottom:16px}
+  label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px; letter-spacing:.05em}
+  input[type=text],input[type=url]{
+    width:100%; background:var(--night); border:1px solid var(--line); border-radius:7px;
+    color:var(--text); font-family:var(--disp); font-size:14px; padding:8px 10px;
+  }
+  input:focus-visible{outline:2px solid var(--serval); outline-offset:1px; border-color:var(--serval-dim)}
+  input.mono{font-family:var(--mono); font-size:12px}
+  .fld{margin-bottom:16px}
+  .fld .hint{font-size:11px; color:var(--muted); margin-top:3px}
+  .modal-foot{display:flex; gap:10px; justify-content:flex-end; margin-top:22px}
+
+  /* ── トースト ── */
+  #toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+    background:var(--panel2); border:1px solid var(--line); border-radius:9px;
+    padding:9px 18px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s;
+    max-width:min(520px, calc(100vw - 40px));
+  }
+  #toast.show{opacity:1}
+  #toast.err{border-color:var(--danger); color:#F2A9A9}
+
+  .loading{text-align:center; color:var(--muted); padding:60px 0; font-family:var(--mono); font-size:12px; letter-spacing:.2em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="logo-img" src="../serval.png" alt="">
+    <div>
+      <span class="logo">serval</span>
+      <span class="logo-sub">SERIES PORTAL</span>
+    </div>
+  </header>
+  <p class="tagline">シリーズ（大会）ごとに独立したGASを束ねるポータル。開催ごとにここから開きます。</p>
+
+  <div class="toolbar">
+    <button class="primary" id="btnNew">＋ 新規作成依頼</button>
+    <span class="sp"></span>
+    <label style="display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;font-size:12px">
+      <input type="checkbox" id="chkDeleted">削除済みも表示
+    </label>
+    <button class="ghost" id="btnReload" title="一覧を再読み込み">↻</button>
+  </div>
+
+  <div id="list"><div class="loading">LOADING…</div></div>
+</div>
+
+<!-- 編集モーダル -->
+<dialog id="editDlg">
+  <h2 id="dlgTitle">シリーズを編集</h2>
+  <div class="fld">
+    <label for="fName">シリーズ名</label>
+    <input type="text" id="fName" maxlength="100" placeholder="第8回 中島杯">
+  </div>
+  <div class="fld">
+    <label for="fUrl">GAS WebアプリURL（/exec）</label>
+    <input type="url" id="fUrl" class="mono" placeholder="https://script.google.com/macros/s/…/exec">
+    <div class="hint">GASを手動でコピー作成 → デプロイ後のURLをここに貼ります。空のままなら「準備中」扱い。</div>
+  </div>
+  <div class="fld">
+    <label for="fNote">メモ（任意）</label>
+    <input type="text" id="fNote" maxlength="200" placeholder="開催日・会場など">
+  </div>
+  <div class="modal-foot">
+    <button id="btnCancel">キャンセル</button>
+    <button class="primary" id="btnSave">保存</button>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+/* ============ 設定 / ユーティリティ ============ */
+/* レジストリ = 既存serval GASのJSON API（シリーズ一覧の保存先） */
+var API_BASE='https://script.google.com/macros/s/AKfycbxXvPz1A_5MO08BFpvye_sYMUi5ho8QL1jokvem48ii5Q0rQZ4Ja_1_nIXxzzSLbWhdVA/exec';
+var TOKEN_KEY='servalPortalToken';
+var _series=[];
+var _editing=null;
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+function toast(msg, isErr){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.className='show'+(isErr?' err':'');
+  clearTimeout(toast._t); toast._t=setTimeout(function(){ t.className=''; }, 3200);
+}
+
+/* 読み取り: GET ?api=serieslist（常に削除込みで取得しクライアント側で絞る） */
+function apiGetList(){
+  return fetch(API_BASE+'?api=serieslist&deleted=1')
+    .then(function(r){ return r.json(); });
+}
+/* 書き込み: POST text/plain（CORS preflight回避） */
+function apiPost(body){
+  return fetch(API_BASE, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(body)
+  }).then(function(r){ return r.json(); });
+}
+
+function getToken(){
+  var t=localStorage.getItem(TOKEN_KEY);
+  if(!t){
+    t=prompt('管理者パスワードを入力してください');
+    if(t) localStorage.setItem(TOKEN_KEY, t);
+  }
+  return t||'';
+}
+function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+
+function fmtDate(iso){
+  if(!iso) return '';
+  var d=new Date(iso);
+  if(isNaN(d)) return String(iso).slice(0,16);
+  var mm=('0'+(d.getMonth()+1)).slice(-2), dd=('0'+d.getDate()).slice(-2);
+  var hh=('0'+d.getHours()).slice(-2), mi=('0'+d.getMinutes()).slice(-2);
+  return d.getFullYear()+'/'+mm+'/'+dd+' '+hh+':'+mi;
+}
+</script>
+
+<script>
+/* ============ 描画 ============ */
+function renderList(){
+  var el=document.getElementById('list');
+  var showDel=document.getElementById('chkDeleted').checked;
+  var items=_series.filter(function(s){ return showDel || !s.deleted; });
+  if(!items.length){
+    el.innerHTML='<div class="empty">'
+      +'<img src="../serval.png" alt="">'
+      +'<p>シリーズがまだありません。<br>「新規作成依頼」からシリーズ名を登録し、GASを用意して紐づけます。</p>'
+      +'<button class="primary" onclick="openEdit(null)">＋ 新規作成依頼</button></div>';
+    return;
+  }
+  var html='';
+  items.forEach(function(s, i){
+    var hasUrl=!!(s.url&&String(s.url).trim());
+    var actions='';
+    if(s.deleted){
+      actions='<span class="del-tag">削除済み</span>'
+        +'<button class="ghost" onclick="restoreSeries(\''+esc(s.id)+'\')">復元</button>';
+    } else if(hasUrl){
+      actions='<a class="btnlike primary" href="'+esc(s.url)+'" target="_blank" rel="noopener">開く</a>'
+        +'<a class="btnlike" href="'+esc(s.url)+'?admin" target="_blank" rel="noopener">管理</a>'
+        +'<button class="ghost" onclick="openEdit(\''+esc(s.id)+'\')">編集</button>'
+        +'<button class="ghost danger" onclick="deleteSeries(\''+esc(s.id)+'\')">削除</button>';
+    } else {
+      actions='<button class="ghost" onclick="openEdit(\''+esc(s.id)+'\')">編集（URLを登録）</button>'
+        +'<button class="ghost danger" onclick="deleteSeries(\''+esc(s.id)+'\')">削除</button>';
+    }
+    var setup='';
+    if(!hasUrl && !s.deleted){
+      setup='<div class="setup"><b>GAS準備中</b> — セットアップ手順:'
+        +'<ol>'
+        +'<li>script.google.com で既存のservalプロジェクトを開き「コピーを作成」</li>'
+        +'<li>コピー先で「デプロイ → 新しいデプロイ → ウェブアプリ（全員がアクセス可）」</li>'
+        +'<li>スクリプトプロパティに <code>ADMIN_TOKEN</code> を設定</li>'
+        +'<li>WebアプリURL（/exec）をこのカードの「編集」から貼り付け</li>'
+        +'</ol></div>';
+    }
+    html+='<div class="card'+(s.deleted?' deleted':'')+'" style="animation-delay:'+(i*40)+'ms">'
+      +'<div class="status-bar '+(hasUrl?'live':'pending')+'"></div>'
+      +'<div class="card-body">'
+      +'<div class="card-head"><span class="card-name">'+esc(s.name||'（無名）')+'</span>'+actions+'</div>'
+      +'<div class="card-meta">'+esc(s.id||'')+' ・ 更新 '+esc(fmtDate(s.updatedAt))+'</div>'
+      +(s.note?'<div class="card-note">'+esc(s.note)+'</div>':'')
+      +setup
+      +'</div></div>';
+  });
+  el.innerHTML=html;
+}
+</script>
+
+<script>
+/* ============ 操作 ============ */
+function loadList(){
+  document.getElementById('list').innerHTML='<div class="loading">LOADING…</div>';
+  apiGetList().then(function(r){
+    if(r && r.ok){ _series=r.series||[]; renderList(); }
+    else toast((r&&r.error)||'一覧の取得に失敗しました', true);
+  }).catch(function(e){
+    document.getElementById('list').innerHTML='<div class="empty"><p>一覧を取得できませんでした。<br>ネットワークまたはレジストリGASを確認してください。</p><button onclick="loadList()">再試行</button></div>';
+  });
+}
+
+function openEdit(id){
+  var dlg=document.getElementById('editDlg');
+  if(id){
+    var s=null;
+    _series.forEach(function(x){ if(x.id===id) s=x; });
+    if(!s){ toast('シリーズが見つかりません', true); return; }
+    _editing=s;
+    document.getElementById('dlgTitle').textContent='シリーズを編集';
+    document.getElementById('fName').value=s.name||'';
+    document.getElementById('fUrl').value=s.url||'';
+    document.getElementById('fNote').value=s.note||'';
+  } else {
+    _editing=null;
+    document.getElementById('dlgTitle').textContent='新規作成依頼';
+    document.getElementById('fName').value='';
+    document.getElementById('fUrl').value='';
+    document.getElementById('fNote').value='';
+  }
+  dlg.showModal();
+  document.getElementById('fName').focus();
+}
+
+function saveEdit(){
+  var name=document.getElementById('fName').value.trim();
+  if(!name){ toast('シリーズ名を入力してください', true); return; }
+  var url=document.getElementById('fUrl').value.trim();
+  if(url && !/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){
+    if(!confirm('URLがGASの /exec 形式ではないようです。このまま保存しますか？')) return;
+  }
+  var note=document.getElementById('fNote').value.trim();
+  var token=getToken();
+  var btn=document.getElementById('btnSave'); btn.disabled=true;
+  var done=function(r){
+    btn.disabled=false;
+    if(r && r.ok){
+      document.getElementById('editDlg').close();
+      toast('保存しました');
+      loadList();
+    } else {
+      var msg=(r&&r.error)||'保存に失敗しました';
+      if(msg.indexOf('認証')>=0) clearToken();
+      toast(msg, true);
+    }
+  };
+  var fail=function(e){ btn.disabled=false; toast('保存エラー: '+(e&&e.message||e), true); };
+  if(_editing){
+    var obj={ id:_editing.id, name:name, url:url, note:note, deleted:!!_editing.deleted,
+              createdAt:_editing.createdAt, updatedAt:_editing.updatedAt };
+    apiPost({action:'seriesUpdate', id:_editing.id, series:obj, token:token}).then(done).catch(fail);
+  } else {
+    apiPost({action:'seriesCreate', name:name, token:token}).then(function(r){
+      if(!(r&&r.ok)){ done(r); return; }
+      if(!url && !note){ done(r); return; }
+      var obj=r.series; obj.url=url; obj.note=note;
+      apiPost({action:'seriesUpdate', id:obj.id, series:obj, token:token}).then(done).catch(fail);
+    }).catch(fail);
+  }
+}
+
+function deleteSeries(id){
+  var s=null; _series.forEach(function(x){ if(x.id===id) s=x; });
+  if(!confirm('「'+((s&&s.name)||id)+'」をポータルから削除しますか？\n（GASとデータは残ります。「削除済みも表示」から復元できます）')) return;
+  apiPost({action:'seriesDelete', id:id, token:getToken()}).then(function(r){
+    if(r&&r.ok){ toast('削除しました'); loadList(); }
+    else { if(r&&r.error&&r.error.indexOf('認証')>=0) clearToken(); toast((r&&r.error)||'削除に失敗', true); }
+  }).catch(function(e){ toast('削除エラー: '+(e&&e.message||e), true); });
+}
+
+function restoreSeries(id){
+  apiPost({action:'seriesRestore', id:id, token:getToken()}).then(function(r){
+    if(r&&r.ok){ toast('復元しました'); loadList(); }
+    else { if(r&&r.error&&r.error.indexOf('認証')>=0) clearToken(); toast((r&&r.error)||'復元に失敗', true); }
+  }).catch(function(e){ toast('復元エラー: '+(e&&e.message||e), true); });
+}
+
+/* ============ 初期化 ============ */
+document.getElementById('btnNew').onclick=function(){ openEdit(null); };
+document.getElementById('btnReload').onclick=loadList;
+document.getElementById('chkDeleted').onchange=renderList;
+document.getElementById('btnSave').onclick=saveEdit;
+document.getElementById('btnCancel').onclick=function(){ document.getElementById('editDlg').close(); };
+
+loadList();
+</script>
+</body>
+</html>
