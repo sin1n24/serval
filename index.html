@@ -45,7 +45,7 @@
     display:flex; align-items:center; justify-content:center;
     width:34px; height:34px; padding:0; border-radius:50%;
     background:var(--panel); border:1px solid var(--line); cursor:pointer;
-    font-size:16px; transition:border-color .15s, background .15s; flex-shrink:0;
+    font-size:16px; transition:border-color .15s; flex-shrink:0;
   }
   #themeBtn:hover{border-color:var(--serval-dim)}
 
@@ -93,6 +93,7 @@
   a.btnlike.primary{background:var(--serval); border-color:var(--serval); color:#151004}
   a.btnlike.outline{border-color:var(--line)}
 
+  /* ── カード ── */
   .card{
     display:flex; background:var(--panel); border:1px solid var(--line); border-radius:12px;
     margin-bottom:12px; overflow:hidden; box-shadow:0 2px 8px var(--shadow);
@@ -105,14 +106,14 @@
   .status-bar.live{background:var(--serval)}
   .status-bar.pending{background:repeating-linear-gradient(180deg, var(--line) 0 8px, transparent 8px 14px)}
   .card-body{flex:1; padding:16px 18px; min-width:0}
-  .card-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
-  .card-name{font-size:17px; font-weight:700; flex:1; min-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .card-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:2px}
+  .card-name{font-size:17px; font-weight:700; flex:1; min-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .page-badge{
     font-family:var(--mono); font-size:11px; font-weight:500;
-    background:var(--panel2); border:1px solid var(--line); border-radius:5px;
-    padding:2px 8px; color:var(--muted); white-space:nowrap; flex-shrink:0;
+    background:rgba(233,169,61,.15); border:1px solid var(--serval-dim);
+    border-radius:5px; padding:2px 8px; color:var(--serval); white-space:nowrap; flex-shrink:0;
   }
-  .card-meta{font-family:var(--mono); font-size:10.5px; color:var(--muted); letter-spacing:.02em; margin:2px 0 10px}
+  .card-meta{font-family:var(--mono); font-size:10.5px; color:var(--muted); letter-spacing:.02em; margin-bottom:10px}
   .card-note{font-size:12.5px; color:var(--muted); margin:-4px 0 10px}
   .card-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
   .del-tag{font-family:var(--mono); font-size:10px; color:var(--danger); border:1px solid var(--danger); border-radius:4px; padding:1px 6px}
@@ -131,9 +132,10 @@
   [data-theme="dark"] .empty img{filter:invert(1)}
   .empty p{margin-bottom:18px}
 
+  /* ── モーダル ── */
   dialog{
     background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:14px;
-    padding:24px; width:min(560px, calc(100vw - 32px)); font-family:var(--disp);
+    padding:24px; width:min(580px, calc(100vw - 32px)); font-family:var(--disp);
     box-shadow:0 8px 40px var(--shadow);
   }
   dialog::backdrop{background:rgba(5,9,14,.72)}
@@ -143,11 +145,13 @@
     width:100%; background:var(--night); border:1px solid var(--line); border-radius:7px;
     color:var(--text); font-family:var(--disp); font-size:14px; padding:8px 10px;
   }
-  input[type=number]{width:100px}
+  input[type=number]{width:90px}
   input:focus-visible{outline:2px solid var(--serval); outline-offset:1px; border-color:var(--serval-dim)}
   input.mono{font-family:var(--mono); font-size:12px}
   .fld{margin-bottom:16px}
   .fld .hint{font-size:11px; color:var(--muted); margin-top:3px}
+  .row2{display:flex; gap:12px}
+  .row2 .fld:first-child{flex:1}
   .modal-foot{display:flex; gap:10px; justify-content:flex-end; margin-top:22px}
 
   #toast{
@@ -182,7 +186,7 @@
     <div class="hero-desc">
       <strong>serval</strong> はロボット競技向けの<strong>トーナメント・リーグ管理システム</strong>です。
       大会（<strong>ブック</strong>）ごとに独立したGASプロジェクトを使い、このポータルから一元管理します。
-      ブック名 + ページ番号で大会シリーズを整理できます。
+      ブック名＋ページ番号で大会シリーズを整理できます。
     </div>
     <div class="hero-actions">
       <a class="btnlike outline" href="manual/">📖 取扱説明書</a>
@@ -207,15 +211,20 @@
 <!-- 編集モーダル -->
 <dialog id="editDlg">
   <h2 id="dlgTitle">ブックを編集</h2>
-  <div style="display:flex; gap:12px">
-    <div class="fld" style="flex:1">
-      <label for="fName">ブック名</label>
-      <input type="text" id="fName" maxlength="100" placeholder="JimaCup">
+  <div class="row2">
+    <div class="fld">
+      <label for="fName">ブック名（表示名）</label>
+      <input type="text" id="fName" maxlength="100" placeholder="中島杯">
     </div>
     <div class="fld">
-      <label for="fPage">ページ番号</label>
+      <label for="fPage">ページ番号（回次）</label>
       <input type="number" id="fPage" min="1" max="999" placeholder="7">
     </div>
+  </div>
+  <div class="fld">
+    <label for="fDocKey">データキー（docKey）</label>
+    <input type="text" id="fDocKey" class="mono" maxlength="100" placeholder="JimaCup7">
+    <div class="hint">GAS側のデータ保存キー。「開く」URLの <code>?doc=</code> に使われます。例: JimaCup7</div>
   </div>
   <div class="fld">
     <label for="fUrl">GAS WebアプリURL（/exec）</label>
@@ -240,6 +249,7 @@ var TOKEN_KEY='servalPortalToken';
 var _books=[];
 var _editing=null;
 
+/* ── テーマ ── */
 (function(){
   var saved=localStorage.getItem('servalTheme')||'dark';
   document.documentElement.setAttribute('data-theme', saved);
@@ -253,6 +263,7 @@ document.getElementById('themeBtn').onclick=function(){
   this.textContent=next==='dark'?'🌙':'☀️';
 };
 
+/* ── ユーティリティ ── */
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 
 function toast(msg,isErr){
@@ -267,12 +278,17 @@ function apiGetList(){
 function apiPost(body){
   return fetch(API_BASE,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)}).then(function(r){return r.json();});
 }
-function getToken(){
+
+/* 認証: localStorageにトークンがあれば true、なければ入力を促す */
+function ensureAuth(){
   var t=localStorage.getItem(TOKEN_KEY);
-  if(!t){t=prompt('管理者パスワードを入力してください');if(t)localStorage.setItem(TOKEN_KEY,t);}
-  return t||'';
+  if(t) return true;
+  t=prompt('管理者パスワードを入力してください');
+  if(t){ localStorage.setItem(TOKEN_KEY,t); return true; }
+  return false;
 }
-function clearToken(){localStorage.removeItem(TOKEN_KEY);}
+function getToken(){ return localStorage.getItem(TOKEN_KEY)||''; }
+function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
 
 function fmtDate(iso){
   if(!iso) return '';
@@ -282,9 +298,20 @@ function fmtDate(iso){
   var hh=('0'+d.getHours()).slice(-2),mi=('0'+d.getMinutes()).slice(-2);
   return d.getFullYear()+'/'+mm+'/'+dd+' '+hh+':'+mi;
 }
+
+/* ページ番号を「第N回」形式に */
+function fmtPage(page){
+  if(page==null||page==='') return '';
+  return '第'+page+'回';
+}
+
+/* 「開く」「管理」のURL生成 */
+function buildOpenUrl(b){ return b.url+(b.docKey?'?doc='+encodeURIComponent(b.docKey):''); }
+function buildAdminUrl(b){ return b.url+(b.docKey?'?doc='+encodeURIComponent(b.docKey)+'&admin':'?admin'); }
 </script>
 
 <script>
+/* ── 描画 ── */
 function renderList(){
   var el=document.getElementById('list');
   var showDel=document.getElementById('chkDeleted').checked;
@@ -299,14 +326,16 @@ function renderList(){
   var html='';
   items.forEach(function(b,i){
     var hasUrl=!!(b.url&&String(b.url).trim());
-    var pageLabel=(b.page!=null&&b.page!=='')?'p.'+b.page:'';
+    var pageLabel=fmtPage(b.page);
+    var openUrl=hasUrl?buildOpenUrl(b):'#';
+    var adminUrl=hasUrl?buildAdminUrl(b):'#';
     var actions='';
     if(b.deleted){
       actions='<span class="del-tag">削除済み</span>'
         +'<button class="ghost" onclick="restoreBook(\''+esc(b.id)+'\')">復元</button>';
     }else if(hasUrl){
-      actions='<a class="btnlike primary" href="'+esc(b.url)+'" target="_blank" rel="noopener">開く</a>'
-        +'<a class="btnlike" href="'+esc(b.url)+'?admin" target="_blank" rel="noopener">管理</a>'
+      actions='<a class="btnlike primary" href="'+esc(openUrl)+'" target="_blank" rel="noopener">開く</a>'
+        +'<a class="btnlike" href="'+esc(adminUrl)+'" target="_blank" rel="noopener">管理</a>'
         +'<button class="ghost" onclick="openEdit(\''+esc(b.id)+'\')">編集</button>'
         +'<button class="ghost danger" onclick="deleteBook(\''+esc(b.id)+'\')">削除</button>';
     }else{
@@ -326,11 +355,13 @@ function renderList(){
     html+='<div class="card'+(b.deleted?' deleted':'')+'" style="animation-delay:'+(i*40)+'ms">'
       +'<div class="status-bar '+(hasUrl?'live':'pending')+'"></div>'
       +'<div class="card-body">'
-      +'<div class="card-head"><span class="card-name">'+esc(b.name||'（無名）')+'</span>'
+      +'<div class="card-head">'
+      +'<span class="card-name">'+esc(b.name||'（無名）')+'</span>'
       +(pageLabel?'<span class="page-badge">'+esc(pageLabel)+'</span>':'')
-      +actions+'</div>'
-      +'<div class="card-meta">'+esc(b.id||'')+' ・ 更新 '+esc(fmtDate(b.updatedAt))+'</div>'
-      +(b.note?'<div class="card-note">'+esc(b.note)+'</div>':'')
+      +'</div>'
+      +'<div class="card-meta">'+esc(b.id||'')+(b.docKey?' ・ doc: '+esc(b.docKey):'')+'</div>'
+      +'<div class="card-actions">'+actions+'</div>'
+      +(b.note?'<div class="card-note" style="margin-top:8px">'+esc(b.note)+'</div>':'')
       +setup
       +'</div></div>';
   });
@@ -339,6 +370,7 @@ function renderList(){
 </script>
 
 <script>
+/* ── 操作 ── */
 function loadList(){
   document.getElementById('list').innerHTML='<div class="loading">LOADING…</div>';
   apiGetList().then(function(r){
@@ -350,6 +382,7 @@ function loadList(){
 }
 
 function openEdit(id){
+  if(!ensureAuth()) return;
   var dlg=document.getElementById('editDlg');
   if(id){
     var b=null;_books.forEach(function(x){if(x.id===id)b=x;});
@@ -358,6 +391,7 @@ function openEdit(id){
     document.getElementById('dlgTitle').textContent='ブックを編集';
     document.getElementById('fName').value=b.name||'';
     document.getElementById('fPage').value=(b.page!=null&&b.page!=='')?b.page:'';
+    document.getElementById('fDocKey').value=b.docKey||'';
     document.getElementById('fUrl').value=b.url||'';
     document.getElementById('fNote').value=b.note||'';
   }else{
@@ -365,6 +399,7 @@ function openEdit(id){
     document.getElementById('dlgTitle').textContent='新規ブック登録';
     document.getElementById('fName').value='';
     document.getElementById('fPage').value='';
+    document.getElementById('fDocKey').value='';
     document.getElementById('fUrl').value='';
     document.getElementById('fNote').value='';
   }
@@ -377,12 +412,14 @@ function saveEdit(){
   if(!name){toast('ブック名を入力してください',true);return;}
   var pageVal=document.getElementById('fPage').value.trim();
   var page=(pageVal!=='')?parseInt(pageVal,10):null;
+  var docKey=document.getElementById('fDocKey').value.trim();
   var url=document.getElementById('fUrl').value.trim();
   if(url&&!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){
     if(!confirm('URLがGASの /exec 形式ではないようです。このまま保存しますか？'))return;
   }
   var note=document.getElementById('fNote').value.trim();
   var token=getToken();
+  if(!token){toast('パスワードが未設定です',true);return;}
   var btn=document.getElementById('btnSave');btn.disabled=true;
   var done=function(r){
     btn.disabled=false;
@@ -391,10 +428,10 @@ function saveEdit(){
   };
   var fail=function(e){btn.disabled=false;toast('保存エラー: '+(e&&e.message||e),true);};
   if(_editing){
-    var obj={id:_editing.id,name:name,page:page,url:url,note:note,deleted:!!_editing.deleted,createdAt:_editing.createdAt,updatedAt:_editing.updatedAt};
+    var obj={id:_editing.id,name:name,page:page,docKey:docKey,url:url,note:note,deleted:!!_editing.deleted,createdAt:_editing.createdAt,updatedAt:_editing.updatedAt};
     apiPost({action:'bookUpdate',id:_editing.id,book:obj,token:token}).then(done).catch(fail);
   }else{
-    apiPost({action:'bookCreate',name:name,page:page,token:token}).then(function(r){
+    apiPost({action:'bookCreate',name:name,page:page,docKey:docKey,token:token}).then(function(r){
       if(!(r&&r.ok)){done(r);return;}
       if(!url&&!note){done(r);return;}
       var obj=r.book;obj.url=url;obj.note=note;
@@ -404,6 +441,7 @@ function saveEdit(){
 }
 
 function deleteBook(id){
+  if(!ensureAuth()) return;
   var b=null;_books.forEach(function(x){if(x.id===id)b=x;});
   if(!confirm('「'+((b&&b.name)||id)+'」をポータルから削除しますか？\n（GASとデータは残ります。「削除済みも表示」から復元できます）'))return;
   apiPost({action:'bookDelete',id:id,token:getToken()}).then(function(r){
@@ -419,7 +457,7 @@ function restoreBook(id){
   }).catch(function(e){toast('復元エラー: '+(e&&e.message||e),true);});
 }
 
-document.getElementById('btnNew').onclick=function(){openEdit(null);};
+document.getElementById('btnNew').onclick=function(){ openEdit(null); };
 document.getElementById('btnReload').onclick=loadList;
 document.getElementById('chkDeleted').onchange=renderList;
 document.getElementById('btnSave').onclick=saveEdit;

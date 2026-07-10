@@ -166,6 +166,7 @@
       <a href="#structure">システム構成</a>
       <div class="group">セットアップ</div>
       <a href="#new-book">新規ブックの作り方</a>
+      <a href="#gas-register">GASの登録・更新手順</a>
       <a href="#settings">初期設定</a>
       <div class="group">基本操作</div>
       <a href="#players">選手・機体登録</a>
@@ -231,31 +232,85 @@
       <li>
         <div>
           <strong>ポータルで「新規ブック登録」</strong><br>
-          <a href="../">serval ポータル</a> を開き、「＋ 新規ブック登録」からブック名とページ番号を入力します。この時点ではGAS URLなしの「準備中」カードが作られます。
+          <a href="../">serval ポータル</a> を開き、「＋ 新規ブック登録」からブック名・ページ番号・データキーを入力します。
+          この時点ではGAS URLなしの「準備中」カードが作られます。
+          <ul style="margin-top:6px">
+            <li><strong>ブック名</strong>：表示名（例: 中島杯）</li>
+            <li><strong>ページ番号</strong>：回次（例: 7）→「第7回」と表示</li>
+            <li><strong>データキー</strong>：GAS側のデータ保存キー（例: JimaCup7）。URLの <code>?doc=</code> に使われます</li>
+          </ul>
         </div>
       </li>
       <li>
         <div>
           <strong>GASプロジェクトをコピー作成</strong><br>
-          <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> にアクセスし、既存の serval プロジェクトを開いて「コピーを作成」します。新しいスプレッドシートとGASが自動で作られます。
+          <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> にアクセスします。
+          既存の serval プロジェクト（例: TournamentManager）を開き、左上メニュー「…」→「コピーを作成」を選択します。
+          新しいスプレッドシートとGASプロジェクトが自動で作成されます。
         </div>
       </li>
       <li>
         <div>
           <strong>ウェブアプリとしてデプロイ</strong><br>
-          コピーしたGASを開き「デプロイ → 新しいデプロイ → ウェブアプリ」を選択。「アクセスできるユーザー：全員」に設定し「デプロイ」を実行。表示された <code>/exec</code> URLをコピーします。
+          コピーしたGASを開き、右上「デプロイ」→「新しいデプロイ」を選択。
+          種類「ウェブアプリ」を選び、次のように設定します：
+          <ul style="margin-top:6px">
+            <li>説明：任意（例: 中島杯 第7回）</li>
+            <li>次のユーザーとして実行：自分（例: sin1@sin1.studio）</li>
+            <li>アクセスできるユーザー：<strong>全員</strong>（Googleアカウント不要）</li>
+          </ul>
+          「デプロイ」をクリックし、承認ダイアログが出た場合は「アクセスを承認」→ Googleアカウントを選択 →「詳細」→「（プロジェクト名）に移動」→「許可」の順に操作します。
+          表示された <code>/exec</code> の URL をコピーします。
         </div>
       </li>
       <li>
         <div>
           <strong>スクリプトプロパティを設定</strong><br>
-          GASエディタの「プロジェクトの設定 → スクリプトプロパティ」を開き、<code>ADMIN_TOKEN</code> に任意の管理者パスワードを設定します。LINE通知を使う場合は <code>LINE_TOKEN</code>、<code>LINE_CALL_URL</code> も設定します。
+          GASエディタの左側「⚙ プロジェクトの設定」→「スクリプトプロパティ」を開きます。
+          「プロパティを追加」で以下を設定してください：
+          <table style="margin-top:8px; font-size:12.5px">
+            <tr><th>プロパティ名</th><th>値</th><th>用途</th></tr>
+            <tr><td><code>ADMIN_TOKEN</code></td><td>任意のパスワード</td><td>ポータルからの書き込み認証</td></tr>
+            <tr><td><code>LINE_TOKEN</code></td><td>LINE Notifyトークン</td><td>LINE通知（任意）</td></tr>
+            <tr><td><code>LINE_CALL_URL</code></td><td>呼び出しサーバーのURL</td><td>LINE呼び出し（任意）</td></tr>
+          </table>
         </div>
       </li>
       <li>
         <div>
           <strong>ポータルにURLを登録</strong><br>
-          serval ポータルの準備中カードの「編集（URLを登録）」を開き、コピーした <code>/exec</code> URLを貼り付けて保存します。カードが黄色バーに変わり「開く」「管理」ボタンが表示されます。
+          serval ポータルの準備中カードの「編集（URLを登録）」を開き、コピーした <code>/exec</code> URLを「GAS WebアプリURL」欄に貼り付けて保存します。
+          カードが黄色バーに変わり「開く」「管理」ボタンが表示されます。
+        </div>
+      </li>
+    </ol>
+
+    <div class="callout tip">
+      <div class="label">ヒント</div>
+      デプロイ後に「コードを修正してもウェブアプリに反映されない」場合は、「デプロイ → デプロイを管理 → 編集（鉛筆アイコン）→ バージョン：新バージョン → デプロイ」で更新できます。
+    </div>
+
+    <h2 id="gas-register">GASの登録・更新手順（既存ブックに追加デプロイ）</h2>
+    <p>同じブック（例: 中島杯）の次の回（第8回）を追加する場合は、前回のGASをそのままコピーして新しいブックエントリを作ります。</p>
+    <ol class="steps">
+      <li>
+        <div>
+          ポータルで「＋ 新規ブック登録」→ ブック名（例: 中島杯）、ページ番号（例: 8）、データキー（例: JimaCup8）を登録
+        </div>
+      </li>
+      <li>
+        <div>
+          前回の GAS プロジェクトを「コピーを作成」し、新しいデプロイを作成（手順2〜3と同様）
+        </div>
+      </li>
+      <li>
+        <div>
+          スクリプトプロパティは引き継がれることが多いですが、<code>ADMIN_TOKEN</code> を確認・再設定してください
+        </div>
+      </li>
+      <li>
+        <div>
+          ポータルの準備中カードにURLを登録して完了
         </div>
       </li>
     </ol>
