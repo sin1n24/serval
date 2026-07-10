@@ -165,7 +165,7 @@
       <a href="#overview">servalとは</a>
       <a href="#structure">システム構成</a>
       <div class="group">セットアップ</div>
-      <a href="#new-series">新規シリーズの作り方</a>
+      <a href="#new-book">新規ブックの作り方</a>
       <a href="#settings">初期設定</a>
       <div class="group">基本操作</div>
       <a href="#players">選手・機体登録</a>
@@ -207,28 +207,31 @@
 
     <h2 id="structure">システム構成</h2>
     <p>
-      大会（シリーズ）ごとに独立した GAS プロジェクトを使います。すべてのシリーズは
+      大会（<strong>ブック</strong>）ごとに独立した GAS プロジェクトを使います。すべてのブックは
       <a href="../">serval ポータル</a> から一元管理します。
     </p>
     <table>
-      <tr><th>要素</th><th>役割</th></tr>
+      <tr><th>用語</th><th>説明</th></tr>
+      <tr><td><strong>ブック</strong>（Book）</td><td>GASプロジェクト1つ＝大会1つ。例：「JimaCup」シリーズ全体</td></tr>
+      <tr><td><strong>ページ</strong>（Page）</td><td>ブック内の回次番号。例：JimaCupの7回目 → page 7</td></tr>
       <tr><td>GASウェブアプリ（/exec）</td><td>トーナメント管理アプリ本体。選手・試合データの入力・管理</td></tr>
       <tr><td>Googleスプレッドシート</td><td>GASに自動紐付けされるデータ保存先。「Store」シートに全データを保存</td></tr>
-      <tr><td>ポータル（sin1.studio/serval/）</td><td>シリーズ一覧の管理・新規作成の受け付け</td></tr>
+      <tr><td>ポータル（sin1.studio/serval/）</td><td>ブック一覧の管理・新規登録の受け付け</td></tr>
     </table>
 
     <div class="callout">
       <div class="label">ポイント</div>
-      1つのGASプロジェクト = 1つのシリーズ（大会）です。大会ごとにデータが完全に分離されるため、容量超過を防げます。
+      1つのGASプロジェクト = 1ブックです。大会ごとにデータが完全に分離されるため、容量超過を防げます。
+      同じシリーズの第N回は「ブック名 + ページ番号」で表します（例: JimaCup p.7）。
     </div>
 
     <!-- ─── セットアップ ─── -->
-    <h2 id="new-series">新規シリーズの作り方</h2>
+    <h2 id="new-book">新規ブックの作り方</h2>
     <ol class="steps">
       <li>
         <div>
-          <strong>ポータルで「新規作成依頼」</strong><br>
-          <a href="../">serval ポータル</a> を開き、「＋ 新規作成依頼」からシリーズ名を登録します。この時点ではGAS URLなしの「準備中」カードが作られます。
+          <strong>ポータルで「新規ブック登録」</strong><br>
+          <a href="../">serval ポータル</a> を開き、「＋ 新規ブック登録」からブック名とページ番号を入力します。この時点ではGAS URLなしの「準備中」カードが作られます。
         </div>
       </li>
       <li>
@@ -252,7 +255,7 @@
       <li>
         <div>
           <strong>ポータルにURLを登録</strong><br>
-          serval ポータルの準備中カードの「編集（URLを登録）」を開き、コピーした <code>/exec</code> URLを貼り付けて保存します。カードが黄色バーに変わり「開く」ボタンが表示されます。
+          serval ポータルの準備中カードの「編集（URLを登録）」を開き、コピーした <code>/exec</code> URLを貼り付けて保存します。カードが黄色バーに変わり「開く」「管理」ボタンが表示されます。
         </div>
       </li>
     </ol>
@@ -371,7 +374,7 @@
     <!-- ─── 管理 ─── -->
     <h2 id="portal">ポータル管理</h2>
     <p>
-      <a href="../">serval ポータル</a> からシリーズの一覧表示・編集・削除ができます。
+      <a href="../">serval ポータル</a> からブックの一覧表示・編集・削除ができます。
       削除はソフトデリート（非表示）で、「削除済みも表示」から復元できます。GASのデータ自体は削除されません。
     </p>
     <p>
@@ -386,7 +389,7 @@
     </p>
     <div class="callout warn">
       <div class="label">容量上限について</div>
-      GASのHTMLサービスには1プロジェクトあたり約25KBの上限があります。servalは試合数が増えると容量が増加します。管理画面のデータサイズバーで使用率を確認してください。70%を超えたら新規シリーズへの移行を検討してください。
+      GASのHTMLサービスには1プロジェクトあたり約25KBの上限があります。servalは試合数が増えると容量が増加します。管理画面のデータサイズバーで使用率を確認してください。70%を超えたら新規ブック（GASを新たにコピー）への移行を検討してください。
     </div>
 
     <h2 id="trouble">トラブルシュート</h2>

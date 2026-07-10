@@ -43,20 +43,22 @@ function doPost(e) {
   catch (err) { return _jsonOut_({ ok: false, error: 'リクエストJSONが不正です' }); }
   var act = String(req.action || '');
   var token = req.token || '';
-  if (act === 'seriesList')    return _jsonOut_(apiSeriesList(!!req.deleted));
-  if (act === 'seriesCreate')  return _jsonOut_(apiSeriesCreate(req.name, token));
-  if (act === 'seriesUpdate')  return _jsonOut_(apiSeriesUpdate(req.id, JSON.stringify(req.series || {}), token));
-  if (act === 'seriesDelete')  return _jsonOut_(apiSeriesDelete(req.id, token));
-  if (act === 'seriesRestore') return _jsonOut_(apiSeriesRestore(req.id, token));
+  if (act === 'bookList')    return _jsonOut_(apiBookList(!!req.deleted));
+  if (act === 'bookCreate')  return _jsonOut_(apiBookCreate(req.name, req.page, token));
+  if (act === 'bookUpdate')  return _jsonOut_(apiBookUpdate(req.id, JSON.stringify(req.book || {}), token));
+  if (act === 'bookDelete')  return _jsonOut_(apiBookDelete(req.id, token));
+  if (act === 'bookRestore') return _jsonOut_(apiBookRestore(req.id, token));
+  if (act === 'deletePage')  return _jsonOut_(apiDeletePage(req.key, token));
   return _jsonOut_({ ok: false, error: '不明なaction: ' + act });
 }
 
 /** Webアプリのエントリポイント。Index.html（?portal 時は portal.html、?api= 時はJSON API）を返す。 */
 function doGet(e) {
   var p0 = (e && e.parameter) || {};
-  if (p0.api != null) {                                                   // ?api=serieslist 読み取り専用JSON API
+  if (p0.api != null) {                                                   // ?api=booklist 読み取り専用JSON API
     var act = String(p0.api);
-    if (act === 'serieslist') return _jsonOut_(apiSeriesList(p0.deleted != null));
+    if (act === 'booklist')  return _jsonOut_(apiBookList(p0.deleted != null));
+    if (act === 'pagelist')  return _jsonOut_(apiPageList());
     return _jsonOut_({ ok: false, error: '不明なapi: ' + act });
   }
   if (p0.portal != null) {                                                // ?portal シリーズ管理ポータル
@@ -370,26 +372,26 @@ function apiGetVotes(key) {
 }
 
 /* ============================================================
- *  シリーズ（複数トーナメントdocを束ねるメタレコード）
- *  - key: __series__<id> で Store シートに保存。実体docは従来どおり個別key。
- *  - シリーズ本体は軽量メタのみ: { id, name, docs:[{key,title}...], deleted, createdAt, updatedAt, ... }
- *    docs の要素形式はポータル側の自由（GASは中身を検証しない）。
+ *  ブック（1大会=1GASプロジェクト）のメタレコード
+ *  - key: __book__<id> で Store シートに保存。
+ *  - { id, name, page, url, note, deleted, createdAt, updatedAt }
+ *    page: ブック内のページ番号（例: JimaCup の 7ページ目 → page:7）
  *  - 削除はソフトデリート（deleted:true）。ポータル一覧から消えるだけでデータは残る。
  * ============================================================ */
-var SERIES_PREFIX = '__series__';
+var BOOK_PREFIX = '__book__';
 
-function _seriesKey_(id) { return SERIES_PREFIX + String(id); }
+function _bookKey_(id) { return BOOK_PREFIX + String(id); }
 
-/** シリーズID発行（日付+乱数。人が読めて衝突しにくい形式） */
-function _newSeriesId_() {
+/** ブックID発行（日付+乱数） */
+function _newBookId_() {
   var d = new Date();
   var ymd = d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
-  return 's' + ymd + '_' + Math.random().toString(36).slice(2, 8);
+  return 'b' + ymd + '_' + Math.random().toString(36).slice(2, 8);
 }
 
-/** Storeシートからシリーズ行を探す。{ rowIdx(1-based行番号-1), obj } を返す。無ければ null。 */
-function _findSeries_(sh, id) {
-  var key = _seriesKey_(id);
+/** Storeシートからブック行を探す。{ rowIdx, obj } を返す。無ければ null。 */
+function _findBook_(sh, id) {
+  var key = _bookKey_(id);
   var data = sh.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (data[i][0] === key) {
@@ -401,14 +403,14 @@ function _findSeries_(sh, id) {
   return null;
 }
 
-/** シリーズ一覧。deleted:true は includeDeleted 指定時のみ含める。 */
-function apiSeriesList(includeDeleted) {
+/** ブック一覧。deleted:true は includeDeleted 指定時のみ含める。 */
+function apiBookList(includeDeleted) {
   var sh = getStoreSheet_();
   var data = sh.getDataRange().getValues();
   var list = [];
   for (var i = 1; i < data.length; i++) {
     var k = String(data[i][0] || '');
-    if (k.indexOf(SERIES_PREFIX) !== 0) continue;
+    if (k.indexOf(BOOK_PREFIX) !== 0) continue;
     var obj = null;
     try { obj = JSON.parse(data[i][1]); } catch (e) { continue; }
     if (!obj) continue;
@@ -417,41 +419,42 @@ function apiSeriesList(includeDeleted) {
   }
   // 更新日時の新しい順
   list.sort(function (a, b) { return String(b.updatedAt || '') < String(a.updatedAt || '') ? -1 : 1; });
-  return { ok: true, series: list };
+  return { ok: true, books: list };
 }
 
-/** シリーズ1件取得。 */
-function apiSeriesGet(id) {
-  var found = _findSeries_(getStoreSheet_(), id);
-  if (!found || !found.obj) return { ok: false, error: 'シリーズが見つかりません: ' + id };
-  return { ok: true, series: found.obj };
+/** ブック1件取得。 */
+function apiBookGet(id) {
+  var found = _findBook_(getStoreSheet_(), id);
+  if (!found || !found.obj) return { ok: false, error: 'ブックが見つかりません: ' + id };
+  return { ok: true, book: found.obj };
 }
 
-/** シリーズ新規作成。name のみ必須。作成したシリーズオブジェクトを返す。 */
-function apiSeriesCreate(name, token) {
+/** ブック新規作成。name 必須、page は任意（数値）。 */
+function apiBookCreate(name, page, token) {
   if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
-  if (!name) return { ok: false, error: 'シリーズ名を指定してください' };
+  if (!name) return { ok: false, error: 'ブック名を指定してください' };
   var lock = LockService.getScriptLock();
   try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト' }; }
   try {
     var sh = getStoreSheet_();
-    var id = _newSeriesId_();
-    while (_findSeries_(sh, id)) id = _newSeriesId_();   // 万一の衝突は引き直し
+    var id = _newBookId_();
+    while (_findBook_(sh, id)) id = _newBookId_();
     var now = new Date().toISOString();
-    var obj = { id: id, name: String(name).slice(0, 100), docs: [], deleted: false, createdAt: now, updatedAt: now };
-    sh.appendRow([_seriesKey_(id), JSON.stringify(obj), new Date()]);
-    return { ok: true, series: obj };
+    var pg = (page !== undefined && page !== null && page !== '') ? Number(page) : null;
+    var obj = { id: id, name: String(name).slice(0, 100), page: pg, url: '', note: '', deleted: false, createdAt: now, updatedAt: now };
+    sh.appendRow([_bookKey_(id), JSON.stringify(obj), new Date()]);
+    return { ok: true, book: obj };
   } finally { try { lock.releaseLock(); } catch (e) {} }
 }
 
 /**
- * シリーズ更新。jsonString はシリーズオブジェクト全体（ポータルが編集した形をそのまま渡す）。
+ * ブック更新。jsonString はブックオブジェクト全体。
  * id と createdAt はサーバ側で保持し、updatedAt を更新する。
  */
-function apiSeriesUpdate(id, jsonString, token) {
+function apiBookUpdate(id, jsonString, token) {
   if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
   if (jsonString && jsonString.length > 49500) {
-    return { ok: false, error: 'シリーズデータが大きすぎます（' + jsonString.length + '文字 > 上限49500）' };
+    return { ok: false, error: 'ブックデータが大きすぎます（' + jsonString.length + '文字 > 上限49500）' };
   }
   var incoming = null;
   try { incoming = JSON.parse(jsonString); } catch (e) { return { ok: false, error: 'JSONが不正です' }; }
@@ -460,37 +463,80 @@ function apiSeriesUpdate(id, jsonString, token) {
   try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト' }; }
   try {
     var sh = getStoreSheet_();
-    var found = _findSeries_(sh, id);
-    if (!found) return { ok: false, error: 'シリーズが見つかりません: ' + id };
-    incoming.id = id;                                                     // idの書き換えは不可
+    var found = _findBook_(sh, id);
+    if (!found) return { ok: false, error: 'ブックが見つかりません: ' + id };
+    incoming.id = id;
     if (found.obj && found.obj.createdAt) incoming.createdAt = found.obj.createdAt;
     incoming.updatedAt = new Date().toISOString();
     sh.getRange(found.rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(incoming), new Date()]]);
-    return { ok: true, series: incoming };
+    return { ok: true, book: incoming };
   } finally { try { lock.releaseLock(); } catch (e) {} }
 }
 
-/** ソフトデリート（deleted:true）。ポータル一覧から見えなくなるだけでデータは残る。 */
-function apiSeriesDelete(id, token) {
-  return _seriesSetDeleted_(id, true, token);
-}
+/** ソフトデリート。 */
+function apiBookDelete(id, token) { return _bookSetDeleted_(id, true, token); }
 
-/** 削除の取り消し（復元）。 */
-function apiSeriesRestore(id, token) {
-  return _seriesSetDeleted_(id, false, token);
-}
+/** 復元。 */
+function apiBookRestore(id, token) { return _bookSetDeleted_(id, false, token); }
 
-function _seriesSetDeleted_(id, deleted, token) {
+function _bookSetDeleted_(id, deleted, token) {
   if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
   var lock = LockService.getScriptLock();
   try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト' }; }
   try {
     var sh = getStoreSheet_();
-    var found = _findSeries_(sh, id);
-    if (!found || !found.obj) return { ok: false, error: 'シリーズが見つかりません: ' + id };
+    var found = _findBook_(sh, id);
+    if (!found || !found.obj) return { ok: false, error: 'ブックが見つかりません: ' + id };
     found.obj.deleted = !!deleted;
     found.obj.updatedAt = new Date().toISOString();
     sh.getRange(found.rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(found.obj), new Date()]]);
-    return { ok: true, series: found.obj };
+    return { ok: true, book: found.obj };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/* ============================================================
+ *  ページ（トーナメントデータ）の管理
+ *  - Storeシートに key = pageキー（例: JimaCup7）で保存された実データを操作する。
+ *  - __book__ / __series__ / __adstats / __hearts / __votes サフィックスを除いた行がページ。
+ * ============================================================ */
+
+/** ページキー一覧（メタキーを除いた通常データキー）を返す。 */
+function apiPageList() {
+  var sh = getStoreSheet_();
+  var data = sh.getDataRange().getValues();
+  var keys = [];
+  for (var i = 1; i < data.length; i++) {
+    var k = String(data[i][0] || '');
+    if (!k) continue;
+    if (k.indexOf('__') === 0) continue;           // __book__, __series__ 等を除外
+    if (k.indexOf('__') >= 0) continue;            // xxxx__hearts 等サフィックス付きを除外
+    var u = data[i][2];
+    var upd = (u instanceof Date) ? u.toISOString() : (u == null ? '' : String(u));
+    keys.push({ key: k, updatedAt: upd });
+  }
+  return { ok: true, pages: keys };
+}
+
+/** 指定キーの行を Storeシートから削除する。 */
+function apiDeletePage(key, token) {
+  if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
+  if (!key) return { ok: false, error: 'keyを指定してください' };
+  var k = String(key);
+  // 安全装置: __book__ 等メタキーは削除させない
+  if (k.indexOf('__') === 0 || k.indexOf('__') >= 0) {
+    return { ok: false, error: 'メタキーは削除できません: ' + k };
+  }
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト' }; }
+  try {
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === k) {
+        sh.deleteRow(i + 1);
+        return { ok: true, key: k };
+      }
+    }
+    return { ok: false, error: 'キーが見つかりません: ' + k };
   } finally { try { lock.releaseLock(); } catch (e) {} }
 }
