@@ -195,6 +195,38 @@
   #toast.show{opacity:1}
   #toast.err{border-color:var(--danger); color:#F2A9A9}
   .loading{text-align:center; color:var(--muted); padding:60px 0; font-family:var(--mono); font-size:12px; letter-spacing:.2em}
+
+  /* ── スクリーンショットプレビュー ── */
+  .preview-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:32px}
+  @media(max-width:600px){.preview-grid{grid-template-columns:1fr}}
+  .preview-item{display:flex; flex-direction:column; gap:8px}
+  .preview-label{
+    font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--muted); display:flex; align-items:center; gap:7px;
+  }
+  .preview-label .dot{
+    width:8px; height:8px; border-radius:50%; background:var(--serval); flex-shrink:0;
+  }
+  .preview-label .dot.view{background:var(--ok)}
+  .preview-img-wrap{
+    border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    background:var(--panel2); box-shadow:0 4px 16px var(--shadow);
+    cursor:zoom-in; transition:border-color .15s;
+  }
+  .preview-img-wrap:hover{border-color:var(--serval-dim)}
+  .preview-img-wrap img{width:100%; display:block; height:180px; object-fit:cover; object-position:top}
+  /* ライトボックス */
+  #lb{
+    display:none; position:fixed; inset:0; z-index:1000;
+    background:rgba(5,9,14,.88); align-items:center; justify-content:center; cursor:zoom-out;
+  }
+  #lb.open{display:flex}
+  #lb img{max-width:min(1100px,96vw); max-height:92vh; border-radius:10px; border:1px solid var(--line); box-shadow:0 8px 48px rgba(0,0,0,.7)}
+  #lb-close{
+    position:fixed; top:18px; right:22px; background:var(--panel); border:1px solid var(--line);
+    border-radius:50%; width:36px; height:36px; font-size:18px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; color:var(--text);
+  }
 </style>
 </head>
 <body>
@@ -221,6 +253,27 @@
     <div class="hero-actions">
       <a class="btnlike outline" href="manual/">📖 取扱説明書</a>
     </div>
+  </div>
+
+  <div class="preview-grid">
+    <div class="preview-item">
+      <div class="preview-label"><span class="dot view"></span>閲覧画面</div>
+      <div class="preview-img-wrap" onclick="openLb('img/screenshot-view.png')" title="クリックで拡大">
+        <img src="img/screenshot-view.png" alt="閲覧画面のスクリーンショット" loading="lazy">
+      </div>
+    </div>
+    <div class="preview-item">
+      <div class="preview-label"><span class="dot"></span>管理画面</div>
+      <div class="preview-img-wrap" onclick="openLb('img/screenshot-admin.png')" title="クリックで拡大">
+        <img src="img/screenshot-admin.png" alt="管理画面のスクリーンショット" loading="lazy">
+      </div>
+    </div>
+  </div>
+
+  <!-- ライトボックス -->
+  <div id="lb" onclick="closeLb()">
+    <button id="lb-close" onclick="closeLb()">✕</button>
+    <img id="lb-img" src="" alt="">
   </div>
 
   <div class="section-title">ブック一覧</div>
@@ -542,6 +595,17 @@ document.getElementById('btnBookSave').onclick=saveBook;
 document.getElementById('btnBookCancel').onclick=function(){document.getElementById('bookDlg').close();};
 
 loadList();
+
+function openLb(src){
+  document.getElementById('lb-img').src=src;
+  document.getElementById('lb').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeLb(){
+  document.getElementById('lb').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLb();});
 </script>
 </body>
 </html>
