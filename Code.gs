@@ -43,6 +43,8 @@ function doPost(e) {
   catch (err) { return _jsonOut_({ ok: false, error: 'リクエストJSONが不正です' }); }
   var act = String(req.action || '');
   var token = req.token || '';
+  if (act === 'dataLoad')    return _jsonOut_(apiLoad(req.key));
+  if (act === 'dataSave')    return _jsonOut_(apiSave(req.key, req.json, token));
   if (act === 'bookList')    return _jsonOut_(apiBookList(!!req.deleted));
   if (act === 'bookCreate')  return _jsonOut_(apiBookCreate(req.name, token));
   if (act === 'bookUpdate')  return _jsonOut_(apiBookUpdate(req.id, JSON.stringify(req.book || {}), token));
