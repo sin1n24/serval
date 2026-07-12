@@ -182,3 +182,50 @@ P(A) = pFail * P(win | Aに1本追加) + (1 - pFail) * P(win | 継続)
 - WinMeterの状態は揮発でよい(保存対象は ratings.json のインポート内容と設定のみ)。
 - 外部ライブラリ・有料APIは使わない。
 - パラメータはすべて PARAMS に集約し、コンソールまたは設定UIから調整できるようにする。
+
+---
+
+# 実装完了報告（2026-07-12 / ver122 / GASデプロイ@150）
+
+ステップ1〜6完了。ユーザーによる実機動作確認済み。
+
+## 実装場所（すべて app.html 末尾の3つの<script>ブロック）
+
+| ブロック | 内容 | 主な関数 |
+|---|---|---|
+| WinMeter①（4.9KB） | 評価エンジン（engine.py移植・純関数） | `WME.matchWinProb` / `WME.downAdjusted` / `WME.PARAMS` / `WME.selfTest()` |
+| WinMeter②（12.4KB） | 状態管理・管理パネル・配信 | `wmCfg` / `wm`（揮発状態）/ `wmPublishData` / `wmOpDown・wmOpPoint等` / `wmImportRatings` / `wmAttachPanel` |
+| WinMeter③（4.5KB） | 別画面4（?meter）表示 | `setupMeter` / `onMeterData` / `renderMeter`（250msローカル補間） |
+
+## 統合ポイント（既存コードへの変更は最小限）
+
+- `publishBoard()`: meter系統の配信を追加（typeofガード付き、既存3系統は不変）
+- `renderRunInspector()`: 末尾に `wmAttachPanel(el)` フック2行（パネルは永続ノード移設方式＝再描画で状態が飛ばない）
+- `normalizeState()` / `dataJson()`: `state.winmeter` をオプショナル追加（旧データ互換）
+- `Code.gs doGet`: `?meter` → `window.__METER__` 注入1行
+- ヘッダーに「📊 別画4」ボタン、init分岐に `setupMeter()` 追加
+
+## 検証結果
+
+- `WME.selfTest()`: engine.py実行結果と7項目一致（予選t=3→51.5%、決勝(1,0)→84%等）
+- ダウン補正シナリオ: 青ダウンc3→84%、c8→95%と単調上昇、クランプ5〜95%動作確認
+- **仕様補完1件**: bestOf=1 で matchWinProb がスコアを見ないとダウン補正の
+  「1本追加後」分岐が無効になるため、予選でのスコア決着判定（score[0]>=1→1）を追加。
+  engine.py は事前計算専用のため未対応だった（selfTest値には影響なし）
+
+## 設計メモ
+
+- 管理タブが正本のwm状態を持ち、700msハートビート（publishBoard）で配信。
+  別画4はスナップショット+クライアント時計で外挿（カウント進行・モメンタム減衰・残り時間）
+- タイマー凍結はstopwatch.runningのtrue→false遷移で残り時間をwm.frozenTに捕捉。
+  モメンタム減衰もタイマー動作中のみ進行
+- ratings.json取込時にroster該当機体のみ抽出保存（GAS 49500字上限対策）。Eloは小数1桁丸め
+
+## 残タスク
+
+1. **build_ratings.py が未整備**（指示書で「別途Pythonツール」とされたもの）。
+   engine.py の parse_serval() + Ratings クラスを流用し、過去大会のエクスポートJSONから
+   ratings.json を生成するCLIを作る。これが無いと全機体Elo1500の50-50スタート
+2. 取説（manual/index.html）へのWinMeterの使い方追記
+3. フェーズ2候補: 1本の取り方記録（場外/10カウント/その他）、SE演出連動、
+   `?meter` 用の背景・フォント設定（別画面設定モーダルへのタブ追加）

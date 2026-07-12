@@ -517,6 +517,32 @@
   .vote-rank-name{flex:1; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .vote-rank-cnt{font-size:13px; color:var(--accent); font-weight:700; white-space:nowrap}
   .vote-rank-bar{height:6px; border-radius:3px; background:var(--accent); transition:width .4s; flex-shrink:0}
+  /* ============ ブロックリーグ（総当たり・星取表） ============ */
+  .lg-table{position:absolute; z-index:2}
+  .lg-table table{border-collapse:collapse; background:var(--panel)}
+  .lg-table th,.lg-table td{border:1px solid var(--line); padding:4px 8px; font-size:12.5px; text-align:center; white-space:nowrap}
+  .lg-table th.lg-corner{background:var(--panel2,var(--panel)); min-width:110px}
+  .lg-table th.lg-col{font-weight:700; max-width:110px; overflow:hidden; text-overflow:ellipsis}
+  .lg-table th.lg-row{font-weight:700; text-align:left; max-width:170px; overflow:hidden; text-overflow:ellipsis}
+  .lg-table .lg-stripe{display:inline-block; width:4px; height:12px; border-radius:2px; margin-right:6px; vertical-align:-1px}
+  .lg-table td.lg-diag{background:var(--panel2,var(--hl)); color:var(--muted)}
+  .lg-table td.lg-cell{min-width:56px; height:30px}
+  .lg-table td.lg-cell.clickable{cursor:pointer}
+  .lg-table td.lg-cell.clickable:hover{background:var(--hl); outline:1px solid var(--accent)}
+  .lg-table td.lg-cell.sel{background:var(--accent2); color:#fff}
+  .lg-table td.lg-sum,.lg-table th.lg-sum{color:var(--muted); font-size:11.5px}
+  .lg-no{display:inline-block; min-width:20px; font-size:12px; font-weight:700; color:var(--accent);
+    background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:0 6px; line-height:17px}
+  .lg-no.st-done{color:var(--muted); border-color:var(--muted)}
+  .lg-no.st-next{background:#e8821e; border-color:#e8821e; color:#fff}
+  .lg-no.st-soon{color:#b9701a; border-color:#e8a24e}
+  .lg-no.st-skip{color:#2faa55; border-color:#2faa55}
+  .lg-no.st-forced{background:#e23b3b; border-color:#e23b3b; color:#fff}
+  .lg-res{font-weight:700; margin-right:4px}
+  .lg-res.lg-win{color:#e23b3b}
+  .lg-res.lg-lose{color:var(--muted)}
+  .lg-score{font-size:11.5px; color:var(--muted)}
+  .lg-empty{padding:18px 22px; border:1px dashed var(--line); border-radius:9px; color:var(--muted); font-size:13px; background:var(--panel)}
   /* ============ WinMeter（別画面４：勝率評価バー） ============ */
   #meterScreen{position:fixed; inset:0; background:#0a0e14; color:#fff; font-family:inherit; overflow:hidden}
   #meterScreen[hidden]{display:none}
@@ -579,7 +605,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver122</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver123</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -1196,9 +1222,15 @@ window.addEventListener('unhandledrejection', function(ev){
       </div>
 
       <h3 style="font-size:12px;color:var(--muted);margin:16px 0 8px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">構成</h3>
+      <div class="field" style="margin-bottom:6px"><label>形式</label>
+        <select id="cfgFormat">
+          <option value="tournament">トーナメント</option>
+          <option value="league">リーグ戦（総当たり）</option>
+        </select>
+      </div>
       <div class="row">
         <div class="field"><label>選手数</label><input type="text" id="cfgPlayers" inputmode="numeric" placeholder="例: 20"></div>
-        <div class="field"><label>トーナメント数</label>
+        <div class="field"><label id="cfgCountLabel">トーナメント数</label>
           <select id="cfgCount"><option>1</option><option>2</option><option>3</option><option>4</option></select>
         </div>
       </div>
@@ -1966,6 +1998,7 @@ function computeMatchNumbers(){
   matchNoMap={}; let n=1;
   // 各トーナメントの試合キーを「進行順」に並べたリストを作る
   const lists = state.tournaments.map(t=>{
+    if(isLeagueFormat()) return leagueSchedule(t).map(pr=> t.id+':L:'+pr[0]+':'+pr[1]);   // リーグ：サークル法の対戦順
     const rounds=Math.log2(t.size);
     const pl=[]; pl[0]=t.slots.map((s,i)=> isHiddenBySeed(t,i)?0:1);
     for(let r=1;r<=rounds;r++){ pl[r]=[]; for(let j=0;j*2<pl[r-1].length;j++) pl[r][j]=pl[r-1][2*j]+pl[r-1][2*j+1]; }
@@ -1983,7 +2016,7 @@ function computeMatchNumbers(){
   // 逆シード：各ブロックで第1回戦の「シード同士」が多数のとき、そのブロックの「シード同士でない試合」を最優先
   //  （判定はブロックごと。例：Cブロックだけシードが多ければ、Cの非シード戦が試合番号1番になる）
   const rsKeys=new Set();
-  state.tournaments.forEach(t=>{
+  if(!isLeagueFormat()) state.tournaments.forEach(t=>{
     const half=t.size/2; let seedSide=0; const cand=[];
     for(let j=0;j<half;j++){
       const h0=isHiddenBySeed(t,2*j), h1=isHiddenBySeed(t,2*j+1);
@@ -2071,7 +2104,7 @@ function renderBracket(){
   inner.style.zoom = state.config.zoom || 1;                          // 表示倍率
   inner.style.setProperty('--bracket-line', state.config.lineColor || '#33404f');  // 接続線の色
   inner.style.setProperty('--win-line', state.config.winLineColor || '#e23b3b');   // 勝者線の色
-  [...inner.querySelectorAll('.slot,.champion-tag,.event-title,.tname,.match-no,.mscore,.kanban-box')].forEach(n=>n.remove());
+  [...inner.querySelectorAll('.slot,.champion-tag,.event-title,.tname,.match-no,.mscore,.kanban-box,.lg-table')].forEach(n=>n.remove());
   const svg = document.getElementById('lines'); svg.innerHTML=''; _winPaths=[];
 
   computeDim();
@@ -2087,14 +2120,15 @@ function renderBracket(){
   const champs = new Array(state.tournaments.length).fill(null);  // index -> {x,y,name}
 
   shown.forEach(({t,i})=>{
-    const r = state.config.centerStyle ? drawCenterTournament(t, ORIGIN, yCursor, svg, inner, multi)
+    const r = isLeagueFormat() ? drawLeagueBlock(t, i, ORIGIN, yCursor, svg, inner, multi)
+            : state.config.centerStyle ? drawCenterTournament(t, ORIGIN, yCursor, svg, inner, multi)
                                        : drawTournament(t, i, ORIGIN, yCursor, svg, inner, multi);
     champs[i] = { x:r.champRight, y:r.champY, name:t.name };
     maxRight = Math.max(maxRight, r.right);
     maxBottom = Math.max(maxBottom, r.bottom);
-    // 3位決定戦：あり/なし。既定はブラケットの下、ドラッグ位置(thirdOffset)を加味。
+    // 3位決定戦：あり/なし（リーグは順位表があるため無し）。既定はブラケットの下、ドラッグ位置(thirdOffset)を加味。
     // ★レイアウトには影響させない（代表側の線がずれない）。必ずDnD可能なよう左上をクランプ。
-    if(state.config.third && Math.log2(t.size)>=2){
+    if(!isLeagueFormat() && state.config.third && Math.log2(t.size)>=2){
       const off=state.config.thirdOffset||(state.config.thirdOffset={dx:0,dy:0});  // 全トーナメント共通
       let bx=0+off.dx, by=(r.bottom+40)+off.dy;            // 既定：ブラケットの下
       if(bx<2){ off.dx+=2-bx; bx=2; }                      // 左端でクランプ＋offset書き戻し（DnDのデッドゾーン防止）
@@ -2112,8 +2146,8 @@ function renderBracket(){
                          : drawRepTournament(champs, maxRight + 90, svg, inner);
     maxRight = Math.max(maxRight, rr.right);
     maxBottom = Math.max(maxBottom, rr.bottom);
-  } else {
-    // 単独トーナメント：順位表（優勝・準優勝・3位）を右側に
+  } else if(!isLeagueFormat()){
+    // 単独トーナメント：順位表（優勝・準優勝・3位）を右側に。リーグは星取表側に順位表を内蔵
     const t=state.tournaments[state.active], so=state.config.standOffset||{dx:0,dy:0};
     if(Math.log2(t.size)>=1){
       const rows=placementRows(t, !!state.config.third, '優勝');
@@ -2127,7 +2161,7 @@ function renderBracket(){
   drawAds(inner, maxBottom);                                     // スポンサー広告（既定位置はブラケットの下）
 
   // 実際に描画した要素の実寸からはみ出さないよう拡張（見切れ防止）
-  inner.querySelectorAll('.slot,.champion-tag,.event-title,.match-no,.tname,.mscore,.kanban-box').forEach(el=>{
+  inner.querySelectorAll('.slot,.champion-tag,.event-title,.match-no,.tname,.mscore,.kanban-box,.lg-table').forEach(el=>{
     const h=el.offsetHeight;
     if(h===0 && el.classList.contains('kanban-box')) return; // 画像未読込の広告は無視
     const l=parseFloat(el.style.left)||0, tp=parseFloat(el.style.top)||0;
@@ -2768,8 +2802,9 @@ function competitorOf(t, origin){
 
 /* ===== 代表トーナメント/リーグ（複数トーナメントの優勝者で争う） ===== */
 function tournById(id){ return id==='REP' ? state.repT : state.tournaments.find(x=>x.id===id); }
-/* トーナメントiの優勝者（決定済みなら competitor、未定なら null） */
+/* トーナメントiの優勝者（決定済みなら competitor、未定なら null）。リーグは全消化時の1位 */
 function champOf(i){ const t=state.tournaments[i]; if(!t) return null;
+  if(isLeagueFormat()){ const w=leagueWinnerOrigin(t); return w!=null?competitorOf(t,w):null; }
   return competitorOf(t, occupant(t, Math.log2(t.size), 0)); }
 /* 代表トーナメント repT を最新の優勝者で同期（results は保持）。複数時のみ。 */
 function syncRepTournament(){
@@ -2794,6 +2829,7 @@ function matchKeyResult(key){
   const i=key.indexOf(':'); const t=tournById(+key.slice(0,i)); if(!t) return null;
   const rest=key.slice(i+1);
   if(rest==='3rd') return t.results['3rd'];
+  if(rest.slice(0,2)==='L:'){ const p=rest.slice(2).split(':'); return t.results['L:'+p[0]+'-'+p[1]]; }   // ブロックリーグ
   const p=rest.split(':'); return t.results[p[0]+'-'+p[1]];
 }
 function matchDecided(key){ const r=matchKeyResult(key); return !!(r && r.kind); }   // 結果入力済み＝実施済み
@@ -2816,6 +2852,9 @@ function matchBrief(key){
   if(rest==='3rd'){ const sf=Math.log2(t.size)-1;
     return {no, a:_nameOrigin(t,loserOf(t,sf,0)), b:_nameOrigin(t,loserOf(t,sf,1)), label:bn+'3位決定戦'};
   }
+  if(rest.slice(0,2)==='L:'){ const p=rest.slice(2).split(':').map(Number);   // ブロックリーグ
+    return {no, a:_nameOrigin(t,p[0]), b:_nameOrigin(t,p[1]), label:bn+'リーグ戦'};
+  }
   const p=rest.split(':').map(Number); const r=p[0],j=p[1], rounds=Math.log2(t.size);
   return {no, a:_nameAt(t,r-1,2*j), b:_nameAt(t,r-1,2*j+1), label:bn+(r===rounds?'決勝':'第'+r+'回戦')};
 }
@@ -2826,6 +2865,7 @@ function matchCompetitors(key){
     const r=p[0],j=p[1]; return [competitorOf(rt,occupant(rt,r-1,2*j)), competitorOf(rt,occupant(rt,r-1,2*j+1))]; }
   const i=key.indexOf(':'); const t=tournById(+key.slice(0,i)), rest=key.slice(i+1);
   if(rest==='3rd'){ const sf=Math.log2(t.size)-1; return [competitorOf(t,loserOf(t,sf,0)), competitorOf(t,loserOf(t,sf,1))]; }
+  if(rest.slice(0,2)==='L:'){ const p=rest.slice(2).split(':').map(Number); return [competitorOf(t,p[0]), competitorOf(t,p[1])]; }   // ブロックリーグ
   const p=rest.split(':').map(Number); const r=p[0],j=p[1];
   return [competitorOf(t,occupant(t,r-1,2*j)), competitorOf(t,occupant(t,r-1,2*j+1))];
 }
@@ -2919,6 +2959,7 @@ function openMatchByKey(key){
   else { const i=key.indexOf(':'); tid=+key.slice(0,i); rest=key.slice(i+1); }
   const t=tournById(tid); if(!t) return false;
   if(rest==='3rd'){ openThirdMatch(t); return true; }
+  if(rest.slice(0,2)==='L:'){ const p=rest.slice(2).split(':').map(Number); openLeagueBlockMatch(t, p[0], p[1]); return true; }   // ブロックリーグ
   const p=rest.split(':').map(Number); openRunMatch(t, p[0], p[1]); return true;
 }
 
@@ -3237,6 +3278,14 @@ function runMatchCtx(){
       resObj:state.repLeague, key:A+'-'+B, no:matchNoMap['LG:'+A+':'+B], noKey:'LG:'+A+':'+B,
       title:'代表リーグ ／ '+esc(state.tournaments[A].name)+'代表 × '+esc(state.tournaments[B].name)+'代表',
       animate:null };
+  }
+  if(sel.lgb){                                                   // ブロックリーグ（総当たり）の1対戦
+    const t=tournById(sel.tid), A=sel.a, B=sel.b;
+    const noKey=t.id+':L:'+A+':'+B;
+    return { a:competitorOf(t,A), b:competitorOf(t,B),
+      colTop:paletteHex(t.colorTop), colBot:paletteHex(t.colorBottom),
+      resObj:t.results, key:'L:'+A+'-'+B, no:matchNoMap[noKey], noKey,
+      title:esc(t.name)+' ／ リーグ戦', animate:null };
   }
   const t=tournById(sel.tid), mr=sel.mr, mj=sel.mj;
   const isFinal=(mr===Math.log2(t.size)), pre=(t.id==='REP')?'代表 ':'';
@@ -4856,6 +4905,8 @@ function normalizeState(){
   // 試合順：旧値を新値へ（byRound/seedLast→block、interleave→sequential）
   const ordMap={byRound:'block', seedLast:'block', interleave:'sequential', block:'block', sequential:'sequential'};
   state.config.order = ordMap[state.config.order] || 'block';
+  // ブロック形式：トーナメント（従来・既定）/ リーグ戦（総当たり）。旧データはフィールド無し→tournament
+  if(state.config.format!=='league') state.config.format='tournament';
   if(typeof state.rosterLabel!=='string') state.rosterLabel='';
   if(!state.labels||typeof state.labels!=='object') state.labels={};
   if(!Array.isArray(state.representativeGroups)) state.representativeGroups=[];
@@ -4911,6 +4962,17 @@ function _rosterKey(p){ return p.number ? 'n:'+String(p.number) : 'p:'+(p.player
 function _firstMatchNo(playerName){
   let mn=Infinity;
   state.tournaments.forEach(t=>{
+    if(isLeagueFormat()){                                  // リーグ：その選手が絡む最小の試合番号
+      t.slots.forEach((s,si)=>{
+        if(!s.player || s.player.playerName!==playerName) return;
+        Object.keys(matchNoMap).forEach(k=>{
+          if(k.indexOf(t.id+':L:')!==0) return;
+          const p=k.slice((t.id+':L:').length).split(':').map(Number);
+          if(p[0]===si || p[1]===si) mn=Math.min(mn, matchNoMap[k]);
+        });
+      });
+      return;
+    }
     const rounds=Math.log2(t.size);
     t.slots.forEach((s,si)=>{
       if(!s.player || s.player.playerName!==playerName) return;
@@ -5121,6 +5183,7 @@ function syncConfigInputs(){
   document.getElementById('setPlayerSize').value=state.config.playerSize||'中';
   document.getElementById('setOtherSize').value=state.config.otherSize||'中';
   document.getElementById('cfgRepMode').value=state.config.repMode||'tournament';
+  document.getElementById('cfgFormat').value=state.config.format||'tournament';
   document.getElementById('cfgHideByes').checked=!!state.config.hideByes;
   document.getElementById('setTimerMode').value=state.config.timerMode||'down';
   document.getElementById('setMatchDuration').value=+(state.config.matchDuration)||180;
@@ -5135,6 +5198,16 @@ function syncConfigInputs(){
   setupFontUI('mainBaseFontRow', state.config, 'baseFont', 'baseFontBold', ()=>{ renderBracket(); });
   applyLabels();
   updateRepModeVisibility();
+  updateFormatUI();
+}
+
+/* 形式（トーナメント/リーグ）に応じた設定UIの表示調整。リーグにシード・3位決定戦・中央決勝はない */
+function updateFormatUI(){
+  const league = document.getElementById('cfgFormat').value==='league';
+  const seedInp=document.getElementById('cfgSeed'); if(seedInp) seedInp.disabled=league;
+  const third=document.getElementById('cfgThird'); if(third) third.disabled=league;
+  const cs=document.getElementById('cfgCenterStyle'); if(cs) cs.disabled=league;
+  const cl=document.getElementById('cfgCountLabel'); if(cl) cl.textContent=league?'リーグ数（ブロック数）':'トーナメント数';
 }
 
 /* ============================================================
@@ -5220,13 +5293,20 @@ function syncSeedCountFromState(){
 
 /* 入力欄の設定を読み取ってブラケットを生成 */
 function commitBuild(){
+  const prevFormat=state.config.format||'tournament';
+  state.config.format = document.getElementById('cfgFormat').value==='league'?'league':'tournament';
   state.config.size = +document.getElementById('cfgSize').value;
   state.config.count = +document.getElementById('cfgCount').value;
   state.config.third = document.getElementById('cfgThird').checked;
   state.config.order = document.getElementById('cfgOrder').value;
   state.config.players = parseInt(document.getElementById('cfgPlayers').value,10)||0;
-  state.config.seedCount = parseInt(document.getElementById('cfgSeed').value,10)||0;
+  state.config.seedCount = isLeagueFormat()?0:(parseInt(document.getElementById('cfgSeed').value,10)||0);  // リーグにシードはない
   state.config.repMode = document.getElementById('cfgRepMode').value;
+  // 形式が変わったら結果をリセット（トーナメントとリーグで試合キー体系が異なるため）
+  if(prevFormat!==state.config.format){
+    state.tournaments.forEach(t=>{ t.results={}; });
+    state.repLeague={}; state.skipped={}; state.priority=[]; if(state.repT) state.repT.results={};
+  }
   rebuild();
 }
 
@@ -5236,7 +5316,8 @@ function recalcFromPlayers(){
   if(!n || n<1) return;
   const count = +document.getElementById('cfgCount').value;
   const size = sizeForPer(Math.ceil(n/count));
-  const seed = Math.max(0, count*size - n);     // 空き枠ぶんがシード（不戦勝）になる
+  const league = document.getElementById('cfgFormat').value==='league';
+  const seed = league ? 0 : Math.max(0, count*size - n);     // 空き枠ぶんがシード（不戦勝）になる
   document.getElementById('cfgSize').value = size;
   document.getElementById('cfgSeed').value = seed;
 }
@@ -5324,6 +5405,7 @@ function init(){
   document.getElementById('cfgPlayers').onchange = ()=>{ if(!confirmIfResults(STRUCT_MSG)){ syncConfigInputs(); return; } recalcFromPlayers(); commitBuild(); };
   document.getElementById('cfgCount').onchange = ()=>{ if(!confirmIfResults(STRUCT_MSG)){ syncConfigInputs(); return; } recalcFromPlayers(); updateRepModeVisibility(); commitBuild(); };
   document.getElementById('cfgSize').onchange  = ()=>{ if(!confirmIfResults(STRUCT_MSG)){ syncConfigInputs(); return; } commitBuild(); };
+  document.getElementById('cfgFormat').onchange = ()=>{ if(!confirmIfResults(STRUCT_MSG)){ syncConfigInputs(); return; } recalcFromPlayers(); updateFormatUI(); commitBuild(); };
   document.getElementById('cfgSeed').onchange  = ()=>{ if(!confirmIfResults(SEED_MSG)){ syncConfigInputs(); return; } commitBuild(); };
   document.getElementById('cfgRepMode').onchange = (e)=>{ state.config.repMode=e.target.value; renderBracket(); };
   document.getElementById('cfgHideByes').onchange = (e)=>{ state.config.hideByes=e.target.checked; renderBracket(); };
@@ -5908,6 +5990,7 @@ function _clearResultInClone(cl, key){
   const i=key.indexOf(':'); const id=+key.slice(0,i); const rest=key.slice(i+1);
   const t=cl.tournaments.find(x=>x.id===id); if(!t||!t.results) return;
   if(rest==='3rd') delete t.results['3rd'];
+  else if(rest.slice(0,2)==='L:'){ const p=rest.slice(2).split(':'); delete t.results['L:'+p[0]+'-'+p[1]]; }   // ブロックリーグ
   else { const p=rest.split(':'); delete t.results[p[0]+'-'+p[1]]; }
 }
 function _col(el,prop){ return getComputedStyle(el)[prop]; }
@@ -6736,6 +6819,156 @@ function autoAffGroups(){
   buildAffGroups();
   _renderAffGroupTable();
   toast('所属グループを自動判定しました');
+}
+</script>
+<script>
+/* ============================================================
+ *  ブロックリーグ（総当たり）
+ *  - state.config.format='league' で各ブロックが総当たりになる（既定'tournament'は従来通り）
+ *  - 結果は t.results['L:a-b']（a<b はスロット番号）、試合キーは '<tid>:L:a:b'
+ *  - 順位規則は代表リーグと同一：①本勝多 ②本負少 ③総試合時間短
+ *  - 複数ブロック時は champOf() がリーグ1位（全消化時）を返し、既存の代表戦に接続する
+ * ============================================================ */
+function isLeagueFormat(){ return !!(state.config && state.config.format==='league'); }
+
+/* 出場スロット番号（選手が配置されている枠）一覧 */
+function leagueMembers(t){
+  const m=[]; t.slots.forEach((s,i)=>{ if(s && s.player && s.player.playerName) m.push(i); });
+  return m;
+}
+/* サークル法で対戦順を生成（同一選手の連戦を避ける）。奇数人数はダミーを混ぜて該当節を飛ばす */
+function leagueSchedule(t){
+  const m=leagueMembers(t);
+  if(m.length<2) return [];
+  const arr=m.slice(); if(arr.length%2) arr.push(null);
+  const half=arr.length/2, out=[];
+  let rot=arr.slice(1);
+  for(let r=0;r<arr.length-1;r++){
+    const cur=[arr[0]].concat(rot);
+    for(let i=0;i<half;i++){
+      const a=cur[i], b=cur[cur.length-1-i];
+      if(a!=null && b!=null) out.push(a<b?[a,b]:[b,a]);
+    }
+    rot.push(rot.shift());
+  }
+  return out;
+}
+function leagueResultOf(t,a,b){
+  const k='L:'+Math.min(a,b)+'-'+Math.max(a,b);
+  return t.results && t.results[k];
+}
+/* 順位計算。{order（スロット番号を順位順）, wins, losses, ttime, done, total} */
+function leagueStandings(t){
+  const m=leagueMembers(t);
+  const wins={}, losses={}, ttime={};
+  m.forEach(i=>{ wins[i]=0; losses[i]=0; ttime[i]=0; });
+  let done=0, total=0;
+  for(let x=0;x<m.length;x++) for(let y=x+1;y<m.length;y++){
+    total++;
+    const a=m[x], b=m[y], r=leagueResultOf(t,a,b);
+    if(r && r.kind){
+      done++;
+      const tsec=parseTime(r.time); ttime[a]+=tsec; ttime[b]+=tsec;
+      if(r.kind!=='勝者なし'){
+        const [ws,ls]=setsOf(r.kind);
+        const wn=r.win===0?a:b, lo=r.win===0?b:a;
+        wins[wn]+=ws; losses[wn]+=ls;
+        wins[lo]+=ls; losses[lo]+=ws;
+      }
+    }
+  }
+  const order=m.slice().sort((p,q)=> wins[q]-wins[p] || losses[p]-losses[q] || ttime[p]-ttime[q]);
+  return {order, wins, losses, ttime, done, total};
+}
+/* 全消化時のみ1位のスロット番号（未消化はnull＝代表未確定。ブラケットの優勝未定と同じ扱い） */
+function leagueWinnerOrigin(t){
+  const s=leagueStandings(t);
+  return (s.total>0 && s.done===s.total) ? s.order[0] : null;
+}
+/* リーグの1対戦を右カラムで開く */
+function openLeagueBlockMatch(t,a,b){
+  const lo=Math.min(a,b), hi=Math.max(a,b);
+  state.runSel={lgb:true, tid:t.id, a:lo, b:hi}; state.sel=null;
+  const res=leagueResultOf(t,lo,hi);
+  state.pending = res ? {win:res.win, kind:res.kind, time:res.time||'', games:Array.isArray(res.games)?res.games:emptyGames(), repairA:res.repairA||'', repairB:res.repairB||''}
+                      : {win:null, kind:null, time:'', games:emptyGames(), repairA:'', repairB:''};
+  _lastBoardTime=''; repairSW.forEach((_,s)=>stopRepairSW(s));
+  _kbGameFocus=0; _kbLastKey=null; _kbKeyIdx=-1;
+  renderAll();
+}
+/* 星取表＋順位表を描画。戻り値は drawTournament と同形（right/bottom/champRight/champY） */
+function drawLeagueBlock(t, ti, xOff, yOff, svg, inner, multi){
+  const m=leagueMembers(t);
+  const title=document.createElement('div'); title.className='tname';
+  title.textContent=t.name+' リーグ戦';
+  title.style.left=xOff+'px'; title.style.top=(yOff+2)+'px';
+  if(!viewMode){ title.style.cursor='pointer'; title.title='クリックで改名'; title.onclick=()=>startTitleRename(title,t); }
+  inner.appendChild(title);
+
+  const wrap=document.createElement('div'); wrap.className='lg-table';
+  wrap.style.left=xOff+'px'; wrap.style.top=(yOff+30)+'px';
+  if(m.length<2){
+    wrap.innerHTML='<div class="lg-empty">選手を2名以上配置するとリーグ表（星取表）を表示します</div>';
+    inner.appendChild(wrap);
+    const bw=wrap.offsetWidth||320, bh=wrap.offsetHeight||60;
+    return {right:xOff+bw, bottom:yOff+30+bh, champRight:xOff+bw, champY:yOff+30+bh/2};
+  }
+  const nameOf=i=>{ const c=competitorOf(t,i); return c?(c.name||'（無名）'):''; };
+  const st=leagueStandings(t);
+  let html='<table><tr><th class="lg-corner"></th>';
+  m.forEach(i=>{ html+='<th class="lg-col">'+esc(nameOf(i))+'</th>'; });
+  html+='<th class="lg-sum">勝-負</th></tr>';
+  m.forEach(p=>{
+    const rowSel=(!viewMode && state.sel && state.sel.t===t.id && state.sel.slot===p)?' style="outline:2px solid var(--accent2)"':'';
+    html+='<tr><th class="lg-row'+(viewMode?'':' clickable')+'" data-slot="'+p+'"'+rowSel+'><span class="lg-stripe" style="background:'+paletteHex(p%2===0?t.colorTop:t.colorBottom)+'"></span>'+esc(nameOf(p))+'</th>';
+    m.forEach(q=>{
+      if(p===q){ html+='<td class="lg-diag">＼</td>'; return; }
+      const a=Math.min(p,q), b=Math.max(p,q);
+      const key=t.id+':L:'+a+':'+b, no=matchNoMap[key], res=leagueResultOf(t,p,q);
+      let cell='';
+      if(res && res.kind){
+        const ss=scoreSides(res);                                   // [a(小さい番号)視点, b視点]
+        const mine=(p===a)?ss[0]:ss[1], theirs=(p===a)?ss[1]:ss[0];
+        const won=(res.kind!=='勝者なし') && res.win===(p===a?0:1);
+        const mark=res.kind==='勝者なし'?'—':(won?'○':'●');
+        cell='<span class="lg-res '+(res.kind==='勝者なし'?'':(won?'lg-win':'lg-lose'))+'">'+mark+'</span><span class="lg-score">'+esc(mine)+'-'+esc(theirs)+'</span>';
+      } else {
+        cell='<span class="lg-no st-'+matchStatus(key)+'">'+(no||'')+'</span>';
+      }
+      const selCls=(!viewMode && state.runSel && state.runSel.lgb && state.runSel.tid===t.id && state.runSel.a===a && state.runSel.b===b)?' sel':'';
+      const clkCls=viewMode?'':' clickable';
+      html+='<td class="lg-cell'+clkCls+selCls+'" data-a="'+a+'" data-b="'+b+'">'+cell+'</td>';
+    });
+    html+='<td class="lg-sum">'+st.wins[p]+'-'+st.losses[p]+'</td></tr>';
+  });
+  html+='</table>';
+  wrap.innerHTML=html;
+  inner.appendChild(wrap);
+  if(!viewMode){
+    wrap.querySelectorAll('.lg-cell').forEach(td=>{
+      td.onclick=()=> openLeagueBlockMatch(t, +td.dataset.a, +td.dataset.b);
+    });
+    wrap.querySelectorAll('.lg-row').forEach(th=>{                      // 行ヘッダ＝選手編集
+      th.onclick=()=>{ state.sel={t:t.id, slot:+th.dataset.slot}; state.runSel=null; renderAll(); };
+      th.style.cursor='pointer';
+    });
+  } else {
+    wrap.querySelectorAll('.lg-row').forEach(th=>{                      // 閲覧：選手詳細ポップアップ
+      const c=competitorOf(t, +th.dataset.slot);
+      if(c && typeof attachPlayerPopup==='function')
+        attachPlayerPopup(th, {name:c.name, aff:c.aff, num:c.num, type1:c.type1, type2:c.type2, intro:c.intro});
+    });
+  }
+  const tw=wrap.offsetWidth, th=wrap.offsetHeight;
+
+  // 順位表（星取表の右）。順位ラベルが枠外左に出るため +52px 余白
+  const so=state.config.standOffset||{dx:0,dy:0};
+  const rows=st.order.map((i,rank)=>({ label:(rank+1)+'位', name:nameOf(i),
+    record:st.wins[i]+'勝'+st.losses[i]+'敗 '+fmtTime(st.ttime[i]) }));
+  const sb=drawStandingsBox(inner, xOff+tw+COL_GAP+52+so.dx, (yOff+30)+so.dy, rows, '🏆 順位（本勝→本負→時間）');
+  const champY=(yOff+30)+18+DIM.ph/2;                       // 順位表1位行の中心（代表接続線用）
+  return { right: Math.max(xOff+tw, sb.right), bottom: Math.max(yOff+30+th, sb.bottom),
+           champRight: sb.right-120, champY: champY };
 }
 </script>
 <script>
