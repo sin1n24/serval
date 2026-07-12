@@ -89,6 +89,7 @@ function doGet(e) {
   if (p.board != null) js += 'window.__BOARD__=true;';                   // ?board 大型表示（別画面１）
   if (p.lane  != null) js += 'window.__LANE__=true;';                    // ?lane  横長バナー（別画面２）
   if (p.sub   != null) js += 'window.__SUB__=true;';                     // ?sub   大型表示（別画面３）
+  if (p.meter != null) js += 'window.__METER__=true;';                   // ?meter WinMeter評価バー（別画面４）
   if (p.admin != null) {                                                  // ?admin 管理者モード
     // view-mode解除はinit()でパスワード確認後に enterAdmin() → applyViewMode() が行う
     js += 'window.__ADMIN__=true;';

@@ -517,6 +517,41 @@
   .vote-rank-name{flex:1; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .vote-rank-cnt{font-size:13px; color:var(--accent); font-weight:700; white-space:nowrap}
   .vote-rank-bar{height:6px; border-radius:3px; background:var(--accent); transition:width .4s; flex-shrink:0}
+  /* ============ WinMeter（別画面４：勝率評価バー） ============ */
+  #meterScreen{position:fixed; inset:0; background:#0a0e14; color:#fff; font-family:inherit; overflow:hidden}
+  #meterScreen[hidden]{display:none}
+  #wmContent{position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:2vh 3vw; gap:1.2vh}
+  .wm-top{display:flex; align-items:baseline; gap:2vw}
+  .wm-side{flex:1; display:flex; align-items:baseline; gap:1vw; min-width:0}
+  .wm-side.wm-b{justify-content:flex-end}
+  .wm-name{font-size:6.5vh; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .wm-dots{font-size:4vh; letter-spacing:.3vw; white-space:nowrap}
+  .wm-center{flex:0 0 auto; display:flex; align-items:baseline; gap:1.2vw}
+  .wm-pct{font-size:9vh; font-weight:900; font-variant-numeric:tabular-nums; line-height:1}
+  .wm-pct-sep{font-size:5vh; color:#4a5568}
+  .wm-bar{position:relative; height:7vh; border-radius:3.5vh; background:#223; overflow:hidden; box-shadow:inset 0 2px 8px rgba(0,0,0,.5)}
+  .wm-fill{position:absolute; top:0; left:0; bottom:0; width:50%; border-radius:3.5vh 0 0 3.5vh; transition:width .8s cubic-bezier(.22,1,.36,1)}
+  .wm-mid{position:absolute; top:0; bottom:0; left:50%; width:2px; background:rgba(255,255,255,.55); transform:translateX(-1px)}
+  .wm-down{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:2vw;
+    background:rgba(4,7,12,.72); z-index:5}
+  .wm-down[hidden]{display:none}
+  #wmDownLabel{font-size:7vh; font-weight:800}
+  .wm-count{font-size:16vh; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; animation:wmCountPop 1s ease-out infinite}
+  @keyframes wmCountPop{0%{transform:scale(1.25); opacity:1} 60%{transform:scale(1); opacity:.95} 100%{transform:scale(1); opacity:.9}}
+  .wm-point{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:15vh; font-weight:900; z-index:6; background:rgba(4,7,12,.6); animation:wmPointIn .4s ease-out}
+  .wm-point[hidden]{display:none}
+  @keyframes wmPointIn{0%{opacity:0; transform:scale(2.2)} 100%{opacity:1; transform:scale(1)}}
+  .wm-wait{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:5vh; color:#6b7a90}
+  /* 管理画面のWinMeterパネル */
+  #wmPanel{margin-top:10px; padding:10px; border:1px solid var(--line,#2b3340); border-radius:10px; font-size:12.5px}
+  #wmPanel h2{margin:0 0 6px; font-size:13px}
+  #wmPanel .wm-mini{position:relative; height:16px; border-radius:8px; background:#223; overflow:hidden; margin:4px 0}
+  #wmPanel .wm-mini-fill{position:absolute; top:0; left:0; bottom:0; transition:width .5s}
+  #wmPanel .wm-mini-mid{position:absolute; top:0; bottom:0; left:50%; width:1px; background:rgba(255,255,255,.5)}
+  #wmPanel .wm-row{display:flex; gap:4px; margin-top:6px; flex-wrap:wrap}
+  #wmPanel .wm-row .btn{flex:1; min-width:0; padding:4px 2px; font-size:11.5px; white-space:nowrap}
+  #wmPanel .wm-stat{color:var(--muted,#9fb0c4); font-size:11.5px; margin-top:4px}
 </style>
 </head>
 <body class="view-mode"><!-- 既定は閲覧モード。初期描画から管理UIを隠しチラつき(FOUC)防止。管理時はJSが外す -->
@@ -544,7 +579,7 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver121</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver122</h1>
     <div class="spacer"></div>
     <span class="env-pill" id="envPill">環境判定中…</span>
     <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
@@ -558,6 +593,7 @@ window.addEventListener('unhandledrejection', function(ev){
     <button class="btn" id="btnBoard" title="別画面１を別ウィンドウで開く">📺 別画1</button>
     <button class="btn" id="btnLane"  title="別画面２（横長バナー）を別ウィンドウで開く">📡 別画2</button>
     <button class="btn" id="btnSub"   title="別画面３を別ウィンドウで開く">📺 別画3</button>
+    <button class="btn" id="btnMeter" title="別画面４（WinMeter勝率評価バー）を別ウィンドウで開く">📊 別画4</button>
     <button class="btn" id="btnViewMode" title="閲覧専用モードを確認">👁 閲覧</button>
     <button class="btn" id="btnErrLog" title="エラーログを表示">📋 ログ</button>
   </header>
@@ -1288,6 +1324,24 @@ window.addEventListener('unhandledrejection', function(ev){
   </div>
   <div class="ln-wait" id="lnWait">待機中…</div>
 </div>
+
+<!-- 別画面４（meter）：WinMeter 勝率評価バー -->
+<div id="meterScreen" hidden>
+  <div id="wmContent" style="display:none">
+    <div class="wm-top">
+      <div class="wm-side wm-a"><span class="wm-name" id="wmNameA"></span><span class="wm-dots" id="wmDotsA"></span></div>
+      <div class="wm-center"><span class="wm-pct" id="wmPctA">50%</span><span class="wm-pct-sep">-</span><span class="wm-pct" id="wmPctB">50%</span></div>
+      <div class="wm-side wm-b"><span class="wm-dots" id="wmDotsB"></span><span class="wm-name" id="wmNameB"></span></div>
+    </div>
+    <div class="wm-bar"><div class="wm-fill" id="wmFill"></div><div class="wm-mid"></div></div>
+  </div>
+  <div class="wm-down" id="wmDown" hidden><span id="wmDownLabel"></span><span class="wm-count" id="wmDownCount">1</span></div>
+  <div class="wm-point" id="wmPoint" hidden></div>
+  <div class="wm-wait" id="wmWait">WinMeter 待機中…</div>
+</div>
+
+<!-- WinMeter 管理パネル（renderRunInspector が右カラム末尾へ移設する永続ノード） -->
+<div id="wmPanel" hidden></div>
 
 <script>
 
@@ -3198,6 +3252,7 @@ function runMatchCtx(){
 function renderRunInspector(el){
   if(!state.runSel){
     el.innerHTML='<div class="placeholder">試合番号をクリックして<br>勝敗を入力します。</div>';
+    if(typeof wmAttachPanel==='function') wmAttachPanel(el);
     return;
   }
   const ctx=runMatchCtx();
@@ -3308,6 +3363,7 @@ function renderRunInspector(el){
     if(inp) inp.oninput=(e)=>{ if(state.pending){ if(side===0) state.pending.repairA=e.target.value; else state.pending.repairB=e.target.value; } };
   });
   if(typeof _kbHighlight==='function') _kbHighlight();   // Tabフォーカスのハイライトを再適用
+  if(typeof wmAttachPanel==='function') wmAttachPanel(el);   // WinMeterパネルを末尾へ移設（永続ノード）
 }
 
 /* 結果を取り消して未送信（未実施）に戻す。保存して閲覧側にも反映。 */
@@ -3887,6 +3943,14 @@ function publishBoard(){
   const sData=Object.assign({}, base, {cfg:{...subCfg()}});
   const sch=ensureSubChannel(adminSubOnMsg); if(sch){ try{ sch.postMessage({type:'board', data:sData}); }catch(e){} }
   try{ localStorage.setItem('serval-sub-'+curDocKey(), JSON.stringify({data:sData})); }catch(e){}
+  // meter（別画面４：WinMeter）へ配信。関数は後方のscriptブロックで定義（未定義でも既存配信に影響なし）
+  if(typeof wmPublishData==='function'){
+    try{
+      const wData=wmPublishData(base);
+      const mch=ensureMeterChannel(adminMeterOnMsg); if(mch){ try{ mch.postMessage({type:'board', data:wData}); }catch(e){} }
+      try{ localStorage.setItem('serval-meter-'+curDocKey(), JSON.stringify({data:wData})); }catch(e){}
+    }catch(e){}
+  }
 }
 function adminBoardOnMsg(e){ if(e && e.data && e.data.type==='req') publishBoard(); }
 function adminLaneOnMsg(e){ if(e && e.data && e.data.type==='req') publishBoard(); }
@@ -4802,6 +4866,7 @@ function normalizeState(){
   if(!state.participantStatus || typeof state.participantStatus!=='object') state.participantStatus={};
   ensureAds();                                            // スポンサー広告の枠（3件）を補完
   boardCfg();                                             // 大型表示設定の既定を補完
+  if(!state.winmeter || typeof state.winmeter!=='object') state.winmeter={};   // WinMeter設定（詳細はwmCfgで補完）
   const keyMap={red:0,blue:1,green:2,yellow:3,white:4,black:5};
   (state.tournaments||[]).forEach((t,i)=>{
     if(typeof t.colorTop==='string')    t.colorTop = keyMap[t.colorTop] ?? 0;
@@ -5094,7 +5159,7 @@ function dataJson(){ return JSON.stringify({config:state.config, tournaments:sta
   skipped:state.skipped, priority:state.priority, ads:state.ads, labels:state.labels,
   affiliationGroups:state.affiliationGroups, representativeGroups:state.representativeGroups,
   board:state.board, lane:state.lane, sub:state.sub, checkedIn:state.checkedIn,
-  participantStatus:state.participantStatus}); }
+  participantStatus:state.participantStatus, winmeter:state.winmeter}); }
 function markSaved(){ lastSavedJson = dataJson(); updateDataSizeBar(); }
 function isDirty(){ return lastSavedJson!==null && dataJson()!==lastSavedJson; }
 const _GAS_LIMIT=49500;
@@ -5249,6 +5314,7 @@ function init(){
   if(window.__LANE__ || /lane/i.test(location.hash) || /lane/i.test(location.search)){ setupLane(); return; }
   // ?sub で別画面３モード
   if(window.__SUB__ || /\bsub\b/i.test(location.hash) || /\bsub\b/i.test(location.search)){ setupSub(); return; }
+  if(window.__METER__ || /\bmeter\b/i.test(location.hash) || /\bmeter\b/i.test(location.search)){ setupMeter(); return; }
   document.getElementById('envPill').textContent = Backend.hasGas ? 'GAS接続' : 'スタンドアロン（ローカル保存）';
 
   // 数値設定は変更すると即再作成（ブラケット作成ボタンは廃止）
@@ -5358,6 +5424,11 @@ function init(){
     const base = window.__EXECURL__ || '';
     const [sw,sh]=(subCfg().winSize||'1280x720').split('x').map(Number);
     window.open(base+'?sub&doc='+encodeURIComponent(curDocKey()), 'serval-sub', 'width='+sw+',height='+sh);
+  };
+  const _bm=document.getElementById('btnMeter'); if(_bm) _bm.onclick=()=>{
+    const base = window.__EXECURL__ || '';
+    const [mw,mh]=(wmCfg().winSize||'1920x200').split('x').map(Number);
+    window.open(base+'?meter&doc='+encodeURIComponent(curDocKey()), 'serval-meter', 'width='+mw+',height='+mh);
   };
   document.addEventListener('click', (e)=>{                            // 選手詳細ポップアップ：外側クリックで閉じる
     const pop=document.getElementById('playerPop');
@@ -6665,6 +6736,410 @@ function autoAffGroups(){
   buildAffGroups();
   _renderAffGroupTable();
   toast('所属グループを自動判定しました');
+}
+</script>
+<script>
+/* ============================================================
+ *  WinMeter① 評価エンジン（engine.py の移植・純関数）
+ *  かわロボ「1本」ハザードモデル + Elo/h2h 事前シェア。
+ *  調整値は WME.PARAMS に集約（コンソールから変更可能）。
+ *  WME.selfTest() で engine.py 実行結果と照合できる。
+ * ============================================================ */
+var WME=(function(){
+  var PARAMS={
+    LAMBDA_FALLBACK:1/60,   // ratings.json 不在時の1本発生率/秒
+    CLAMP:[0.05,0.95],      // 表示勝率の範囲（0%/100%は出さない）
+    DRAW_COIN:0.5,          // 判定（≒コイントス）の勝率
+    W_H2H:0.3,              // 直接対決項の重み
+    H2H_PRIOR:2,            // h2h平滑化の仮想本数（片側）
+    HALF_LIFE:8,            // 手動モメンタム半減期（秒）
+    HALF_LIFE_KD:60,        // ダウン奪取モメンタム半減期（秒）
+    MOM_MANUAL:0.4,         // 攻勢ボタンの加算
+    MOM_KNOCKDOWN:0.3,      // ダウン奪取実績の加算
+    C_RECOVER:0.067,        // ダウン1カウントあたり復帰確率
+    ROUND_SEC:120           // 1ラウンド秒数（試合時間設定に連動して上書き）
+  };
+  function sigmoid(x){ return 1/(1+Math.exp(-x)); }
+  /* 事前シェアのロジット。elo差 + 平滑化h2h の加重和 */
+  function preLogit(eloA,eloB,ptsA,ptsB){
+    var eloL=(eloA-eloB)/400*Math.LN10;
+    var h2hL=Math.log((ptsA+PARAMS.H2H_PRIOR)/(ptsB+PARAMS.H2H_PRIOR));
+    return (1-PARAMS.W_H2H)*eloL+PARAMS.W_H2H*h2hL;
+  }
+  /* ラウンドの (A勝ち, B勝ち, 引き分け) 確率。残り時間 t 秒 */
+  function roundOutcome(share,lam,t){
+    var pd=1-Math.exp(-lam*Math.max(0,t));
+    return [share*pd,(1-share)*pd,1-pd];
+  }
+  /* 試合全体のA勝率。bestOf=1:予選(1本先取) / 3:決勝(2本先取+延長+判定) */
+  function matchWinProb(share,lam,bestOf,score,tRemain,inRound){
+    var qo=roundOutcome(share,lam,tRemain), qa=qo[0],qb=qo[1],qd=qo[2];
+    if(bestOf===1){
+      if(score&&score[0]>=1) return 1;   // 1本先取：既に取れば決着（ダウン補正の分岐用）
+      if(score&&score[1]>=1) return 0;
+      return qa+PARAMS.DRAW_COIN*qd;
+    }
+    var a0=score[0],b0=score[1],used=a0+b0;   // 引き分けRも本来消費するが本数のみ管理（近似）
+    function after(a,b,left,ext){
+      if(a>=2) return 1; if(b>=2) return 0;
+      var fo=roundOutcome(share,lam,PARAMS.ROUND_SEC);
+      if(left<=0){
+        if(ext>0) return a===b ? fo[0]+PARAMS.DRAW_COIN*fo[2] : (a>b?1:0);  // 延長は1本勝負
+        return a===b?PARAMS.DRAW_COIN:(a>b?1:0);
+      }
+      return fo[0]*after(a+1,b,left-1,ext)+fo[1]*after(a,b+1,left-1,ext)+fo[2]*after(a,b,left-1,ext);
+    }
+    if(inRound){
+      var left=Math.max(0,3-used-1);
+      return qa*after(a0+1,b0,left,1)+qb*after(a0,b0+1,left,1)+qd*after(a0,b0,left,1);
+    }
+    return after(a0,b0,Math.max(0,3-used),1);
+  }
+  function clampP(p){ return Math.min(Math.max(p,PARAMS.CLAMP[0]),PARAMS.CLAMP[1]); }
+  /* ダウン補正。downs=[nA|null,nB|null]（カウント1〜9）。pFail=(1-C_RECOVER)^(10-n) を混合。
+   * 両者同時ダウンは独立扱い、同時失敗は各1本のコイン混合で近似。 */
+  function downAdjusted(share,lam,bestOf,score,tRemain,inRound,downs){
+    var base=function(sc){ return matchWinProb(share,lam,bestOf,sc,tRemain,inRound); };
+    var nA=downs&&downs[0],nB=downs&&downs[1];
+    var pFA=nA!=null?Math.pow(1-PARAMS.C_RECOVER,Math.max(1,10-nA)):0;
+    var pFB=nB!=null?Math.pow(1-PARAMS.C_RECOVER,Math.max(1,10-nB)):0;
+    if(!pFA&&!pFB) return base(score);
+    var scBp=[score[0]+1,score[1]], scAp=[score[0],score[1]+1];
+    return pFA*pFB*0.5*(base(scBp)+base(scAp))
+         + pFA*(1-pFB)*base(scAp)
+         + (1-pFA)*pFB*base(scBp)
+         + (1-pFA)*(1-pFB)*base(score);
+  }
+  /* モメンタムの指数減衰 */
+  function decay(v,dtSec,hl){ return v*Math.pow(0.5,Math.max(0,dtSec)/hl); }
+  function liveShare(logit0,momA,momB){ return sigmoid(logit0+momA-momB); }
+  /* engine.py 実行結果との照合（全PASSでtrue） */
+  function selfTest(){
+    var lam=0.0544,EPS=1e-4,ok=true;
+    [[matchWinProb(0.6,lam,1,[0,0],3,true),0.515058,'予選t=3'],
+     [matchWinProb(0.6,lam,1,[0,0],120,false),0.599854,'予選事前'],
+     [matchWinProb(0.6,lam,3,[1,0],120,false),0.840000,'決勝(1,0)'],
+     [matchWinProb(0.6,lam,3,[0,0],120,false),0.647999,'決勝事前'],
+     [matchWinProb(0.6,lam,3,[1,1],60,true),0.599994,'決勝(1,1)t=60'],
+     [matchWinProb(0.5,lam,1,[0,0],120,false),0.5,'五分'],
+     [sigmoid(preLogit(1581.5,1572.6,2,1)),0.530504,'share照合']
+    ].forEach(function(c){ var p=Math.abs(c[0]-c[1])<EPS; if(!p) ok=false;
+      console.log((p?'PASS':'FAIL')+' '+c[2]+': got '+c[0].toFixed(6)+' want '+c[1].toFixed(6)); });
+    return ok;
+  }
+  return {PARAMS:PARAMS,sigmoid:sigmoid,preLogit:preLogit,roundOutcome:roundOutcome,
+          matchWinProb:matchWinProb,clampP:clampP,downAdjusted:downAdjusted,
+          decay:decay,liveShare:liveShare,selfTest:selfTest};
+})();
+</script>
+<script>
+/* ============================================================
+ *  WinMeter② 状態管理・管理パネル・配信（管理タブが正本）
+ *  - 永続: state.winmeter（ratings取込内容・表示設定）→ wmCfg()
+ *  - 揮発: wm（スコア・ダウン・モメンタム）。試合が変わると自動リセット
+ *  - 配信: publishBoard() 経由で 'serval-meter-<docKey>' へ（既存別画面と同じ作法）
+ * ============================================================ */
+function wmCfg(){
+  if(!state.winmeter||typeof state.winmeter!=='object') state.winmeter={};
+  var d={ratings:null, showName:true, winSize:'1920x200', bestOf:1, enabled:false};
+  for(var k in d){ if(state.winmeter[k]===undefined) state.winmeter[k]=d[k]; }
+  return state.winmeter;
+}
+var wm={matchKey:'__init__', score:[0,0], downs:[null,null], mom:[0,0], momKD:[0,0],
+        lastDecay:0, logit0:0, eloA:1500, eloB:1500, names:['',''], frozenT:null, lastPoint:null};
+var _wmWasRunning=false, _wmLastRemain=null;
+
+function wmRatingOf(name){
+  var r=wmCfg().ratings, e=r&&r.entities&&r.entities[name];
+  return e?(+e.elo||1500):1500;
+}
+function wmH2hOf(nameA,nameB){
+  var r=wmCfg().ratings, a=0,b=0;
+  if(r&&Array.isArray(r.h2h)) r.h2h.forEach(function(h){
+    if(h.a===nameA&&h.b===nameB){a+=(+h.pts_a||0);b+=(+h.pts_b||0);}
+    else if(h.a===nameB&&h.b===nameA){a+=(+h.pts_b||0);b+=(+h.pts_a||0);}
+  });
+  return [a,b];
+}
+function wmLambda(){ var r=wmCfg().ratings; return (r&&+r.lambda)||WME.PARAMS.LAMBDA_FALLBACK; }
+
+function wmResetLive(){
+  wm.score=[0,0]; wm.downs=[null,null]; wm.mom=[0,0]; wm.momKD=[0,0];
+  wm.lastDecay=Date.now(); wm.frozenT=null; wm.lastPoint=null;
+}
+/* 「次の試合」が変わったら状態リセット＋事前シェアを再計算 */
+function wmSyncMatch(force){
+  var nk=(typeof nextMatchKey==='function')?nextMatchKey():null;
+  if(!force && nk===wm.matchKey) return;
+  wm.matchKey=nk;
+  wmResetLive();
+  wm.names=['',''];
+  if(nk){ try{ var cs=matchCompetitors(nk);
+    wm.names=[(cs[0]&&cs[0].name)||'',(cs[1]&&cs[1].name)||''];
+  }catch(e){} }
+  wm.eloA=wmRatingOf(wm.names[0]); wm.eloB=wmRatingOf(wm.names[1]);
+  var hh=wmH2hOf(wm.names[0],wm.names[1]);
+  wm.logit0=WME.preLogit(wm.eloA,wm.eloB,hh[0],hh[1]);
+}
+/* 残り時間（秒）。動作中=ライブ / 停止中=凍結値 / ラウンド間=フル */
+function wmRemain(){
+  var dur=+(state.config&&state.config.matchDuration)||120;
+  WME.PARAMS.ROUND_SEC=dur;
+  if(typeof stopwatch!=='undefined'&&stopwatch.running){
+    var e=(Date.now()-stopwatch.t0)/1000, mode=(state.config.timerMode||'down');
+    return mode==='down'?Math.max(0,stopwatch.base-e):Math.max(0,dur-(stopwatch.base+e));
+  }
+  return wm.frozenT!=null?wm.frozenT:dur;
+}
+/* モメンタム減衰＋タイマー停止遷移の検出（凍結）。publishBoardの700msハートビートで進行 */
+function wmDecayTick(){
+  var running=(typeof stopwatch!=='undefined')&&stopwatch.running;
+  var now=Date.now(), dt=(now-wm.lastDecay)/1000; wm.lastDecay=now;
+  if(running){
+    _wmLastRemain=wmRemain();
+    if(!_wmWasRunning) wm.frozenT=null;                    // 再開：凍結解除
+    wm.mom=wm.mom.map(function(v){ return WME.decay(v,dt,WME.PARAMS.HALF_LIFE); });
+    wm.momKD=wm.momKD.map(function(v){ return WME.decay(v,dt,WME.PARAMS.HALF_LIFE_KD); });
+  } else if(_wmWasRunning){
+    wm.frozenT=_wmLastRemain;                              // 停止：残り時間を凍結
+  }
+  _wmWasRunning=running;
+}
+/* ダウンカウント（1〜9）。宣言時刻からクライアント時計で約1秒/カウント */
+function wmDownCounts(downs,nowMs){
+  return downs.map(function(t0){ return t0==null?null:Math.min(9,Math.max(1,Math.floor((nowMs-t0)/1000)+1)); });
+}
+/* スナップショットからA勝率（クランプ済み）を計算（管理側・別画4側で共用） */
+function wmComputeP(s){
+  var share=WME.liveShare(s.logit0, s.mom[0]+s.momKD[0], s.mom[1]+s.momKD[1]);
+  return WME.clampP(WME.downAdjusted(share, s.lambda, s.bestOf, s.score, s.t, s.inRound, s.downs));
+}
+/* 事前勝率（モメンタム・スコアなし） */
+function wmPreP(){
+  var dur=+(state.config&&state.config.matchDuration)||120;
+  var share=WME.sigmoid(wm.logit0);
+  return WME.clampP(WME.matchWinProb(share, wmLambda(), wmCfg().bestOf||1, [0,0], dur, false));
+}
+/* publishBoard から呼ばれる配信データ生成 */
+function wmPublishData(base){
+  wmSyncMatch(); wmDecayTick();
+  var c=wmCfg();
+  var d=Object.assign({}, base, {mcfg:{showName:c.showName!==false}});
+  d.wm = wm.matchKey ? {
+    on:!!c.enabled, bestOf:c.bestOf||1, score:wm.score.slice(), downs:wm.downs.slice(),
+    mom:wm.mom.slice(), momKD:wm.momKD.slice(), logit0:wm.logit0, lambda:wmLambda(),
+    t:wmRemain(), running:(typeof stopwatch!=='undefined')&&stopwatch.running,
+    inRound:((typeof stopwatch!=='undefined')&&stopwatch.running)||wm.frozenT!=null,
+    names:wm.names.slice(), lastPoint:wm.lastPoint, now:Date.now(), pre:wmPreP()
+  } : null;
+  if(typeof wmUpdatePanel==='function') wmUpdatePanel();   // パネルもハートビートで更新（カウント進行）
+  return d;
+}
+/* meter チャンネル */
+var _meterCh=null,_meterChKey=null;
+function ensureMeterChannel(onmsg){
+  if(typeof BroadcastChannel==='undefined') return null;
+  var k=curDocKey();
+  if(_meterCh&&_meterChKey===k) return _meterCh;
+  if(_meterCh){ try{_meterCh.close();}catch(e){} }
+  _meterCh=new BroadcastChannel('serval-meter-'+k); _meterChKey=k;
+  if(onmsg) _meterCh.onmessage=onmsg;
+  return _meterCh;
+}
+function adminMeterOnMsg(e){ if(e&&e.data&&e.data.type==='req') publishBoard(); }
+
+/* ---- 管理操作 ---- */
+function wmOpDown(side){ if(wm.downs[side]==null){ wm.downs[side]=Date.now(); wmTouch(); } }
+function wmOpRecover(){
+  var did=false;
+  [0,1].forEach(function(s){ if(wm.downs[s]!=null){ wm.downs[s]=null; wm.momKD[1-s]+=WME.PARAMS.MOM_KNOCKDOWN; did=true; } });
+  if(did) wmTouch();
+}
+function wmOpPoint(side){
+  wm.score[side]=Math.min(2,wm.score[side]+1);
+  wm.downs=[null,null]; wm.frozenT=null; wm.mom=[0,0];   // ラウンド間へ（手動モメンタムはリセット、奪取分は持続）
+  wm.lastPoint={side:side,ts:Date.now()};
+  wmTouch();
+}
+function wmOpMomentum(side){ wm.mom[side]+=WME.PARAMS.MOM_MANUAL; wmTouch(); }
+function wmOpRetake(){ wm.mom=[0,0]; wm.momKD=[0,0]; wmTouch(); }
+function wmOpReset(){ wmSyncMatch(true); wmTouch(); }
+function wmTouch(){ publishBoard(); }
+
+/* ---- ratings.json インポート（roster該当分のみ抽出＝GAS容量対策） ---- */
+function wmImportRatings(file){
+  var fr=new FileReader();
+  fr.onload=function(){
+    try{
+      var j=JSON.parse(fr.result);
+      if(!j||!j.entities) throw new Error('entities がありません');
+      var names={}; (state.roster||[]).forEach(function(p){ if(p&&p.name) names[p.name]=1; });
+      var ents={}, total=0, kept=0;
+      for(var k in j.entities){ total++;
+        if(names[k]){ ents[k]={elo:Math.round((+j.entities[k].elo||1500)*10)/10}; kept++; } }
+      var h2h=(Array.isArray(j.h2h)?j.h2h:[]).filter(function(h){ return names[h.a]&&names[h.b]; })
+        .map(function(h){ return {a:h.a,b:h.b,pts_a:+h.pts_a||0,pts_b:+h.pts_b||0}; });
+      wmCfg().ratings={generated:j.generated||'', lambda:+j.lambda||0, entities:ents, h2h:h2h};
+      wmSyncMatch(true);
+      if(typeof updateDataSizeBar==='function') updateDataSizeBar();
+      toast('ratings取込: '+kept+'/'+total+'機が参加者と一致（直接対決 '+h2h.length+'組）。保存で確定します');
+      wmTouch();
+    }catch(e){ toast('ratings.json の読み込みに失敗: '+(e&&e.message||e), true); }
+  };
+  fr.readAsText(file);
+}
+
+/* ---- 管理パネル（永続ノード #wmPanel を右カラム末尾へ移設） ---- */
+var _wmPanelBuilt=false;
+function wmAttachPanel(el){
+  if(viewMode) return;
+  var p=document.getElementById('wmPanel'); if(!p) return;
+  if(!_wmPanelBuilt){ wmBuildPanel(p); _wmPanelBuilt=true; }
+  p.hidden=false;
+  el.appendChild(p);                                       // ノード移動＝状態保持（再構築しない）
+  wmUpdatePanel();
+}
+function wmBuildPanel(p){
+  p.innerHTML=
+    '<h2>📊 WinMeter <label style="font-weight:normal;font-size:11.5px;margin-left:6px"><input type="checkbox" id="wmEnable"> 配信ON</label>'+
+    '<select id="wmBestOf" class="btn sm" style="margin-left:6px;font-size:11.5px"><option value="1">1本先取</option><option value="3">2本先取</option></select></h2>'+
+    '<div class="wm-stat" id="wmPre">事前: -</div>'+
+    '<div class="wm-mini"><div class="wm-mini-fill" id="wmMiniFill" style="width:50%"></div><div class="wm-mini-mid"></div></div>'+
+    '<div class="wm-stat" id="wmNow">現在: -</div>'+
+    '<div class="wm-stat" id="wmScoreLine">本数 0 - 0</div>'+
+    '<div class="wm-row"><button class="btn sm" id="wmDownA">赤ダウン</button><button class="btn sm" id="wmDownB">青ダウン</button><button class="btn sm" id="wmRecover">復帰</button></div>'+
+    '<div class="wm-row"><button class="btn sm" id="wmPointA">赤1本</button><button class="btn sm" id="wmPointB">青1本</button></div>'+
+    '<div class="wm-row"><button class="btn sm" id="wmMomA">赤攻勢</button><button class="btn sm" id="wmMomB">青攻勢</button></div>'+
+    '<div class="wm-row"><button class="btn sm" id="wmRetake">取り直し</button><button class="btn sm" id="wmReset">リセット</button></div>'+
+    '<div class="wm-row"><label style="font-size:11.5px"><input type="checkbox" id="wmShowName"> 別画4に名前表示</label></div>'+
+    '<div class="wm-stat" id="wmRatingsStat">ratings: 未取込（全機体 Elo1500 扱い）</div>'+
+    '<div class="wm-row"><button class="btn sm" id="wmImportBtn">📥 ratings.json 取込</button><input type="file" id="wmImportFile" accept=".json,application/json" style="display:none"></div>';
+  var c=wmCfg();
+  var en=p.querySelector('#wmEnable'); en.checked=!!c.enabled;
+  en.onchange=function(){ c.enabled=en.checked; wmTouch(); };
+  var bo=p.querySelector('#wmBestOf'); bo.value=String(c.bestOf||1);
+  bo.onchange=function(){ c.bestOf=+bo.value||1; wmTouch(); };
+  var sn=p.querySelector('#wmShowName'); sn.checked=c.showName!==false;
+  sn.onchange=function(){ c.showName=sn.checked; wmTouch(); };
+  p.querySelector('#wmDownA').onclick=function(){ wmOpDown(0); };
+  p.querySelector('#wmDownB').onclick=function(){ wmOpDown(1); };
+  p.querySelector('#wmRecover').onclick=wmOpRecover;
+  p.querySelector('#wmPointA').onclick=function(){ wmOpPoint(0); };
+  p.querySelector('#wmPointB').onclick=function(){ wmOpPoint(1); };
+  p.querySelector('#wmMomA').onclick=function(){ wmOpMomentum(0); };
+  p.querySelector('#wmMomB').onclick=function(){ wmOpMomentum(1); };
+  p.querySelector('#wmRetake').onclick=wmOpRetake;
+  p.querySelector('#wmReset').onclick=wmOpReset;
+  var fi=p.querySelector('#wmImportFile');
+  p.querySelector('#wmImportBtn').onclick=function(){ fi.click(); };
+  fi.onchange=function(){ if(fi.files&&fi.files[0]) wmImportRatings(fi.files[0]); fi.value=''; };
+}
+function wmUpdatePanel(){
+  var p=document.getElementById('wmPanel');
+  if(!p||p.hidden||!_wmPanelBuilt||!p.isConnected) return;
+  wmSyncMatch();
+  var nowMs=Date.now();
+  var counts=wmDownCounts(wm.downs,nowMs);
+  var pNow=wm.matchKey?wmComputeP({logit0:wm.logit0,mom:wm.mom,momKD:wm.momKD,score:wm.score,
+    downs:counts,bestOf:wmCfg().bestOf||1,t:wmRemain(),
+    inRound:((typeof stopwatch!=='undefined')&&stopwatch.running)||wm.frozenT!=null,lambda:wmLambda()}):0.5;
+  var pPre=wm.matchKey?wmPreP():0.5;
+  var nA=wm.names[0]||'赤', nB=wm.names[1]||'青';
+  p.querySelector('#wmPre').textContent='事前: '+nA+' '+Math.round(pPre*100)+'% / '+nB+' '+Math.round((1-pPre)*100)+'%'
+    +'（Elo '+Math.round(wm.eloA)+' vs '+Math.round(wm.eloB)+'）';
+  p.querySelector('#wmNow').textContent='現在: '+Math.round(pNow*100)+'% / '+Math.round((1-pNow)*100)+'%'
+    +(counts[0]!=null?'　🔴赤ダウン '+counts[0]:'')+(counts[1]!=null?'　🔵青ダウン '+counts[1]:'');
+  p.querySelector('#wmScoreLine').textContent='本数 '+wm.score[0]+' - '+wm.score[1];
+  var mf=p.querySelector('#wmMiniFill');
+  mf.style.width=(pNow*100)+'%'; mf.style.background='#e23b3b';
+  p.querySelector('.wm-mini').style.background='#3b5be2';
+  var r=wmCfg().ratings;
+  p.querySelector('#wmRatingsStat').textContent = r
+    ? 'ratings: '+Object.keys(r.entities||{}).length+'機・λ='+(+r.lambda||0).toFixed(4)+'・'+String(r.generated||'').slice(0,10)
+    : 'ratings: 未取込（全機体 Elo1500 扱い）';
+}
+</script>
+<script>
+/* ============================================================
+ *  WinMeter③ 別画面４（?meter）表示。受信スナップショットから
+ *  ローカル時計で毎秒補間（カウント進行・減衰・残り時間）
+ * ============================================================ */
+var _lastMeterTs=0,_wmRecv=null;
+function onMeterData(d){
+  if(!d){ renderMeter(null); return; }
+  if(d.ts){ if(d.ts<=_lastMeterTs) return; _lastMeterTs=d.ts; }
+  _wmRecv=d; renderMeter(d);
+}
+function setupMeter(){
+  var app=document.querySelector('.app'); if(app) app.style.display='none';
+  document.getElementById('meterScreen').hidden=false;
+  renderMeter(null);
+  var ch=ensureMeterChannel(function(e){ if(e&&e.data&&e.data.type==='board') onMeterData(e.data.data); });
+  if(ch) ch.postMessage({type:'req'});
+  var mk='serval-meter-'+curDocKey();
+  var readLS=function(){ try{ var j=localStorage.getItem(mk); if(j) onMeterData(JSON.parse(j).data); }catch(e){} };
+  window.addEventListener('storage', function(ev){ if(ev.key===mk&&ev.newValue){ try{ onMeterData(JSON.parse(ev.newValue).data); }catch(e){} } });
+  readLS();
+  setInterval(readLS,1000);
+  setInterval(function(){ if(_wmRecv) renderMeter(_wmRecv); },250);   // ローカル補間tick
+}
+function renderMeter(d){
+  var wait=document.getElementById('wmWait'), content=document.getElementById('wmContent'),
+      downOv=document.getElementById('wmDown'), pointOv=document.getElementById('wmPoint');
+  var w=d&&d.wm;
+  if(!d||d.empty||!w||!w.on){
+    wait.style.display='flex'; content.style.display='none';
+    downOv.hidden=true; pointOv.hidden=true; return;
+  }
+  wait.style.display='none'; content.style.display='flex';
+  var nowMs=Date.now(), age=(nowMs-(w.now||nowMs))/1000;
+  // 受信スナップショットをローカル時計で外挿
+  var t=w.running?Math.max(0,w.t-age):w.t;
+  var dec=function(v,hl){ return w.running?WME.decay(v,age,hl):v; };
+  var mom=[dec(w.mom[0],WME.PARAMS.HALF_LIFE),dec(w.mom[1],WME.PARAMS.HALF_LIFE)];
+  var momKD=[dec(w.momKD[0],WME.PARAMS.HALF_LIFE_KD),dec(w.momKD[1],WME.PARAMS.HALF_LIFE_KD)];
+  var counts=wmDownCounts(w.downs,nowMs);
+  var p=wmComputeP({logit0:w.logit0,mom:mom,momKD:momKD,score:w.score,downs:counts,
+                    bestOf:w.bestOf,t:t,inRound:w.inRound,lambda:w.lambda});
+  var pctA=Math.round(p*100), pctB=100-pctA;
+  var colA=d.colA||'#e23b3b', colB=d.colB||'#3b5be2';
+  // 名前（表示設定に従う）
+  var showName=!(d.mcfg&&d.mcfg.showName===false);
+  document.getElementById('wmNameA').textContent=showName?(w.names[0]||d.aName||''):'';
+  document.getElementById('wmNameB').textContent=showName?(w.names[1]||d.bName||''):'';
+  document.getElementById('wmNameA').style.color=colA;
+  document.getElementById('wmNameB').style.color=colB;
+  // パーセント・バー
+  document.getElementById('wmPctA').textContent=pctA+'%';
+  document.getElementById('wmPctB').textContent=pctB+'%';
+  document.getElementById('wmPctA').style.color=colA;
+  document.getElementById('wmPctB').style.color=colB;
+  var bar=document.querySelector('#meterScreen .wm-bar'), fill=document.getElementById('wmFill');
+  bar.style.background=colB; fill.style.background=colA; fill.style.width=pctA+'%';
+  // 本数（2本先取時のみ ●○ 表示）
+  var dots=function(n){ return w.bestOf===3?('●'.repeat(n)+'○'.repeat(Math.max(0,2-n))):''; };
+  document.getElementById('wmDotsA').textContent=dots(w.score[0]);
+  document.getElementById('wmDotsB').textContent=dots(w.score[1]);
+  document.getElementById('wmDotsA').style.color=colA;
+  document.getElementById('wmDotsB').style.color=colB;
+  // ダウンカウント（大表示）
+  var dSide=counts[0]!=null?0:(counts[1]!=null?1:null);
+  if(dSide!=null){
+    downOv.hidden=false;
+    document.getElementById('wmDownLabel').textContent=(showName?(w.names[dSide]||''):(dSide===0?'赤':'青'))+' ダウン！';
+    document.getElementById('wmDownLabel').style.color=dSide===0?colA:colB;
+    var cEl=document.getElementById('wmDownCount');
+    var cnt=counts[dSide];
+    if(cEl.textContent!==String(cnt)){ cEl.textContent=cnt; cEl.style.animation='none'; void cEl.offsetWidth; cEl.style.animation=''; }
+    cEl.style.color=dSide===0?colA:colB;
+  } else downOv.hidden=true;
+  // 「1本」演出（確定から2.5秒）
+  var lp=w.lastPoint;
+  if(lp&&nowMs-lp.ts<2500){
+    pointOv.hidden=false;
+    pointOv.textContent=(showName?(w.names[lp.side]||''):(lp.side===0?'赤':'青'))+'　1本！';
+    pointOv.style.color=lp.side===0?colA:colB;
+  } else pointOv.hidden=true;
 }
 </script>
 </body>
