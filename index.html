@@ -32,18 +32,28 @@
   }
   .wrap{max-width:880px; margin:0 auto; padding:32px 20px 100px}
 
-  /* ── ヘッダー ── */
-  .site-header{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:8px}
-  .logo-block{display:flex; align-items:center; gap:14px}
-  .logo-img{width:48px; height:48px; object-fit:contain; transition:filter .25s}
-  [data-theme="dark"] .logo-img{filter:invert(1); opacity:.95}
-  .logo-text .logo{font-weight:700; font-size:28px; letter-spacing:.14em; user-select:none; line-height:1}
-  .logo-text .logo-sub{font-family:var(--mono); font-size:10.5px; color:var(--muted); letter-spacing:.32em; display:block; margin-top:3px}
-  .header-right{display:flex; align-items:center; gap:8px; padding-top:4px}
+  /* ── 上部ナビ（取説と共通の帯） ── */
+  .topnav{
+    position:sticky; top:0; z-index:10;
+    background:var(--panel); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:14px; padding:10px 20px;
+  }
+  .topnav .brand{display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--text)}
+  .topnav .brand img{width:28px; height:28px; object-fit:contain}
+  [data-theme="dark"] .topnav .brand img{filter:invert(1); opacity:.9}
+  .topnav .brand-name{font-weight:700; font-size:15px; letter-spacing:.1em}
+  .topnav .brand-sub{font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.2em}
+  .topnav .sp{flex:1}
+  .back-link{
+    font-size:12px; font-family:var(--mono); color:var(--muted); text-decoration:none;
+    letter-spacing:.05em; padding:6px 10px; border:1px solid var(--line); border-radius:7px;
+  }
+  .back-link:hover{color:var(--text); border-color:var(--serval-dim)}
   #themeBtn{
     display:flex; align-items:center; justify-content:center;
-    width:34px; height:34px; padding:0; border-radius:50%;
-    background:var(--panel); border:1px solid var(--line); cursor:pointer; font-size:16px;
+    width:32px; height:32px; padding:0; border-radius:50%;
+    background:transparent; border:1px solid var(--line); cursor:pointer;
+    font-size:15px; font-family:inherit;
   }
   #themeBtn:hover{border-color:var(--serval-dim)}
 
@@ -51,12 +61,9 @@
   .hero{
     background:var(--panel); border:1px solid var(--line); border-radius:14px;
     padding:20px 24px; margin:18px 0 28px;
-    display:grid; grid-template-columns:1fr auto; gap:12px 24px; align-items:center;
   }
   .hero-desc{font-size:13.5px; color:var(--muted); line-height:1.75}
   .hero-desc strong{color:var(--text); font-weight:700}
-  .hero-actions{display:flex; flex-direction:column; gap:8px; flex-shrink:0}
-  @media(max-width:560px){.hero{grid-template-columns:1fr}.hero-actions{flex-direction:row}}
 
   .section-title{
     font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.22em; text-transform:uppercase;
@@ -129,6 +136,7 @@
   }
   .t-key{font-family:var(--mono); font-size:11px; color:var(--muted); flex:1; min-width:80px}
   .t-note{font-size:12px; color:var(--muted); flex:1}
+  .t-note-empty{opacity:.5; font-style:italic}
   .t-btns{display:flex; gap:6px; flex-shrink:0}
 
   /* 「トーナメントを追加」行 */
@@ -141,10 +149,12 @@
     color:var(--text); font-family:var(--mono); font-size:12.5px; padding:6px 9px;
   }
   .add-row input:focus-visible{outline:2px solid var(--serval); outline-offset:1px; border-color:var(--serval-dim)}
-  .add-row .inp-page{width:70px}
+  .add-row .inp-page{width:150px}
   .add-row .inp-key{flex:1; min-width:80px; max-width:200px}
   .add-row label{font-size:11px; color:var(--muted); white-space:nowrap}
   .add-row-inner{display:flex; align-items:center; gap:8px; flex:1; flex-wrap:wrap}
+  .key-warn{flex-basis:100%; font-size:11px; color:var(--danger); margin-top:2px; display:none}
+  .key-warn.show{display:block}
 
   /* 空状態・準備中 */
   .no-tournaments{
@@ -230,28 +240,27 @@
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <div class="site-header">
-    <div class="logo-block">
-      <img class="logo-img" src="serval.png" alt="serval">
-      <div class="logo-text">
-        <span class="logo">serval</span>
-        <span class="logo-sub">TOURNAMENT MANAGER</span>
-      </div>
+<!-- 上部ナビ（取説と共通の帯） -->
+<nav class="topnav">
+  <a class="brand" href="./">
+    <img src="serval.png" alt="serval">
+    <div>
+      <div class="brand-name">serval</div>
+      <div class="brand-sub">TOURNAMENT MANAGER</div>
     </div>
-    <div class="header-right">
-      <button id="themeBtn" title="ダーク/ライト切り替え" aria-label="テーマ切り替え">🌙</button>
-    </div>
-  </div>
+  </a>
+  <span class="sp"></span>
+  <a class="back-link" href="manual/">📖 取扱説明書</a>
+  <button id="themeBtn" aria-label="テーマ切り替え">🌙</button>
+</nav>
+
+<div class="wrap">
 
   <div class="hero">
     <div class="hero-desc">
       <strong>serval</strong> はロボット競技向けの<strong>トーナメント・リーグ管理システム</strong>です。
       大会シリーズ（<strong>ブック</strong>）ごとにGASプロジェクトを用意し、第1回・第2回…の各<strong>トーナメント</strong>を一元管理します。
-    </div>
-    <div class="hero-actions">
-      <a class="btnlike outline" href="manual/">📖 取扱説明書</a>
     </div>
   </div>
 
@@ -301,7 +310,7 @@
   <div class="fld">
     <label class="lbl" for="fUrl">GAS WebアプリURL（/exec）</label>
     <input type="url" id="fUrl" class="mono" placeholder="https://script.google.com/macros/s/…/exec">
-    <div class="hint">GASをコピー作成・デプロイ後のURLを貼ります。空のままなら「準備中」扱い。</div>
+    <div class="hint">通常は既定値のまま（短縮リンク go/ 経由）でOK。個別GASを使う場合のみ /exec URLに差し替えます。空のままなら「準備中」扱い。</div>
   </div>
   <div class="fld">
     <label class="lbl" for="fNote">メモ（任意）</label>
@@ -317,6 +326,7 @@
 
 <script>
 var API_BASE='https://script.google.com/macros/s/AKfycbxXvPz1A_5MO08BFpvye_sYMUi5ho8QL1jokvem48ii5Q0rQZ4Ja_1_nIXxzzSLbWhdVA/exec';
+var GO_URL='https://sin1.studio/serval/go/';
 var TOKEN_KEY='servalPortalToken';
 var _books=[];
 var _editingBook=null;
@@ -377,7 +387,11 @@ function apiPostUtf8(body){
 /* ── 描画 ── */
 function buildOpenUrl(b,t){return b.url+(t.docKey?'?doc='+encodeURIComponent(t.docKey):'');}
 function buildAdminUrl(b,t){return b.url+(t.docKey?'?doc='+encodeURIComponent(t.docKey)+'&admin':'?admin');}
-function fmtPage(p){return (p!=null&&p!=='')? '第'+p+'回' : '?回';}
+function fmtPage(p){
+  if(p==null||String(p).trim()==='') return '?回';
+  // 過去データ（数値型で保存）は「第N回」表記を維持。新規入力（文字列）はそのまま表示。
+  return (typeof p==='number') ? '第'+p+'回' : String(p).trim();
+}
 
 function renderList(){
   var el=document.getElementById('list');
@@ -420,22 +434,31 @@ function renderList(){
     /* ── トーナメント一覧 ── */
     if(tours.length){
       html+='<div class="tournament-list">';
-      // ページ降順で表示
-      var sorted=tours.slice().sort(function(a,b){return (b.page||0)-(a.page||0);});
+      // ページ降順で表示（数値のページは新しい順、数値以外は追加順で数値の後ろに）
+      var sorted=tours.map(function(t,i){return {t:t,i:i};}).sort(function(A,B){
+        var an=Number(A.t.page), bn=Number(B.t.page);
+        var aNum=A.t.page!=null&&String(A.t.page).trim()!==''&&!isNaN(an);
+        var bNum=B.t.page!=null&&String(B.t.page).trim()!==''&&!isNaN(bn);
+        if(aNum&&bNum) return bn-an;
+        if(aNum) return -1;
+        if(bNum) return 1;
+        return B.i-A.i;
+      }).map(function(x){return x.t;});
       sorted.forEach(function(t,ti){
         var openUrl=hasUrl?buildOpenUrl(b,t):'';
         var adminUrl=hasUrl?buildAdminUrl(b,t):'';
+        var tIdx=tours.indexOf(t);
+        var editAttr=b.deleted?'':' ondblclick="startInlineEdit(\''+esc(b.id)+'\','+tIdx+',\'FIELD\',this)" title="ダブルクリックで編集"';
         html+='<div class="tournament-row">';
-        html+='<span class="t-page">'+esc(fmtPage(t.page))+'</span>';
+        html+='<span class="t-page"'+editAttr.replace('FIELD','page')+'>'+esc(fmtPage(t.page))+'</span>';
         html+='<span class="t-key">'+esc(t.docKey||'')+'</span>';
-        if(t.note) html+='<span class="t-note">'+esc(t.note)+'</span>';
+        html+='<span class="t-note'+(t.note?'':' t-note-empty')+'"'+editAttr.replace('FIELD','note')+'>'+(t.note?esc(t.note):'（メモを追加）')+'</span>';
         html+='<div class="t-btns">';
         if(hasUrl){
           html+='<a class="btnlike primary" href="'+esc(openUrl)+'" target="_blank" rel="noopener">開く</a>';
           html+='<a class="btnlike" href="'+esc(adminUrl)+'" target="_blank" rel="noopener">管理</a>';
         }
         if(!b.deleted){
-          var tIdx=tours.indexOf(t);
           html+='<button class="ghost sm danger" onclick="removeTournament(\''+esc(b.id)+'\','+tIdx+')">×</button>';
         }
         html+='</div></div>';
@@ -449,11 +472,12 @@ function renderList(){
     if(!b.deleted&&hasUrl){
       html+='<div class="add-row" id="add-row-'+esc(b.id)+'">';
       html+='<div class="add-row-inner">';
-      html+='<label>第</label>';
-      html+='<input class="inp-page" type="number" min="1" max="999" placeholder="8" id="add-page-'+esc(b.id)+'">';
-      html+='<label>回  トーナメント名</label>';
-      html+='<input class="inp-key" type="text" maxlength="100" placeholder="JimaCup8" id="add-key-'+esc(b.id)+'">';
+      html+='<label>回次・シーズン</label>';
+      html+='<input class="inp-page" type="text" maxlength="20" placeholder="第8回 / 2026 / 第3期 / TOKYO" id="add-page-'+esc(b.id)+'">';
+      html+='<label>トーナメント名</label>';
+      html+='<input class="inp-key" type="text" maxlength="100" placeholder="tournament1" id="add-key-'+esc(b.id)+'" oninput="validateDocKeyInput(\''+esc(b.id)+'\')">';
       html+='<input type="text" maxlength="200" placeholder="メモ（任意）" style="flex:1;min-width:80px" id="add-note-'+esc(b.id)+'">';
+      html+='<div class="key-warn" id="add-key-warn-'+esc(b.id)+'"></div>';
       html+='</div>';
       html+='<button class="sm primary" onclick="addTournament(\''+esc(b.id)+'\')">＋ 追加</button>';
       html+='</div>';
@@ -493,7 +517,7 @@ function openBookEdit(id){
     _editingBook=null;
     document.getElementById('bookDlgTitle').textContent='新規ブック';
     document.getElementById('fName').value='';
-    document.getElementById('fUrl').value='';
+    document.getElementById('fUrl').value=GO_URL;
     document.getElementById('fNote').value='';
   }
   dlg.showModal();
@@ -504,7 +528,7 @@ function saveBook(){
   var name=document.getElementById('fName').value.trim();
   if(!name){toast('ブック名を入力してください',true);return;}
   var url=document.getElementById('fUrl').value.trim();
-  if(url&&!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){
+  if(url&&url!==GO_URL&&!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){
     if(!confirm('URLがGASの /exec 形式ではないようです。このまま保存しますか？'))return;
   }
   var note=document.getElementById('fNote').value.trim();
@@ -529,6 +553,18 @@ function saveBook(){
   }
 }
 
+/* トーナメント名（docKey）バリデーション: URLの ?doc= に使われるため半角英数字推奨 */
+var DOCKEY_RE=/^[A-Za-z0-9_-]{1,30}$/;
+function validateDocKeyInput(bookId){
+  var el=document.getElementById('add-key-'+bookId);
+  var warn=document.getElementById('add-key-warn-'+bookId);
+  if(!el||!warn) return;
+  var v=el.value.trim();
+  var ok=(v===''||DOCKEY_RE.test(v));
+  if(ok){warn.className='key-warn'; el.style.borderColor='';}
+  else{warn.textContent='URL（?doc=）に使われるため、半角英数字・-_のみ・30字以内を推奨します';warn.className='key-warn show'; el.style.borderColor='var(--danger)';}
+}
+
 /* トーナメント追加 */
 function addTournament(bookId){
   if(!ensureAuth()) return;
@@ -537,11 +573,14 @@ function addTournament(bookId){
   var pageEl=document.getElementById('add-page-'+bookId);
   var keyEl=document.getElementById('add-key-'+bookId);
   var noteEl=document.getElementById('add-note-'+bookId);
-  var page=pageEl?parseInt(pageEl.value,10):null;
+  var page=(pageEl?pageEl.value.trim():'');
   var docKey=(keyEl?keyEl.value.trim():'');
   var tnote=(noteEl?noteEl.value.trim():'');
-  if(!page||isNaN(page)){toast('回次（番号）を入力してください',true);return;}
+  if(!page){toast('回次・シーズンを入力してください',true);return;}
   if(!docKey){toast('トーナメント名を入力してください',true);return;}
+  if(!DOCKEY_RE.test(docKey)){
+    if(!confirm('トーナメント名が半角英数字の短い形式ではないようです（URLの ?doc= に使われます）。このまま追加しますか？'))return;
+  }
   var tours=Array.isArray(b.tournaments)?b.tournaments.slice():[];
   tours.push({page:page,docKey:docKey,note:tnote});
   var obj=Object.assign({},b,{tournaments:tours});
@@ -550,6 +589,48 @@ function addTournament(bookId){
     if(r&&r.ok){toast('追加しました');loadList();}
     else{if(r&&r.error&&r.error.indexOf('認証')>=0)clearToken();toast((r&&r.error)||'追加に失敗',true);}
   }).catch(function(e){toast('エラー: '+(e&&e.message||e),true);});
+}
+
+/* トーナメント編集（回次・メモをダブルクリックでインライン編集） */
+function startInlineEdit(bookId,idx,field,el){
+  if(!ensureAuth()) return;
+  if(el.querySelector('input')) return;
+  var b=null; _books.forEach(function(x){if(x.id===bookId)b=x;});
+  if(!b) return;
+  var tours=Array.isArray(b.tournaments)?b.tournaments:[];
+  var t=tours[idx]; if(!t) return;
+  var cur=field==='page'?(t.page!=null?t.page:''):(t.note||'');
+  var input=document.createElement('input');
+  input.type='text';
+  input.value=cur;
+  input.maxLength=field==='page'?20:200;
+  input.style.cssText='font:inherit;background:var(--night);border:1px solid var(--serval-dim);border-radius:5px;color:var(--text);padding:2px 6px;width:'+(field==='page'?'110px':'160px');
+  el.textContent='';
+  el.appendChild(input);
+  input.focus(); input.select();
+  var done=false;
+  function commit(save){
+    if(done) return; done=true;
+    if(!save){renderList();return;}
+    var v=input.value.trim();
+    if(field==='page'){
+      if(!v){toast('回次・シーズンを入力してください',true);renderList();return;}
+    }
+    if(v===String(field==='page'?(t.page!=null?t.page:''):(t.note||''))){renderList();return;}
+    var newTours=tours.slice();
+    var newT=Object.assign({},t); newT[field]=v;
+    newTours[idx]=newT;
+    var obj=Object.assign({},b,{tournaments:newTours});
+    apiPostUtf8({action:'bookUpdate',id:b.id,book:obj,token:getToken()}).then(function(r){
+      if(r&&r.ok){toast('更新しました');loadList();}
+      else{if(r&&r.error&&r.error.indexOf('認証')>=0)clearToken();toast((r&&r.error)||'更新に失敗',true);renderList();}
+    }).catch(function(e){toast('エラー: '+(e&&e.message||e),true);renderList();});
+  }
+  input.addEventListener('blur',function(){commit(true);});
+  input.addEventListener('keydown',function(e){
+    if(e.key==='Enter'){e.preventDefault();input.blur();}
+    else if(e.key==='Escape'){done=true;renderList();}
+  });
 }
 
 /* トーナメント削除 */
@@ -587,7 +668,6 @@ function restoreBook(id){
 }
 
 /* ── 初期化 ── */
-function fmtPage(p){return(p!=null&&p!=='')? '第'+p+'回':'?回';}
 document.getElementById('btnNew').onclick=function(){openBookEdit(null);};
 document.getElementById('btnReload').onclick=loadList;
 document.getElementById('chkDeleted').onchange=renderList;
