@@ -133,7 +133,7 @@
     padding:8px 12px 8px 0; border-bottom:1px solid var(--panel2); color:var(--muted); vertical-align:middle;
   }
   .tournament-table tr:last-child td{border-bottom:none}
-  .tournament-table th:last-child,.tournament-table td:last-child{padding-right:0; text-align:right}
+  .tournament-table th:last-child,.tournament-table td:last-child{padding-right:0; text-align:right; white-space:nowrap}
   .t-page{
     font-family:var(--mono); font-size:11.5px; font-weight:500;
     background:rgba(233,169,61,.15); border:1px solid var(--serval-dim);
@@ -442,7 +442,7 @@ function renderList(){
     /* ── トーナメント一覧（表） ── */
     if(tours.length){
       html+='<div class="tournament-list"><table class="tournament-table"><thead><tr>'
-        +'<th>年度</th><th>トーナメント名</th><th>優勝</th><th>準優勝</th><th>3位</th><th>メモ</th><th></th>'
+        +'<th>ラベル</th><th>ID</th><th>優勝</th><th>準優勝</th><th>3位</th><th>メモ</th><th></th>'
         +'</tr></thead><tbody>';
       // ページ降順で表示（数値のページは新しい順、数値以外は追加順で数値の後ろに）
       var sorted=tours.map(function(t,i){return {t:t,i:i};}).sort(function(A,B){
@@ -486,9 +486,9 @@ function renderList(){
     if(!b.deleted&&hasUrl){
       html+='<div class="add-row" id="add-row-'+esc(b.id)+'">';
       html+='<div class="add-row-inner">';
-      html+='<label>年度</label>';
+      html+='<label>ラベル</label>';
       html+='<input class="inp-page" type="text" maxlength="20" placeholder="第8回 / 2026 / 第3期 / TOKYO" id="add-page-'+esc(b.id)+'">';
-      html+='<label>トーナメント名</label>';
+      html+='<label>ID</label>';
       html+='<input class="inp-key" type="text" maxlength="100" placeholder="tournament1" id="add-key-'+esc(b.id)+'" oninput="validateDocKeyInput(\''+esc(b.id)+'\')">';
       html+='<input type="text" maxlength="200" placeholder="メモ（任意）" style="flex:1;min-width:80px" id="add-note-'+esc(b.id)+'">';
       html+='<div class="key-warn" id="add-key-warn-'+esc(b.id)+'"></div>';
@@ -590,10 +590,10 @@ function addTournament(bookId){
   var page=(pageEl?pageEl.value.trim():'');
   var docKey=(keyEl?keyEl.value.trim():'');
   var tnote=(noteEl?noteEl.value.trim():'');
-  if(!page){toast('回次・シーズンを入力してください',true);return;}
-  if(!docKey){toast('トーナメント名を入力してください',true);return;}
+  if(!page){toast('ラベルを入力してください',true);return;}
+  if(!docKey){toast('IDを入力してください',true);return;}
   if(!DOCKEY_RE.test(docKey)){
-    if(!confirm('トーナメント名が半角英数字の短い形式ではないようです（URLの ?doc= に使われます）。このまま追加しますか？'))return;
+    if(!confirm('IDが半角英数字の短い形式ではないようです（URLの ?doc= に使われます）。このまま追加しますか？'))return;
   }
   var tours=Array.isArray(b.tournaments)?b.tournaments.slice():[];
   tours.push({page:page,docKey:docKey,note:tnote});
