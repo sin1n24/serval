@@ -1,6 +1,6 @@
 # Serval（トーナメント管理システム）
 
-このディレクトリで作業を始める前に、まず **`C:\Users\sin1n\todo\HANDOFF.md` を必読**。現在の版・実装済み機能・コードの場所・デプロイ手順・GAS固有の落とし穴がまとまっている。
+このディレクトリで作業を始める前に、まず **`G:\マイドライブ\開発\開発環境共有\todo\HANDOFF.md` を必読**。現在の版・実装済み機能・コードの場所・デプロイ手順・GAS固有の落とし穴がまとまっている。
 
 ## 最重要の落とし穴（HANDOFFの要約・先に知っておくこと）
 - **デプロイ**: Claude Codeから `clasp` / `bump.sh` を直接実行するとハーネスが `H.replace`/`H.trim` で落ちる。
@@ -12,7 +12,7 @@
 - 反映確認は **Ctrl+Shift+R**（GASはHTMLを強くキャッシュ）。
 - GAS制約: `<script>`は~22KBで分割 / iframe内はURL不可視→`__EXECURL__`注入 / **`google.script.run`はDateを返すとnull化→`toISOString()`で文字列化**。
 
-詳細・関数の場所・次の一手は `C:\Users\sin1n\todo\HANDOFF.md` を参照。
+詳細・関数の場所・次の一手は `G:\マイドライブ\開発\開発環境共有\todo\HANDOFF.md` を参照。
 
 ## ファイル操作のルール
 - **ファイル削除は禁止**。不要になったファイルは `DELETE/` フォルダを作成してそこへ移動する。

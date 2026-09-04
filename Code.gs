@@ -51,6 +51,10 @@ function doPost(e) {
   if (act === 'bookDelete')  return _jsonOut_(apiBookDelete(req.id, token));
   if (act === 'bookRestore') return _jsonOut_(apiBookRestore(req.id, token));
   if (act === 'deletePage')  return _jsonOut_(apiDeletePage(req.key, token));
+  if (act === 'postMatchEvent') return _jsonOut_(apiPostMatchEvent(req.docKey, JSON.stringify(req.event || {}), token));
+  if (act === 'registerSeeding') return _jsonOut_(apiRegisterSeeding(req.docKey, JSON.stringify(req.seeding || {}), token));
+  if (act === 'ping')            return _jsonOut_(apiPing(token));
+  if (act === 'clearIdemForMatch') return _jsonOut_(apiClearIdemForMatch(req.docKey, req.matchKey, token));
   return _jsonOut_({ ok: false, error: '不明なaction: ' + act });
 }
 
@@ -62,6 +66,10 @@ function doGet(e) {
     if (act === 'booklist')  return _jsonOut_(apiBookList(p0.deleted != null));
     if (act === 'pagelist')  return _jsonOut_(apiPageList());
     return _jsonOut_({ ok: false, error: '不明なapi: ' + act });
+  }
+  if (p0.result != null) {                                                // ?result 大会成績CSV出力
+    var rDoc = p0.doc ? String(p0.doc).slice(0, 100) : 'default';
+    return apiExportResultsCsv_(rDoc);
   }
   if (p0.portal != null) {                                                // ?portal シリーズ管理ポータル
     var pout = HtmlService.createHtmlOutputFromFile('portal')
@@ -159,6 +167,240 @@ function apiLoad(key) {
     }
   }
   return { ok: false, key: key, json: null };
+}
+
+/**
+ * ?result&doc=<docKey> で参加ロボットの大会成績一覧をCSVとして返す（?board等と同じURLパラメータ方式）。
+ * 修理時間など試合ごとの細かい情報は含めない。単独トーナメント（代表戦・リーグ戦は非対応）が対象。
+ */
+function apiExportResultsCsv_(docKey) {
+  var loaded = apiLoad(docKey);
+  if (!loaded.ok || !loaded.json) {
+    return ContentService.createTextOutput('該当データが見つかりません: ' + docKey).setMimeType(ContentService.MimeType.TEXT);
+  }
+  var state;
+  try { state = JSON.parse(loaded.json); } catch (e) {
+    return ContentService.createTextOutput('データの読み込みに失敗しました').setMimeType(ContentService.MimeType.TEXT);
+  }
+  var rows = _buildResultsRows_(state);
+  var header = ['番号','ロボット名','フリガナ','操縦者名','所属','所属フリガナ','タイプ1','タイプ2','一言紹介',
+                '大会成績','勝ち試合数','負け試合数','勝ち本数','負け本数'];
+  var lines = [_csvRow_(header)];
+  rows.forEach(function (r) {
+    lines.push(_csvRow_([r.number, r.playerName, r.furigana, r.representative, r.affiliation, r.affiliationFurigana,
+      r.type1, r.type2, r.intro, r.placement, r.winMatches, r.loseMatches, r.winGames, r.loseGames]));
+  });
+  // Excel等での文字化け防止にBOM付きUTF-8で返す
+  return ContentService.createTextOutput('﻿' + lines.join('\r\n')).setMimeType(ContentService.MimeType.CSV);
+}
+
+function _csvRow_(arr) {
+  return arr.map(function (v) {
+    var s = (v == null) ? '' : String(v);
+    if (/[",\r\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }).join(',');
+}
+
+/**
+ * 代表トーナメント（state.repT、複数ブロック時のみ）を辿り、優勝/準優勝/3位/4位が
+ * それぞれどのトーナメント（ブロック）index（tournaments配列の添字）に属するかを返す。
+ * repT.slots[i] は tournaments[i] の代表と対応する（syncRepTournament()の構築順）。
+ * 戻り値: { champIdx, runnerUpIdx, thirdIdx, fourthIdx }（決着していない項目はnull）。
+ * 代表戦が無い（単独大会）・代表リーグ戦モードの場合は全項目null。
+ */
+function _repPlacementIdxs_(state) {
+  var none = { champIdx: null, runnerUpIdx: null, thirdIdx: null, fourthIdx: null };
+  var tn = (state && state.tournaments) || [];
+  var cnt = tn.length;
+  if (cnt <= 1) return none;
+  if (state.config && state.config.repMode === 'league' && cnt === 3) return none;  // 代表リーグ戦は非対応（順位表は別ロジックが必要）
+  var rt = state.repT;
+  if (!rt || !rt.results) return none;
+  var repSize = cnt <= 2 ? 2 : 4;
+  var rounds = Math.log2(repSize);
+  function hasComp(r, j) {
+    if (r === 0) return j < cnt;
+    return hasComp(r - 1, 2 * j) || hasComp(r - 1, 2 * j + 1);
+  }
+  function occ(r, j) {
+    if (r === 0) return j < cnt ? j : null;
+    var h0 = hasComp(r - 1, 2 * j), h1 = hasComp(r - 1, 2 * j + 1);
+    if (!h0 && !h1) return null;
+    if (h0 && !h1) return occ(r - 1, 2 * j);
+    if (!h0 && h1) return occ(r - 1, 2 * j + 1);
+    var c0 = occ(r - 1, 2 * j), c1 = occ(r - 1, 2 * j + 1);
+    if (c0 == null || c1 == null) return null;
+    var res = rt.results[r + '-' + j];
+    if (!res || res.win == null || res.kind === '勝者なし') return null;
+    return res.win === 0 ? c0 : c1;
+  }
+  if (repSize === 2) {
+    var champ2 = occ(1, 0);
+    if (champ2 == null) return none;
+    var runner2 = occ(0, champ2 === 0 ? 1 : 0);
+    // 2ブロック構成の3位決定戦（config.repThird時）：各ブロック自身の決勝敗者（ブロックrunner-up）同士の別試合。
+    // thirdRunnerUpBlockIdx はそのうち勝った側のトーナメントindex（0=tournaments[0]側のrunner-upが3位）。
+    var thirdRunnerUpBlockIdx = null;
+    var res3b = rt.results['3rd'];
+    if (res3b && res3b.win != null && res3b.kind !== '勝者なし') thirdRunnerUpBlockIdx = res3b.win;
+    return { champIdx: champ2, runnerUpIdx: runner2, thirdIdx: null, fourthIdx: null, thirdRunnerUpBlockIdx: thirdRunnerUpBlockIdx };
+  }
+  // repSize===4: 準決勝(r=1: j=0が0v1, j=1が2v3) → 決勝(r=2:j=0)。3位決定戦は rt.results['3rd']（あれば）。
+  var semiLoser = [null, null];
+  var semiRes0 = rt.results['1-0'], semiRes1 = rt.results['1-1'];
+  if (semiRes0 && semiRes0.win != null && semiRes0.kind !== '勝者なし') semiLoser[0] = (semiRes0.win === 0) ? 1 : 0;
+  if (semiRes1 && semiRes1.win != null && semiRes1.kind !== '勝者なし') semiLoser[1] = (semiRes1.win === 0) ? 3 : 2;
+  var champIdx = occ(2, 0);
+  var runnerUpIdx = null;
+  if (champIdx != null) {
+    var w0 = occ(1, 0), w1 = occ(1, 1);
+    runnerUpIdx = (champIdx === w0) ? w1 : w0;
+  }
+  var thirdIdx = null, fourthIdx = null;
+  var res3 = rt.results['3rd'];
+  if (res3 && res3.win != null && res3.kind !== '勝者なし' && semiLoser[0] != null && semiLoser[1] != null) {
+    thirdIdx = (res3.win === 0) ? semiLoser[0] : semiLoser[1];
+    fourthIdx = (res3.win === 0) ? semiLoser[1] : semiLoser[0];
+  }
+  return { champIdx: champIdx, runnerUpIdx: runnerUpIdx, thirdIdx: thirdIdx, fourthIdx: fourthIdx,
+           semiLoserIdxs: [semiLoser[0], semiLoser[1]] };
+}
+
+/**
+ * 各トーナメントの出場ロボットについて、勝敗数・大会成績（優勝/準優勝/3位/ベストN）を集計する。
+ * 複数ブロック＋代表トーナメントがある場合（例: 中島杯のブロックA〜D→代表決勝）は、
+ * 「ブロックごとの優勝」をそのまま優勝表記すると全体で複数名が優勝になってしまうため、
+ * ブロックを無視した全体成績として付け直す:
+ *   優勝/準優勝/3位＝代表戦（state.repT）の結果そのもの。
+ *   代表戦で3位決定戦に敗れた1名（またはそもそも3位決定戦が無い場合の準決勝敗者2名）＝ベスト4。
+ *   各ブロック決勝の敗者（ブロック代表次点、計4名）＝ベスト8。
+ *   各ブロック準決勝の敗者（計8名）＝ベスト16。
+ * それより浅いラウンドの敗退（ブロック内でしか対戦していない層）は、従来通りブロック内の
+ * 実際の対戦人数を基準にした「ベストN」表記のまま据え置く（ブロックを跨いだ比較ができないため）。
+ */
+function _buildResultsRows_(state) {
+  var out = [];
+  var tournaments = (state && state.tournaments) || [];
+  var multi = tournaments.length > 1;
+  var rp = multi ? _repPlacementIdxs_(state) : null;
+
+  // ---- パス1: 各ブロックの勝敗・占有者(occ)・実対戦人数(activeCounts)を集計する（ラベルはまだ付けない） ----
+  var blocks = tournaments.map(function (t) {
+    var size = t.size, rounds = Math.log2(size);
+    var slots = t.slots || [];
+    var results = t.results || {};
+    var stat = slots.map(function () { return { winMatches: 0, loseMatches: 0, winGames: 0, loseGames: 0, placement: null }; });
+    var occ = [];
+    // シード/不戦（バイ）で空きスロットは非在籍(null)として扱う。実在の選手のみ勝ち上がり計算に含める。
+    occ[0] = slots.map(function (s, i) {
+      var p = s && s.player;
+      return (p && (p.playerName || p.number)) ? i : null;
+    });
+    var activeCounts = [occ[0].filter(function (x) { return x != null; }).length];
+    var matchLoser = {};   // 'r-j' -> 敗者の元スロット番号
+    var loserByRound = {}; // r -> [敗者の元スロット番号,...]（r===roundsは除く。ラベルはパス2で付ける）
+    var champOrigin = null, runnerUpOrigin = null;
+
+    for (var r = 1; r <= rounds; r++) {
+      occ[r] = [];
+      var prevLen = occ[r - 1].length;
+      for (var j = 0; j * 2 < prevLen; j++) {
+        var aOrig = occ[r - 1][2 * j];
+        var bOrig = (2 * j + 1 < prevLen) ? occ[r - 1][2 * j + 1] : null;
+        if (aOrig == null && bOrig == null) { occ[r][j] = null; continue; }
+        if (aOrig == null) { occ[r][j] = bOrig; continue; }       // 片方不戦（シード）は自動勝ち上がり
+        if (bOrig == null) { occ[r][j] = aOrig; continue; }
+        var res = results[r + '-' + j];
+        if (!res || res.win == null || res.kind === '勝者なし') { occ[r][j] = null; continue; }  // 未決着
+        var winOrig = (res.win === 0) ? aOrig : bOrig;
+        var loseOrig = (res.win === 0) ? bOrig : aOrig;
+        occ[r][j] = winOrig;
+        matchLoser[r + '-' + j] = loseOrig;
+        _applyMatchStat_(stat, res, winOrig, loseOrig);
+        if (r === rounds) {
+          champOrigin = winOrig; runnerUpOrigin = loseOrig;
+        } else if (loseOrig != null) {
+          (loserByRound[r] = loserByRound[r] || []).push(loseOrig);
+        }
+      }
+      activeCounts[r] = occ[r].filter(function (x) { return x != null; }).length;
+    }
+    return { t: t, rounds: rounds, slots: slots, results: results, stat: stat, activeCounts: activeCounts,
+             matchLoser: matchLoser, loserByRound: loserByRound, champOrigin: champOrigin, runnerUpOrigin: runnerUpOrigin };
+  });
+
+  // ---- パス2: ラベルを確定させる ----
+  // 複数ブロック時は「ブロックは無視して全体のベストN」にし、ベスト16までで打ち止めにする
+  // （優勝/準優勝/3位/ベスト4＝代表戦、ベスト8＝各ブロック代表次点、ベスト16＝各ブロック準決勝敗者）。
+  // それより浅いラウンド（ブロック内でしか対戦していない層）はラベルを付けない（空欄のまま）。
+  blocks.forEach(function (b, tIdx) {
+    var rounds = b.rounds, stat = b.stat, matchLoser = b.matchLoser, loserByRound = b.loserByRound;
+    var champOrigin = b.champOrigin, runnerUpOrigin = b.runnerUpOrigin;
+    Object.keys(loserByRound).forEach(function (rKey) {
+      var r = +rKey;
+      if (multi) {
+        if (r !== rounds - 1) return;   // ブロック準決勝(ベスト16)以外の浅いラウンドは空欄のまま
+        loserByRound[r].forEach(function (origin) { if (stat[origin].placement == null) stat[origin].placement = 'ベスト16'; });
+        return;
+      }
+      var label = 'ベスト' + b.activeCounts[r - 1];
+      loserByRound[r].forEach(function (origin) { if (stat[origin].placement == null) stat[origin].placement = label; });
+    });
+    if (!multi) {
+      if (champOrigin != null) stat[champOrigin].placement = '優勝';
+      if (runnerUpOrigin != null) stat[runnerUpOrigin].placement = '準優勝';
+      // 単独大会：3位決定戦は準決勝の2試合の敗者どうし
+      var sf = rounds - 1;
+      var loserA = matchLoser[sf + '-0'], loserB = matchLoser[sf + '-1'];
+      var res3 = b.results['3rd'];
+      if (res3 && res3.win != null && (loserA != null || loserB != null)) {
+        var win3 = (res3.win === 0) ? loserA : loserB;
+        var lose3 = (res3.win === 0) ? loserB : loserA;
+        if (win3 != null) stat[win3].placement = '3位';
+        if (lose3 != null) stat[lose3].placement = '4位';
+        _applyMatchStat_(stat, res3, win3, lose3);
+      }
+    } else {
+      // 複数ブロック：代表戦（rp）の結果に基づき、ブロックを跨いだ全体成績で振り分ける。
+      // ブロック決勝の敗者（ブロック代表次点、計4名）は一律「ベスト8」——ただし2ブロック構成で
+      // クロスブロック3位決定戦（rp.thirdRunnerUpBlockIdx）にこのブロックのrunner-upが勝っていれば「3位」。
+      if (champOrigin != null) {
+        if (rp && tIdx === rp.champIdx) stat[champOrigin].placement = '優勝';
+        else if (rp && tIdx === rp.runnerUpIdx) stat[champOrigin].placement = '準優勝';
+        else if (rp && tIdx === rp.thirdIdx) stat[champOrigin].placement = '3位';
+        else stat[champOrigin].placement = 'ベスト4';   // 4位（代表戦準決勝敗退）または代表戦未決着
+      }
+      if (runnerUpOrigin != null) {
+        stat[runnerUpOrigin].placement = (rp && rp.thirdRunnerUpBlockIdx === tIdx) ? '3位' : 'ベスト8';
+      }
+    }
+
+    b.slots.forEach(function (slot, i) {
+      var p = slot && slot.player; if (!p || (!p.playerName && !p.number)) return;
+      var s = stat[i];
+      out.push({
+        number: p.number || '', playerName: p.playerName || '', furigana: p.furigana || '',
+        representative: p.representative || '', affiliation: p.affiliation || '',
+        affiliationFurigana: p.affiliationFurigana || '', type1: p.type1 || '', type2: p.type2 || '', intro: p.intro || '',
+        placement: s.placement || '', winMatches: s.winMatches, loseMatches: s.loseMatches,
+        winGames: s.winGames, loseGames: s.loseGames
+      });
+    });
+  });
+  return out;
+}
+
+/** 1試合ぶんの勝敗数・本数を両者の集計に加算する。kindの数字は常に[勝者の本数]-[敗者の本数]。 */
+function _applyMatchStat_(stat, res, winOrig, loseOrig) {
+  if (winOrig == null || loseOrig == null) return;
+  var wGames = 0, lGames = 0;
+  var m = res.kind && String(res.kind).match(/^(\d+)-(\d+)勝ち$/);
+  if (m) { wGames = +m[1]; lGames = +m[2]; }
+  else if (res.kind === '1-1') { wGames = 1; lGames = 1; }
+  // 不戦勝等はスコア0-0のまま（試合数のみカウント）
+  stat[winOrig].winMatches++; stat[winOrig].winGames += wGames;
+  stat[loseOrig].loseMatches++; stat[loseOrig].loseGames += lGames;
 }
 
 /** 保存済みドキュメントのキー一覧を返す。 */
@@ -276,6 +518,23 @@ function apiAdReset(key, token) {
   }
 }
 
+/** バナー画像をサーバー経由で取得しdata URLで返す（動画書き出し・Xシェア用）。
+ *  ブラウザ直読みだとCORS未対応のリダイレクト(github.io→独自ドメイン等)でcanvasが
+ *  汚染されるため、CORS制約のないUrlFetchAppで取得する。 */
+function apiProxyImage(url) {
+  try {
+    url = String(url || '');
+    if (!/^https?:\/\//i.test(url)) return { ok: false, error: 'http(s)のみ対応' };
+    var resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (resp.getResponseCode() !== 200) return { ok: false, error: 'HTTP ' + resp.getResponseCode() };
+    var blob = resp.getBlob();
+    var bytes = blob.getBytes();
+    if (bytes.length > 3 * 1024 * 1024) return { ok: false, error: '画像が大きすぎます(3MB超)' };
+    var mime = blob.getContentType() || 'image/png';
+    return { ok: true, dataUrl: 'data:' + mime + ';base64,' + Utilities.base64Encode(bytes) };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+}
+
 /* ============================================================
  *  応援ハート / 推し投票
  * ============================================================ */
@@ -358,6 +617,67 @@ function apiAddVote(key, playerName) {
     if (rowIdx >= 0) sh.getRange(rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(votes), now]]);
     else sh.appendRow([vkey, JSON.stringify(votes), now]);
     return { ok: true, count: votes[playerName] };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/** 推し投票の取り消し: playerName の票を1つ減らす（0未満にはしない。0になったらキーごと削除）。 */
+function apiRemoveVote(key, playerName) {
+  if (!playerName) return { ok: false };
+  var lock = LockService.getScriptLock();
+  Utilities.sleep(Math.floor(Math.random() * 1000));
+  var locked = false;
+  try { lock.waitLock(5000); locked = true; } catch (e) {}
+  if (!locked) return { ok: false };
+  try {
+    var vkey = String(key || '') + '__votes';
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var rowIdx = -1, votes = {};
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === vkey) { rowIdx = i; try { votes = JSON.parse(data[i][1]); } catch (e) {} break; }
+    }
+    if (rowIdx < 0) return { ok: true, count: 0 };
+    var cur = votes[playerName] || 0;
+    var next = Math.max(0, cur - 1);
+    if (next <= 0) delete votes[playerName]; else votes[playerName] = next;
+    var now = new Date();
+    sh.getRange(rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(votes), now]]);
+    return { ok: true, count: next };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/**
+ * 一言応援コメントの保存/更新/削除（投票者ごとの匿名ID単位）。
+ * key = "<docKey>__votecomments" に { playerName: { voterId: {text, ts} } } を保存する。
+ * text が空文字なら該当voterIdのエントリを削除する（＝取り消し）。
+ * 誰が投票したかは追わない（voterIdはブラウザ側で生成されたランダム値）ため、
+ * 個人特定はできないが、同じvoterIdからの再送は上書きになる。
+ */
+function apiSetVoteComment(key, playerName, voterId, text) {
+  if (!playerName || !voterId) return { ok: false };
+  var lock = LockService.getScriptLock();
+  Utilities.sleep(Math.floor(Math.random() * 1000));
+  var locked = false;
+  try { lock.waitLock(5000); locked = true; } catch (e) {}
+  if (!locked) return { ok: false };
+  try {
+    var ckey = String(key || '') + '__votecomments';
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var rowIdx = -1, all = {};
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === ckey) { rowIdx = i; try { all = JSON.parse(data[i][1]); } catch (e) {} break; }
+    }
+    var forPlayer = all[playerName] || {};
+    var t = String(text || '').slice(0, 32);
+    if (t) forPlayer[voterId] = { text: t, ts: Date.now() };
+    else delete forPlayer[voterId];
+    if (Object.keys(forPlayer).length) all[playerName] = forPlayer;
+    else delete all[playerName];
+    var now = new Date();
+    if (rowIdx >= 0) sh.getRange(rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(all), now]]);
+    else sh.appendRow([ckey, JSON.stringify(all), now]);
+    return { ok: true };
   } finally { try { lock.releaseLock(); } catch (e) {} }
 }
 
@@ -540,5 +860,187 @@ function apiDeletePage(key, token) {
       }
     }
     return { ok: false, error: 'キーが見つかりません: ' + k };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/* ============================================================
+ *  Excel連携：試合結果の受信箱（フェーズ1・31回大会決勝トーナメント用）
+ *  - Storeシートに key = "<docKey>__mqueue" で追記型のイベントログを保存する。
+ *  - レコード形: { nextSeq, events:[{seq,type,matchKey,winnerNumber,loserNumber,
+ *                  winnerScore,loserScore,idemKey,receivedAt}], seenIdem:{idemKey:true,...} }
+ *  - 冪等性: idemKeyが既知なら追記せずok:trueを返す（Excel側Worksheet_Changeの多重発火対策）。
+ * ============================================================ */
+
+function _mqueueKey_(docKey) { return String(docKey || 'default') + '__mqueue'; }
+
+/**
+ * Excel/審判デバイス等の書き込み専用トークン検証。
+ * ADMIN_TOKENと異なり未設定時は拒否（fail closed）。デプロイ後にスクリプトプロパティ
+ * EXCEL_WRITE_TOKEN を設定して初めて書き込みを受け付ける。
+ */
+function _checkWriter_(token) {
+  var t = PropertiesService.getScriptProperties().getProperty('EXCEL_WRITE_TOKEN');
+  if (!t) return false;
+  return !!token && token === t;
+}
+
+/** 疎通確認専用。Storeシートに一切触れず、通信経路とトークンの有効性だけを確認する。 */
+function apiPing(token) {
+  return { ok: true, authOk: _checkWriter_(token), ts: new Date().toISOString() };
+}
+
+/** 受信箱レコードを取得。無ければ空の箱を返す（rowIdxは-1）。 */
+function _loadMQueue_(data, key) {
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === key) {
+      var obj = { nextSeq: 1, events: [], seenIdem: {} };
+      try { var p = JSON.parse(data[i][1]); if (p) obj = p; } catch (e) {}
+      if (!obj.events) obj.events = [];
+      if (!obj.seenIdem) obj.seenIdem = {};
+      if (!obj.nextSeq) obj.nextSeq = 1;
+      return { rowIdx: i, obj: obj };
+    }
+  }
+  return { rowIdx: -1, obj: { nextSeq: 1, events: [], seenIdem: {} } };
+}
+
+/** 受信箱レコードを保存（既存行があれば上書き、無ければ追加）。 */
+function _saveMQueue_(sh, rowIdx, key, obj) {
+  var now = new Date();
+  if (rowIdx >= 0) sh.getRange(rowIdx + 1, 2, 1, 2).setValues([[JSON.stringify(obj), now]]);
+  else sh.appendRow([key, JSON.stringify(obj), now]);
+}
+
+/**
+ * Excel/審判デバイス等から試合イベントを受信箱へ追記する（書き込み専用トークンで保護）。
+ * eventJson = {type:'match_start'|'match_result', matchKey, winnerNumber, loserNumber,
+ *              winnerScore, loserScore, idemKey}
+ * matchKeyはservalの openMatchByKey と同じコロン記法（例 "1:2:1"、3位決定戦は "1:3rd"）。
+ */
+function apiPostMatchEvent(docKey, eventJson, token) {
+  if (!_checkWriter_(token)) return { ok: false, error: '認証エラー' };
+  var ev;
+  try { ev = JSON.parse(eventJson); } catch (e) { return { ok: false, error: 'イベントJSONが不正です' }; }
+  if (!ev || !ev.type || !ev.matchKey || !ev.idemKey) return { ok: false, error: '必須項目（type/matchKey/idemKey）が不足しています' };
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト。もう一度試してください。' }; }
+  try {
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var key = _mqueueKey_(docKey);
+    var loaded = _loadMQueue_(data, key);
+    var q = loaded.obj;
+    // 診断のため重複排除を一時的に無効化（原因切り分け用）。原因特定後に復元する。
+    // if (q.seenIdem[ev.idemKey]) return { ok: true, dedup: true };   // 既知のidemKey→再追記しない
+    var seq = q.nextSeq++;
+    ev.seq = seq;
+    ev.receivedAt = new Date().toISOString();
+    q.events.push(ev);
+    q.seenIdem[ev.idemKey] = true;
+    _saveMQueue_(sh, loaded.rowIdx, key, q);
+    return { ok: true, seq: seq };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+function _seedingKey_(docKey) { return String(docKey || 'default') + '__seeding'; }
+
+/**
+ * Excel等から座組（リング×スロット×機体番号等）をまとめて登録する（書き込み専用トークンで保護）。
+ * seedingJson = JSON.stringify({ ringSlots: [{tid, slot, number, playerName, affiliation,
+ *               representative, furigana, affiliationFurigana}, ...] })
+ * 全体上書き。「既に結果が入っているトーナメントへは適用しない」判断はフロント側（app.html）で行う。
+ */
+function apiRegisterSeeding(docKey, seedingJson, token) {
+  if (!_checkWriter_(token)) return { ok: false, error: '認証エラー' };
+  var seeding;
+  try { seeding = JSON.parse(seedingJson); } catch (e) { return { ok: false, error: '座組JSONが不正です' }; }
+  if (!seeding || !Array.isArray(seeding.ringSlots)) return { ok: false, error: 'ringSlots配列が必要です' };
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト。もう一度試してください。' }; }
+  try {
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var key = _seedingKey_(docKey);
+    seeding.updatedAt = new Date().toISOString();
+    var now = new Date();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0] === key) { sh.getRange(i + 1, 2, 1, 2).setValues([[JSON.stringify(seeding), now]]); return { ok: true }; }
+    }
+    sh.appendRow([key, JSON.stringify(seeding), now]);
+    return { ok: true };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/**
+ * serval管理画面が数秒間隔でポーリングする読み取り専用API。
+ * 最新の座組（登録されていれば毎回返す。適用要否はフロント側の判断に委ねる）と、
+ * 未消化の試合イベント（apiAckPendingEventsで消化されるまで残る）を返す。
+ * 認証不要（apiLoadと同様、読み取りのみ）。
+ */
+function apiGetPendingEvents(docKey) {
+  var sh = getStoreSheet_();
+  var data = sh.getDataRange().getValues();
+  var seedingKey = _seedingKey_(docKey), mqueueKey = _mqueueKey_(docKey);
+  var seeding = null, events = [];
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === seedingKey) {
+      try { var s = JSON.parse(data[i][1]); if (s) seeding = s; } catch (e) {}
+    }
+    if (data[i][0] === mqueueKey) {
+      try { var q = JSON.parse(data[i][1]); if (q && Array.isArray(q.events)) events = q.events; } catch (e) {}
+    }
+  }
+  return { ok: true, seeding: seeding, events: events };
+}
+
+/**
+ * serval管理画面が適用済みイベントのseqを通知。受信箱から該当分を削除して肥大化を防ぐ。
+ * 既存のADMIN_TOKEN認証で保護（Excel等の書き込み専用トークンとは別、閲覧側からは呼ばれない）。
+ */
+function apiAckPendingEvents(docKey, seqListJson, token) {
+  if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
+  var seqList;
+  try { seqList = JSON.parse(seqListJson); } catch (e) { return { ok: false, error: 'seqリストが不正です' }; }
+  if (!Array.isArray(seqList) || !seqList.length) return { ok: true };
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト。もう一度試してください。' }; }
+  try {
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var key = _mqueueKey_(docKey);
+    var loaded = _loadMQueue_(data, key);
+    var q = loaded.obj;
+    var seqSet = {};
+    seqList.forEach(function(s){ seqSet[s] = true; });
+    q.events = q.events.filter(function(ev){ return !seqSet[ev.seq]; });
+    if (loaded.rowIdx >= 0) _saveMQueue_(sh, loaded.rowIdx, key, q);
+    return { ok: true };
+  } finally { try { lock.releaseLock(); } catch (e) {} }
+}
+
+/**
+ * 「結果を取り消す」操作に連動し、該当試合(matchKey)ぶんのidemKey重複排除記録を消す。
+ * これが無いと、取り消し後に全く同じ勝者・スコアで再確定しても
+ * 「既に見た内容」として黙って弾かれ、Excel連携が二度と反映されなくなる。
+ * 既存のADMIN_TOKEN認証で保護（Excel等の書き込み専用トークンとは別、閲覧側からは呼ばれない）。
+ */
+function apiClearIdemForMatch(docKey, matchKey, token) {
+  if (!_checkAdmin_(token)) return { ok: false, error: '認証エラー' };
+  if (!matchKey) return { ok: true, cleared: 0 };
+  var prefix = 'result|' + matchKey + '|';
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch (e) { return { ok: false, error: 'ロック取得タイムアウト。もう一度試してください。' }; }
+  try {
+    var sh = getStoreSheet_();
+    var data = sh.getDataRange().getValues();
+    var key = _mqueueKey_(docKey);
+    var loaded = _loadMQueue_(data, key);
+    var q = loaded.obj;
+    var cleared = 0;
+    Object.keys(q.seenIdem).forEach(function(k){
+      if (k.indexOf(prefix) === 0) { delete q.seenIdem[k]; cleared++; }
+    });
+    if (cleared > 0 && loaded.rowIdx >= 0) _saveMQueue_(sh, loaded.rowIdx, key, q);
+    return { ok: true, cleared: cleared };
   } finally { try { lock.releaseLock(); } catch (e) {} }
 }
