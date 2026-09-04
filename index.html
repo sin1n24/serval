@@ -599,12 +599,12 @@ function startInlineEdit(bookId,idx,field,el){
   if(!b) return;
   var tours=Array.isArray(b.tournaments)?b.tournaments:[];
   var t=tours[idx]; if(!t) return;
-  var cur=field==='page'?(t.page!=null?t.page:''):(t.note||'');
+  var cur=field==='page'?fmtPage(t.page):(t.note||'');
   var input=document.createElement('input');
   input.type='text';
   input.value=cur;
   input.maxLength=field==='page'?20:200;
-  input.style.cssText='font:inherit;background:var(--night);border:1px solid var(--serval-dim);border-radius:5px;color:var(--text);padding:2px 6px;width:'+(field==='page'?'110px':'160px');
+  input.style.cssText='font:inherit;background:var(--night);border:1px solid var(--serval-dim);border-radius:5px;color:var(--text);padding:2px 6px;width:'+(field==='page'?'130px':'160px');
   el.textContent='';
   el.appendChild(input);
   input.focus(); input.select();
@@ -616,7 +616,7 @@ function startInlineEdit(bookId,idx,field,el){
     if(field==='page'){
       if(!v){toast('回次・シーズンを入力してください',true);renderList();return;}
     }
-    if(v===String(field==='page'?(t.page!=null?t.page:''):(t.note||''))){renderList();return;}
+    if(v===(field==='page'?fmtPage(t.page):(t.note||''))){renderList();return;}
     var newTours=tours.slice();
     var newT=Object.assign({},t); newT[field]=v;
     newTours[idx]=newT;
