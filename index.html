@@ -569,12 +569,32 @@ function saveBook(){
 
 /* トーナメント名（docKey）バリデーション: URLの ?doc= に使われるため半角英数字推奨 */
 var DOCKEY_RE=/^[A-Za-z0-9_-]{1,30}$/;
+
+/** 全ブック・全トーナメントの中から同じdocKeyを既に使っているブックを探す（衝突チェック）。 */
+function findDocKeyOwner(docKey){
+  for(var i=0;i<_books.length;i++){
+    var bk=_books[i];
+    var tours=Array.isArray(bk.tournaments)?bk.tournaments:[];
+    for(var j=0;j<tours.length;j++){
+      if(tours[j].docKey===docKey) return bk;
+    }
+  }
+  return null;
+}
+
 function validateDocKeyInput(bookId){
   var el=document.getElementById('add-key-'+bookId);
   var warn=document.getElementById('add-key-warn-'+bookId);
   if(!el||!warn) return;
   var v=el.value.trim();
-  var ok=(v===''||DOCKEY_RE.test(v));
+  if(v===''){warn.className='key-warn'; el.style.borderColor=''; return;}
+  var owner=findDocKeyOwner(v);
+  if(owner){
+    warn.textContent='このIDは「'+(owner.name||owner.id)+'」で既に使われています。別のIDにしてください';
+    warn.className='key-warn show'; el.style.borderColor='var(--danger)';
+    return;
+  }
+  var ok=DOCKEY_RE.test(v);
   if(ok){warn.className='key-warn'; el.style.borderColor='';}
   else{warn.textContent='URL（?doc=）に使われるため、半角英数字・-_のみ・30字以内を推奨します';warn.className='key-warn show'; el.style.borderColor='var(--danger)';}
 }
@@ -592,6 +612,8 @@ function addTournament(bookId){
   var tnote=(noteEl?noteEl.value.trim():'');
   if(!page){toast('ラベルを入力してください',true);return;}
   if(!docKey){toast('IDを入力してください',true);return;}
+  var owner=findDocKeyOwner(docKey);
+  if(owner){toast('このIDは「'+(owner.name||owner.id)+'」で既に使われています。別のIDにしてください',true);return;}
   if(!DOCKEY_RE.test(docKey)){
     if(!confirm('IDが半角英数字の短い形式ではないようです（URLの ?doc= に使われます）。このまま追加しますか？'))return;
   }
