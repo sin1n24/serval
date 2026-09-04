@@ -135,6 +135,9 @@
     border-radius:5px; padding:2px 9px; color:var(--serval); white-space:nowrap; flex-shrink:0;
   }
   .t-key{font-family:var(--mono); font-size:11px; color:var(--muted); flex:1; min-width:80px}
+  .t-champion{font-size:12px; color:var(--text); flex:1; min-width:90px}
+  .t-runner{font-size:12px; color:var(--muted); flex:1; min-width:90px}
+  .t-champion-empty,.t-runner-empty{opacity:.5; font-style:italic}
   .t-note{font-size:12px; color:var(--muted); flex:1}
   .t-note-empty{opacity:.5; font-style:italic}
   .t-btns{display:flex; gap:6px; flex-shrink:0}
@@ -452,6 +455,8 @@ function renderList(){
         html+='<div class="tournament-row">';
         html+='<span class="t-page"'+editAttr.replace('FIELD','page')+'>'+esc(fmtPage(t.page))+'</span>';
         html+='<span class="t-key">'+esc(t.docKey||'')+'</span>';
+        html+='<span class="t-champion'+(t.champion?'':' t-champion-empty')+'"'+editAttr.replace('FIELD','champion')+'>'+(t.champion?'🏆 '+esc(t.champion):'（優勝未定）')+'</span>';
+        html+='<span class="t-runner'+(t.runnerUp?'':' t-runner-empty')+'"'+editAttr.replace('FIELD','runnerUp')+'>'+(t.runnerUp?'🥈 '+esc(t.runnerUp):'（準優勝未定）')+'</span>';
         html+='<span class="t-note'+(t.note?'':' t-note-empty')+'"'+editAttr.replace('FIELD','note')+'>'+(t.note?esc(t.note):'（メモを追加）')+'</span>';
         html+='<div class="t-btns">';
         if(hasUrl){
@@ -599,7 +604,7 @@ function startInlineEdit(bookId,idx,field,el){
   if(!b) return;
   var tours=Array.isArray(b.tournaments)?b.tournaments:[];
   var t=tours[idx]; if(!t) return;
-  var cur=field==='page'?fmtPage(t.page):(t.note||'');
+  var cur=field==='page'?fmtPage(t.page):(t[field]||'');
   var input=document.createElement('input');
   input.type='text';
   input.value=cur;
@@ -616,7 +621,7 @@ function startInlineEdit(bookId,idx,field,el){
     if(field==='page'){
       if(!v){toast('回次・シーズンを入力してください',true);renderList();return;}
     }
-    if(v===(field==='page'?fmtPage(t.page):(t.note||''))){renderList();return;}
+    if(v===(field==='page'?fmtPage(t.page):(t[field]||''))){renderList();return;}
     var newTours=tours.slice();
     var newT=Object.assign({},t); newT[field]=v;
     newTours[idx]=newT;
