@@ -122,35 +122,27 @@
   .book-meta{flex:1}
   .book-actions{display:flex; gap:6px; align-items:center; flex-shrink:0}
 
-  /* ── トーナメント一覧 ── */
-  .tournament-list{padding:0 18px 12px}
-  .tournament-row{
-    display:flex; align-items:center; gap:10px; padding:9px 0;
-    border-bottom:1px solid var(--panel2); flex-wrap:wrap;
+  /* ── トーナメント一覧（表） ── */
+  .tournament-list{padding:0 18px 12px; overflow-x:auto}
+  .tournament-table{width:100%; border-collapse:collapse; font-size:12px}
+  .tournament-table th{
+    text-align:left; font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.08em;
+    padding:4px 12px 8px 0; border-bottom:1px solid var(--line); white-space:nowrap;
   }
-  .tournament-row:last-child{border-bottom:none}
+  .tournament-table td{
+    padding:8px 12px 8px 0; border-bottom:1px solid var(--panel2); color:var(--muted); vertical-align:middle;
+  }
+  .tournament-table tr:last-child td{border-bottom:none}
+  .tournament-table th:last-child,.tournament-table td:last-child{padding-right:0; text-align:right}
   .t-page{
     font-family:var(--mono); font-size:11.5px; font-weight:500;
     background:rgba(233,169,61,.15); border:1px solid var(--serval-dim);
-    border-radius:5px; padding:2px 9px; color:var(--serval); white-space:nowrap; flex-shrink:0;
+    border-radius:5px; padding:2px 9px; color:var(--serval); white-space:nowrap;
   }
-  .t-key{font-family:var(--mono); font-size:11px; color:var(--muted); flex:1; min-width:80px}
-  .t-champion{font-size:12px; color:var(--text); flex:1; min-width:90px}
-  .t-runner{font-size:12px; color:var(--muted); flex:1; min-width:90px}
-  .t-third{font-size:12px; color:var(--muted); flex:1; min-width:90px}
-  .t-champion-empty,.t-runner-empty,.t-third-empty{opacity:.5; font-style:italic}
-  .t-note{font-size:12px; color:var(--muted); flex:1}
-  .t-note-empty{opacity:.5; font-style:italic}
-  .tournament-header{
-    display:flex; align-items:center; gap:10px; padding:2px 0 8px;
-    border-bottom:1px solid var(--line); flex-wrap:wrap;
-  }
-  .tournament-header .t-page,.tournament-header .t-key,.tournament-header .t-champion,
-  .tournament-header .t-runner,.tournament-header .t-third,.tournament-header .t-note{
-    background:none; border:none; color:var(--muted); font-family:var(--disp);
-    font-size:10px; font-weight:700; letter-spacing:.08em; padding:0;
-  }
-  .t-btns{display:flex; gap:6px; flex-shrink:0}
+  .t-key{font-family:var(--mono); font-size:11px; white-space:nowrap}
+  .tournament-table td.t-champion{color:var(--text)}
+  .t-champion-empty,.t-runner-empty,.t-third-empty,.t-note-empty{opacity:.5; font-style:italic}
+  .t-btns{display:flex; gap:6px; justify-content:flex-end}
 
   /* 「トーナメントを追加」行 */
   .add-row{
@@ -447,17 +439,11 @@ function renderList(){
         +'</ol></div>';
     }
 
-    /* ── トーナメント一覧 ── */
+    /* ── トーナメント一覧（表） ── */
     if(tours.length){
-      html+='<div class="tournament-list">';
-      html+='<div class="tournament-header">'
-        +'<span class="t-page">年度</span>'
-        +'<span class="t-key">トーナメント名</span>'
-        +'<span class="t-champion">優勝</span>'
-        +'<span class="t-runner">準優勝</span>'
-        +'<span class="t-third">3位</span>'
-        +'<span class="t-note">メモ</span>'
-        +'</div>';
+      html+='<div class="tournament-list"><table class="tournament-table"><thead><tr>'
+        +'<th>年度</th><th>トーナメント名</th><th>優勝</th><th>準優勝</th><th>3位</th><th>メモ</th><th></th>'
+        +'</tr></thead><tbody>';
       // ページ降順で表示（数値のページは新しい順、数値以外は追加順で数値の後ろに）
       var sorted=tours.map(function(t,i){return {t:t,i:i};}).sort(function(A,B){
         var an=Number(A.t.page), bn=Number(B.t.page);
@@ -473,14 +459,14 @@ function renderList(){
         var adminUrl=hasUrl?buildAdminUrl(b,t):'';
         var tIdx=tours.indexOf(t);
         var editAttr=b.deleted?'':' ondblclick="startInlineEdit(\''+esc(b.id)+'\','+tIdx+',\'FIELD\',this)" title="ダブルクリックで編集"';
-        html+='<div class="tournament-row">';
-        html+='<span class="t-page"'+editAttr.replace('FIELD','page')+'>'+esc(fmtPage(t.page))+'</span>';
-        html+='<span class="t-key">'+esc(t.docKey||'')+'</span>';
-        html+='<span class="t-champion'+(t.champion?'':' t-champion-empty')+'"'+editAttr.replace('FIELD','champion')+'>'+(t.champion?esc(t.champion):'（優勝未定）')+'</span>';
-        html+='<span class="t-runner'+(t.runnerUp?'':' t-runner-empty')+'"'+editAttr.replace('FIELD','runnerUp')+'>'+(t.runnerUp?esc(t.runnerUp):'（準優勝未定）')+'</span>';
-        html+='<span class="t-third'+(t.thirdPlace?'':' t-third-empty')+'"'+editAttr.replace('FIELD','thirdPlace')+'>'+(t.thirdPlace?esc(t.thirdPlace):'（3位未定）')+'</span>';
-        html+='<span class="t-note'+(t.note?'':' t-note-empty')+'"'+editAttr.replace('FIELD','note')+'>'+(t.note?esc(t.note):'（メモを追加）')+'</span>';
-        html+='<div class="t-btns">';
+        html+='<tr>';
+        html+='<td><span class="t-page"'+editAttr.replace('FIELD','page')+'>'+esc(fmtPage(t.page))+'</span></td>';
+        html+='<td class="t-key">'+esc(t.docKey||'')+'</td>';
+        html+='<td class="t-champion'+(t.champion?'':' t-champion-empty')+'"'+editAttr.replace('FIELD','champion')+'>'+(t.champion?esc(t.champion):'（優勝未定）')+'</td>';
+        html+='<td class="t-runner'+(t.runnerUp?'':' t-runner-empty')+'"'+editAttr.replace('FIELD','runnerUp')+'>'+(t.runnerUp?esc(t.runnerUp):'（準優勝未定）')+'</td>';
+        html+='<td class="t-third'+(t.thirdPlace?'':' t-third-empty')+'"'+editAttr.replace('FIELD','thirdPlace')+'>'+(t.thirdPlace?esc(t.thirdPlace):'（3位未定）')+'</td>';
+        html+='<td class="t-note'+(t.note?'':' t-note-empty')+'"'+editAttr.replace('FIELD','note')+'>'+(t.note?esc(t.note):'（メモを追加）')+'</td>';
+        html+='<td><div class="t-btns">';
         if(hasUrl){
           html+='<a class="btnlike primary" href="'+esc(openUrl)+'" target="_blank" rel="noopener">開く</a>';
           html+='<a class="btnlike" href="'+esc(adminUrl)+'" target="_blank" rel="noopener">管理</a>';
@@ -488,9 +474,10 @@ function renderList(){
         if(!b.deleted){
           html+='<button class="ghost sm danger" onclick="removeTournament(\''+esc(b.id)+'\','+tIdx+')">×</button>';
         }
-        html+='</div></div>';
+        html+='</div></td>';
+        html+='</tr>';
       });
-      html+='</div>';
+      html+='</tbody></table></div>';
     }else if(hasUrl){
       html+='<div class="no-tournaments">トーナメントがまだありません。下の行から追加してください。</div>';
     }
@@ -499,7 +486,7 @@ function renderList(){
     if(!b.deleted&&hasUrl){
       html+='<div class="add-row" id="add-row-'+esc(b.id)+'">';
       html+='<div class="add-row-inner">';
-      html+='<label>回次・シーズン</label>';
+      html+='<label>年度</label>';
       html+='<input class="inp-page" type="text" maxlength="20" placeholder="第8回 / 2026 / 第3期 / TOKYO" id="add-page-'+esc(b.id)+'">';
       html+='<label>トーナメント名</label>';
       html+='<input class="inp-key" type="text" maxlength="100" placeholder="tournament1" id="add-key-'+esc(b.id)+'" oninput="validateDocKeyInput(\''+esc(b.id)+'\')">';
@@ -703,9 +690,10 @@ function fetchPlacementData(base,docKey){
 }
 
 /**
- * ページ読み込み時に全ブック・全トーナメントの結果を1回だけ自動チェックし、
- * 優勝・準優勝・3位に変化があれば表示に反映する。管理者トークンを保持しているブラウザ
- * （＝過去に「編集」でログイン済み）の場合は、変化をそのままレジストリにも自動保存する。
+ * ページ読み込み時、優勝が未記録（無記名）のトーナメントだけを対象に結果を1回チェックし、
+ * 優勝・準優勝・3位が確定していれば表示に反映する。一度優勝が記録された大会は結果が
+ * 後から変わらない前提で以後チェック対象から外れる（通信量削減）。管理者トークンを
+ * 保持しているブラウザ（＝過去に「編集」でログイン済み）の場合は、変化をそのままレジストリにも自動保存する。
  * トークンが無い一般閲覧者の場合は画面表示のみ更新し、保存は行わない（保存にはADMIN_TOKENが必要なため）。
  * 通信エラーや未確定の大会は静かにスキップする（トースト等は出さない）。
  */
@@ -717,19 +705,22 @@ function autoSyncPlacements(){
     if(!base) return;
     var tours=Array.isArray(b.tournaments)?b.tournaments:[];
     if(!tours.length) return;
+    // 優勝が未記録（無記名）のトーナメントだけを対象にする。一度確定した結果は
+    // 後から変わらない前提で、毎回全件を問い合わせない（通信量削減）。
+    var pending=[];
+    tours.forEach(function(t,idx){ if(!t.champion) pending.push(idx); });
+    if(!pending.length) return;
     var changed=false;
-    Promise.all(tours.map(function(t,idx){
+    Promise.all(pending.map(function(idx){
+      var t=tours[idx];
       return fetchPlacementData(base,t.docKey).then(function(res){
-        if(!res) return;
-        var next={
-          champion:res.champion||t.champion||'',
+        if(!res||!res.champion) return;
+        tours[idx]=Object.assign({},t,{
+          champion:res.champion,
           runnerUp:res.runnerUp||t.runnerUp||'',
           thirdPlace:res.thirdPlace||t.thirdPlace||''
-        };
-        if(next.champion!==(t.champion||'')||next.runnerUp!==(t.runnerUp||'')||next.thirdPlace!==(t.thirdPlace||'')){
-          tours[idx]=Object.assign({},t,next);
-          changed=true;
-        }
+        });
+        changed=true;
       });
     })).then(function(){
       if(!changed) return;
