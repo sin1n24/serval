@@ -330,6 +330,9 @@
 <script>
 var API_BASE='https://script.google.com/macros/s/AKfycbxXvPz1A_5MO08BFpvye_sYMUi5ho8QL1jokvem48ii5Q0rQZ4Ja_1_nIXxzzSLbWhdVA/exec';
 var GO_URL='https://sin1.studio/serval/go/';
+/* go/index.html が転送する先の実GAS URL（優勝・準優勝の自動取得用）。
+   go/index.html内の GAS 定数を変更したら、こちらも合わせて更新すること。 */
+var GO_TARGET_GAS='https://script.google.com/macros/s/AKfycbzXFILgMw74O--NsyLo9_nRxIxkwk1pUDGjh8Uwpw2p1StTMaj4o9jPEXncBfHuobR0bQ/exec';
 var TOKEN_KEY='servalPortalToken';
 var _books=[];
 var _editingBook=null;
@@ -462,6 +465,9 @@ function renderList(){
         if(hasUrl){
           html+='<a class="btnlike primary" href="'+esc(openUrl)+'" target="_blank" rel="noopener">開く</a>';
           html+='<a class="btnlike" href="'+esc(adminUrl)+'" target="_blank" rel="noopener">管理</a>';
+        }
+        if(!b.deleted&&hasUrl){
+          html+='<button class="ghost sm" title="結果から優勝・準優勝を自動取得" onclick="fetchPlacement(\''+esc(b.id)+'\','+tIdx+')">⟳</button>';
         }
         if(!b.deleted){
           html+='<button class="ghost sm danger" onclick="removeTournament(\''+esc(b.id)+'\','+tIdx+')">×</button>';
@@ -636,6 +642,62 @@ function startInlineEdit(bookId,idx,field,el){
     if(e.key==='Enter'){e.preventDefault();input.blur();}
     else if(e.key==='Escape'){done=true;renderList();}
   });
+}
+
+/* 優勝・準優勝の自動取得（各トーナメント自身のGASの ?result CSV を読み取る） */
+function targetGasUrl(b){return b.url===GO_URL ? GO_TARGET_GAS : b.url;}
+
+function parseCsv(text){
+  var rows=[],row=[],field='',inQ=false;
+  for(var i=0;i<text.length;i++){
+    var c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else inQ=false; }
+      else field+=c;
+    }else{
+      if(c==='"') inQ=true;
+      else if(c===',') { row.push(field); field=''; }
+      else if(c==='\r') { /* skip */ }
+      else if(c==='\n') { row.push(field); rows.push(row); row=[]; field=''; }
+      else field+=c;
+    }
+  }
+  if(field!==''||row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+
+function fetchPlacement(bookId,idx){
+  if(!ensureAuth()) return;
+  var b=null; _books.forEach(function(x){if(x.id===bookId)b=x;});
+  if(!b) return;
+  var tours=Array.isArray(b.tournaments)?b.tournaments:[];
+  var t=tours[idx]; if(!t) return;
+  var base=targetGasUrl(b);
+  if(!base){toast('GAS URLが未設定です',true);return;}
+  toast('結果を取得中…');
+  fetch(base+'?result&doc='+encodeURIComponent(t.docKey)).then(function(r){return r.text();}).then(function(text){
+    if(/^該当データが見つかりません/.test(text)){toast('この大会のデータがまだ見つかりません（docKeyを確認してください）',true);return;}
+    var rows=parseCsv(text.replace(/^﻿/,''));
+    if(!rows.length||!rows[0]){toast('結果の解析に失敗しました',true);return;}
+    var header=rows[0];
+    var pIdx=header.indexOf('大会成績'), nIdx=header.indexOf('ロボット名');
+    if(pIdx<0||nIdx<0){toast('結果の形式が想定と異なります',true);return;}
+    var champion='',runnerUp='';
+    for(var i=1;i<rows.length;i++){
+      var row=rows[i]; if(!row||row.length<=pIdx) continue;
+      if(row[pIdx]==='優勝') champion=row[nIdx]||'';
+      else if(row[pIdx]==='準優勝') runnerUp=row[nIdx]||'';
+    }
+    if(!champion&&!runnerUp){toast('優勝・準優勝がまだ確定していないようです',true);return;}
+    var newTours=tours.slice();
+    var newT=Object.assign({},t,{champion:champion||t.champion||'',runnerUp:runnerUp||t.runnerUp||''});
+    newTours[idx]=newT;
+    var obj=Object.assign({},b,{tournaments:newTours});
+    return apiPostUtf8({action:'bookUpdate',id:b.id,book:obj,token:getToken()});
+  }).then(function(r){
+    if(r&&r.ok){toast('優勝・準優勝を反映しました');loadList();}
+    else if(r){if(r.error&&r.error.indexOf('認証')>=0)clearToken();toast(r.error||'反映に失敗',true);}
+  }).catch(function(e){toast('取得エラー: '+(e&&e.message||e),true);});
 }
 
 /* トーナメント削除 */
