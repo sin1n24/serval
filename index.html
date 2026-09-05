@@ -514,7 +514,7 @@ function renderList(){
       html+='<label>ラベル</label>';
       html+='<input class="inp-page" type="text" maxlength="20" placeholder="第8回 / 2026 / 第3期 / TOKYO" id="add-page-'+esc(b.id)+'">';
       html+='<label>ID</label>';
-      html+='<input class="inp-key" type="text" maxlength="100" placeholder="xcup1" id="add-key-'+esc(b.id)+'" oninput="validateDocKeyInput(\''+esc(b.id)+'\')">';
+      html+='<input class="inp-key" type="text" maxlength="100" placeholder="xcup1（英数字のみ・重複NG）" id="add-key-'+esc(b.id)+'" oninput="validateDocKeyInput(\''+esc(b.id)+'\')">';
       html+='<input type="text" maxlength="200" placeholder="メモ（任意）" style="flex:1;min-width:80px" id="add-note-'+esc(b.id)+'">';
       html+='<div class="key-warn" id="add-key-warn-'+esc(b.id)+'"></div>';
       html+='</div>';
