@@ -97,6 +97,7 @@
   a.btnlike:hover{border-color:var(--serval-dim)}
   a.btnlike.primary{background:var(--serval); border-color:var(--serval); color:#151004}
   a.btnlike.outline{border-color:var(--line)}
+  a.btnlike.sm{font-size:11px; padding:4px 9px}
 
   /* ── ブックカード ── */
   .book-card{
@@ -395,6 +396,7 @@ function apiPostUtf8(body){
 /* ── 描画 ── */
 function buildOpenUrl(b,t){return b.url+(t.docKey?'?doc='+encodeURIComponent(t.docKey):'');}
 function buildAdminUrl(b,t){return b.url+(t.docKey?'?doc='+encodeURIComponent(t.docKey)+'&admin':'?admin');}
+function buildResultUrl(b,t){return b.url+'?result'+(t.docKey?'&doc='+encodeURIComponent(t.docKey):'');}
 function fmtPage(p){
   if(p==null||String(p).trim()==='') return '?回';
   // 過去データ（数値型で保存）は「第N回」表記を維持。新規入力（文字列）はそのまま表示。
@@ -457,6 +459,7 @@ function renderList(){
       sorted.forEach(function(t,ti){
         var openUrl=hasUrl?buildOpenUrl(b,t):'';
         var adminUrl=hasUrl?buildAdminUrl(b,t):'';
+        var resultUrl=hasUrl?buildResultUrl(b,t):'';
         var tIdx=tours.indexOf(t);
         var editAttr=b.deleted?'':' ondblclick="startInlineEdit(\''+esc(b.id)+'\','+tIdx+',\'FIELD\',this)" title="ダブルクリックで編集"';
         html+='<tr>';
@@ -470,6 +473,7 @@ function renderList(){
         if(hasUrl){
           html+='<a class="btnlike primary" href="'+esc(openUrl)+'" target="_blank" rel="noopener">開く</a>';
           html+='<a class="btnlike" href="'+esc(adminUrl)+'" target="_blank" rel="noopener">管理</a>';
+          html+='<a class="btnlike sm" href="'+esc(resultUrl)+'" target="_blank" rel="noopener">戦績一覧</a>';
         }
         if(!b.deleted){
           html+='<button class="ghost sm danger" onclick="removeTournament(\''+esc(b.id)+'\','+tIdx+')">×</button>';
@@ -489,7 +493,7 @@ function renderList(){
       html+='<label>ラベル</label>';
       html+='<input class="inp-page" type="text" maxlength="20" placeholder="第8回 / 2026 / 第3期 / TOKYO" id="add-page-'+esc(b.id)+'">';
       html+='<label>ID</label>';
-      html+='<input class="inp-key" type="text" maxlength="100" placeholder="tournament1" id="add-key-'+esc(b.id)+'" oninput="validateDocKeyInput(\''+esc(b.id)+'\')">';
+      html+='<input class="inp-key" type="text" maxlength="100" placeholder="xcup1" id="add-key-'+esc(b.id)+'" oninput="validateDocKeyInput(\''+esc(b.id)+'\')">';
       html+='<input type="text" maxlength="200" placeholder="メモ（任意）" style="flex:1;min-width:80px" id="add-note-'+esc(b.id)+'">';
       html+='<div class="key-warn" id="add-key-warn-'+esc(b.id)+'"></div>';
       html+='</div>';
