@@ -241,10 +241,15 @@ function _repPlacementIdxs_(state) {
     var runner2 = occ(0, champ2 === 0 ? 1 : 0);
     // 2ブロック構成の3位決定戦（config.repThird時）：各ブロック自身の決勝敗者（ブロックrunner-up）同士の別試合。
     // thirdRunnerUpBlockIdx はそのうち勝った側のトーナメントindex（0=tournaments[0]側のrunner-upが3位）。
+    // これが有効な間は、ブロックのrunner-up全員が代表3位決定戦の当事者になる（＝本来の「ベスト8」相当が
+    // 存在しなくなる）ため、3位決定戦敗者は4ブロック方式と同じ「ベスト4」に、その下の「各ブロック準決勝
+    // 敗者」は1段繰り上げて「ベスト8」と表記する（_buildResultsRows_側で分岐）。
     var thirdRunnerUpBlockIdx = null;
     var res3b = rt.results['3rd'];
     if (res3b && res3b.win != null && res3b.kind !== '勝者なし') thirdRunnerUpBlockIdx = res3b.win;
-    return { champIdx: champ2, runnerUpIdx: runner2, thirdIdx: null, fourthIdx: null, thirdRunnerUpBlockIdx: thirdRunnerUpBlockIdx };
+    var thirdEnabled2 = !!(state.config && state.config.repThird);
+    return { champIdx: champ2, runnerUpIdx: runner2, thirdIdx: null, fourthIdx: null,
+             thirdRunnerUpBlockIdx: thirdRunnerUpBlockIdx, thirdEnabled2: thirdEnabled2 };
   }
   // repSize===4: 準決勝(r=1: j=0が0v1, j=1が2v3) → 決勝(r=2:j=0)。3位決定戦は rt.results['3rd']（あれば）。
   var semiLoser = [null, null];
@@ -363,8 +368,10 @@ function _buildResultsRows_(state) {
       }
     } else {
       // 複数ブロック：代表戦（rp）の結果に基づき、ブロックを跨いだ全体成績で振り分ける。
-      // ブロック決勝の敗者（ブロック代表次点、計4名）は一律「ベスト8」——ただし2ブロック構成で
-      // クロスブロック3位決定戦（rp.thirdRunnerUpBlockIdx）にこのブロックのrunner-upが勝っていれば「3位」。
+      // ブロック決勝の敗者（ブロック代表次点）は一律「ベスト8」——ただし2ブロック構成で
+      // クロスブロック3位決定戦（rp.thirdEnabled2）が有効な場合は、rp.thirdRunnerUpBlockIdxに
+      // 勝った側が「3位」、負けた側は代表戦の一部として敗れたとみなし4ブロック方式と同じ「ベスト4」にする
+      // （この場合ブロックrunner-up全員が3位決定戦の当事者になるため、通常の「ベスト8」層は存在しない）。
       if (champOrigin != null) {
         if (rp && tIdx === rp.champIdx) stat[champOrigin].placement = '優勝';
         else if (rp && tIdx === rp.runnerUpIdx) stat[champOrigin].placement = '準優勝';
@@ -372,7 +379,11 @@ function _buildResultsRows_(state) {
         else stat[champOrigin].placement = 'ベスト4';   // 4位（代表戦準決勝敗退）または代表戦未決着
       }
       if (runnerUpOrigin != null) {
-        stat[runnerUpOrigin].placement = (rp && rp.thirdRunnerUpBlockIdx === tIdx) ? '3位' : 'ベスト8';
+        if (rp && rp.thirdEnabled2) {
+          stat[runnerUpOrigin].placement = (rp.thirdRunnerUpBlockIdx === tIdx) ? '3位' : 'ベスト4';
+        } else {
+          stat[runnerUpOrigin].placement = 'ベスト8';
+        }
       }
     }
 
