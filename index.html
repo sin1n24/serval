@@ -119,7 +119,7 @@
   .status-dot.pending{background:var(--line)}
   .book-name{font-size:18px; font-weight:700; flex:1; min-width:100px}
   .book-id{font-family:var(--mono); font-size:10px; color:var(--muted)}
-  .book-note{font-size:20px; color:var(--muted); margin-top:3px}
+  .book-id a{color:var(--serval)}
   .book-meta{flex:1}
   .book-actions{display:flex; gap:6px; align-items:center; flex-shrink:0}
 
@@ -143,6 +143,7 @@
   .t-key{font-family:var(--mono); font-size:11px; white-space:nowrap}
   .tournament-table td.t-champion{color:var(--text)}
   .t-champion-empty,.t-runner-empty,.t-third-empty,.t-note-empty{opacity:.5; font-style:italic}
+  .t-note a{color:var(--serval)}
   .t-btns{display:flex; gap:6px; justify-content:flex-end}
 
   /* 「トーナメントを追加」行 */
@@ -321,6 +322,7 @@
   <div class="fld">
     <label class="lbl" for="fNote">メモ（任意）</label>
     <input type="text" id="fNote" maxlength="200" placeholder="担当者・連絡先など">
+    <div class="hint">[表示名](https://…) と書くとリンクになります</div>
   </div>
   <div class="modal-foot">
     <button id="btnBookCancel">キャンセル</button>
@@ -356,6 +358,20 @@ document.getElementById('themeBtn').onclick=function(){
 
 /* ── ユーティリティ ── */
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+/** メモ欄の簡易Markdownリンク [表示名](https://...) をハイパーリンクに変換。それ以外はエスケープしたプレーンテキストのまま。 */
+function renderNote(s){
+  if(s==null||s==='') return '';
+  var re=/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  var out='',last=0,m;
+  while((m=re.exec(s))){
+    out+=esc(s.slice(last,m.index));
+    out+='<a href="'+esc(m[2])+'" target="_blank" rel="noopener">'+esc(m[1])+'</a>';
+    last=re.lastIndex;
+  }
+  out+=esc(s.slice(last));
+  return out;
+}
 
 function toast(msg,isErr){
   var t=document.getElementById('toast');
@@ -420,9 +436,7 @@ function renderList(){
     html+='<div class="book-header">';
     html+='<span class="status-dot'+(hasUrl?'':' pending')+'" title="'+(hasUrl?'GAS登録済み':'準備中')+'"></span>';
     html+='<div class="book-meta"><div class="book-name">'+esc(b.name||'（無名）')+'</div>';
-    html+='<div class="book-id">'+esc(b.id||'')+'</div>';
-    if(b.note) html+='<div class="book-note">'+esc(b.note)+'</div>';
-    html+='</div>';
+    html+='<div class="book-id">'+esc(b.id||'')+(b.note?' ・ '+renderNote(b.note):'')+'</div></div>';
     html+='<div class="book-actions">';
     if(b.deleted){
       html+='<span class="del-tag">削除済み</span><button class="ghost sm" onclick="restoreBook(\''+esc(b.id)+'\')">復元</button>';
@@ -470,7 +484,7 @@ function renderList(){
         html+='<td class="t-champion'+(t.champion?'':' t-champion-empty')+'"'+editAttr.replace('FIELD','champion')+'>'+(t.champion?esc(t.champion):'（優勝未定）')+'</td>';
         html+='<td class="t-runner'+(t.runnerUp?'':' t-runner-empty')+'"'+editAttr.replace('FIELD','runnerUp')+'>'+(t.runnerUp?esc(t.runnerUp):'（準優勝未定）')+'</td>';
         html+='<td class="t-third'+(t.thirdPlace?'':' t-third-empty')+'"'+editAttr.replace('FIELD','thirdPlace')+'>'+(t.thirdPlace?esc(t.thirdPlace):'（3位未定）')+'</td>';
-        html+='<td class="t-note'+(t.note?'':' t-note-empty')+'"'+editAttr.replace('FIELD','note')+'>'+(t.note?esc(t.note):'（メモを追加）')+'</td>';
+        html+='<td class="t-note'+(t.note?'':' t-note-empty')+'"'+editAttr.replace('FIELD','note')+'>'+(t.note?renderNote(t.note):'（メモを追加）')+'</td>';
         html+='<td><div class="t-btns">';
         if(hasUrl){
           html+='<a class="btnlike primary" href="'+esc(openUrl)+'" target="_blank" rel="noopener">開く</a>';
