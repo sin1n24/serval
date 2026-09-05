@@ -179,6 +179,27 @@
   .setup li{margin-bottom:3px}
   .setup code{font-family:var(--mono); font-size:11px; background:var(--night); border-radius:4px; padding:1px 5px}
 
+  /* ── ご利用にあたって（外部主催者向け注意書き） ── */
+  .notice{
+    background:var(--panel2); border:1px dashed var(--serval-dim); border-radius:12px;
+    padding:14px 18px; margin:0 0 28px; font-size:12.5px; line-height:1.7;
+  }
+  .notice b{color:var(--serval); font-weight:700}
+  .notice ul{margin:8px 0 0 18px; padding:0}
+  .notice li{margin-bottom:4px}
+
+  /* ── フッター ── */
+  .site-footer{
+    max-width:880px; margin:40px auto 0; padding:20px 20px 32px;
+    border-top:1px solid var(--line); display:flex; align-items:center; gap:14px;
+    font-size:12px; color:var(--muted); flex-wrap:wrap;
+  }
+  .site-footer img{width:24px; height:24px; object-fit:contain; opacity:.7}
+  [data-theme="dark"] .site-footer img{filter:invert(1)}
+  .site-footer a{color:var(--serval); text-decoration:none}
+  .site-footer a:hover{text-decoration:underline}
+  .site-footer .sep{opacity:.4}
+
   .empty{text-align:center; padding:70px 20px; color:var(--muted); border:1px dashed var(--line); border-radius:12px}
   .empty img{width:64px; margin-bottom:14px; opacity:.4}
   [data-theme="dark"] .empty img{filter:invert(1)}
@@ -260,6 +281,7 @@
     </div>
   </a>
   <span class="sp"></span>
+  <a class="back-link" href="manual/#new-book">🔰 はじめての方へ</a>
   <a class="back-link" href="manual/">📖 取扱説明書</a>
   <button id="themeBtn" aria-label="テーマ切り替え">🌙</button>
 </nav>
@@ -270,6 +292,9 @@
     <div class="hero-desc">
       <strong>serval</strong> はロボット競技向けの<strong>トーナメント・リーグ管理システム</strong>です。
       大会シリーズ（<strong>ブック</strong>）ごとにGASプロジェクトを用意し、第1回・第2回…の各<strong>トーナメント</strong>を一元管理します。
+    </div>
+    <div class="hero-desc" style="margin-top:10px">
+      新規ブック作成時のURL初期値は、開発者（sin1.studio）が運用する共有GASです。ご自身のGoogleアカウントでデータを完全に分けて管理したい場合は、GASプロジェクトを複製して個別の /exec URLを登録してください（<a href="manual/#new-book" style="color:var(--serval)">手順は取扱説明書</a>）。
     </div>
   </div>
 
@@ -294,6 +319,15 @@
     <img id="lb-img" src="" alt="">
   </div>
 
+  <div class="notice">
+    <b>ご利用にあたって</b>
+    <ul>
+      <li>ブック名・回次・優勝者・メモなどの登録情報は、URLを知らなくても<strong>一覧から誰でも閲覧できます</strong>。個人情報や非公開の連絡先は書かないでください</li>
+      <li>管理者パスワードは現状すべてのブックで共通です。ご自身が登録したブック以外は編集・削除しないようお願いします</li>
+      <li>大会本番の前後は、管理画面からのJSON書き出しでバックアップを取っておくことをおすすめします</li>
+    </ul>
+  </div>
+
   <div class="section-title">ブック一覧</div>
 
   <div class="toolbar">
@@ -309,6 +343,19 @@
 
 </div>
 
+<footer class="site-footer">
+  <img src="serval.png" alt="serval">
+  <div>
+    serval — 開発・運用: <a href="https://sin1.studio" target="_blank" rel="noopener">sin1.studio</a>
+    <span class="sep">｜</span>
+    お問い合わせ: <a href="mailto:sin1@sin1.studio">sin1@sin1.studio</a>
+    <span class="sep">｜</span>
+    <a href="https://github.com/sin1n24/serval" target="_blank" rel="noopener">GitHub</a>（MIT License）
+    <span class="sep">｜</span>
+    <a href="manual/">取扱説明書</a>
+  </div>
+</footer>
+
 <!-- ブック編集モーダル -->
 <dialog id="bookDlg">
   <h2 id="bookDlgTitle">ブックを編集</h2>
@@ -323,8 +370,8 @@
   </div>
   <div class="fld">
     <label class="lbl" for="fNote">メモ（任意）</label>
-    <input type="text" id="fNote" maxlength="200" placeholder="担当者・連絡先など">
-    <div class="hint">[表示名](https://…) と書くとリンクになります</div>
+    <input type="text" id="fNote" maxlength="200" placeholder="開催時期・場所など">
+    <div class="hint">[表示名](https://…) と書くとリンクになります。この欄は誰でも閲覧できるため、個人情報や非公開の連絡先は書かないでください</div>
   </div>
   <div class="modal-foot">
     <button id="btnBookCancel">キャンセル</button>
