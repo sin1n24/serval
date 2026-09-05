@@ -119,7 +119,7 @@
   .status-dot.pending{background:var(--line)}
   .book-name{font-size:18px; font-weight:700; flex:1; min-width:100px}
   .book-id{font-family:var(--mono); font-size:10px; color:var(--muted)}
-  .book-note{font-size:12.5px; color:var(--muted); margin-top:1px}
+  .book-note{font-size:20px; color:var(--muted); margin-top:3px}
   .book-meta{flex:1}
   .book-actions{display:flex; gap:6px; align-items:center; flex-shrink:0}
 
@@ -420,7 +420,9 @@ function renderList(){
     html+='<div class="book-header">';
     html+='<span class="status-dot'+(hasUrl?'':' pending')+'" title="'+(hasUrl?'GAS登録済み':'準備中')+'"></span>';
     html+='<div class="book-meta"><div class="book-name">'+esc(b.name||'（無名）')+'</div>';
-    html+='<div class="book-id">'+esc(b.id||'')+(b.note?' ・ '+esc(b.note):'')+'</div></div>';
+    html+='<div class="book-id">'+esc(b.id||'')+'</div>';
+    if(b.note) html+='<div class="book-note">'+esc(b.note)+'</div>';
+    html+='</div>';
     html+='<div class="book-actions">';
     if(b.deleted){
       html+='<span class="del-tag">削除済み</span><button class="ghost sm" onclick="restoreBook(\''+esc(b.id)+'\')">復元</button>';
