@@ -345,6 +345,17 @@ function _buildResultsRows_(state) {
     Object.keys(loserByRound).forEach(function (rKey) {
       var r = +rKey;
       if (multi) {
+        if (rp && rp.thirdEnabled2) {
+          // 2ブロック構成＋代表3位決定戦あり：各ブロック決勝(runner-up同士の3位決定戦を経て順位が
+          // 決まる)自体が実質的に代表決定の一部となるため、その下の階層も1段深い方向にシフトする
+          // （旧ベスト16＝ブロック準決勝敗者→ベスト8、旧・空欄＝ブロック準々決勝敗者→ベスト16）。
+          if (r === rounds - 1) {
+            loserByRound[r].forEach(function (origin) { if (stat[origin].placement == null) stat[origin].placement = 'ベスト8'; });
+          } else if (r === rounds - 2) {
+            loserByRound[r].forEach(function (origin) { if (stat[origin].placement == null) stat[origin].placement = 'ベスト16'; });
+          }
+          return;
+        }
         if (r !== rounds - 1) return;   // ブロック準決勝(ベスト16)以外の浅いラウンドは空欄のまま
         loserByRound[r].forEach(function (origin) { if (stat[origin].placement == null) stat[origin].placement = 'ベスト16'; });
         return;
