@@ -47,6 +47,13 @@
   }
   .topbar h1{font-size:15px; margin:0; letter-spacing:.04em; font-weight:600; white-space:nowrap; user-select:none; -webkit-user-select:none; cursor:default}
   .topbar .spacer{flex:1}
+  .topbar-actions{
+    display:flex; align-items:center; gap:14px; overflow:hidden; white-space:nowrap;
+    flex:0 0 auto; opacity:1;
+    transition:width .3s ease, opacity .2s ease, margin-left .3s ease;
+  }
+  .topbar-actions.collapsed{ width:0 !important; opacity:0; margin-left:-14px; pointer-events:none; }
+  .topbar-collapse-btn{ flex:0 0 auto; padding:7px 10px; font-size:13px; line-height:1; }
   .phase-switch{display:flex; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:3px}
   .phase-switch button{
     border:0; background:transparent; color:var(--muted); padding:6px 16px; border-radius:7px; font-weight:600;
@@ -128,7 +135,9 @@
   body.view-mode #btnImport,
   body.view-mode #btnErrLog,
   body.view-mode #themeToggle,
-  body.view-mode #envPill{ display:none !important; }
+  body.view-mode #envPill,
+  body.view-mode #btnCollapseTopbar,
+  body.view-mode #btnCollapseSidebar{ display:none !important; }
   #btnViewMode{ display:none }                       /* 管理者モード時のみ表示 */
   body:not(.view-mode) #btnViewMode{ display:inline-block }
   /* 閲覧時の秘密アンロック用ホットスポット（左上の透明領域をトリプルクリック） */
@@ -137,9 +146,19 @@
 
   /* ---- 左：設定パネル ---- */
   aside.controls{
-    flex:0 0 280px; background:var(--panel); border-right:1px solid var(--line);
-    padding:14px; overflow-y:auto;
+    flex:0 0 140px; background:var(--panel); border-right:1px solid var(--line);
+    padding:14px; overflow-y:auto; overflow-x:hidden;
+    transition:flex-basis .28s ease, padding .28s ease, opacity .22s ease;
   }
+  aside.controls.collapsed{
+    flex-basis:0; padding-left:0; padding-right:0; opacity:0; overflow:hidden; border-right:none; pointer-events:none;
+  }
+  .sidebar-handle{
+    flex:0 0 16px; display:flex; align-items:center; justify-content:center;
+    background:var(--panel2); border:0; border-right:1px solid var(--line); cursor:pointer;
+    color:var(--muted); font-size:11px; user-select:none; padding:0;
+  }
+  .sidebar-handle:hover{ background:var(--panel); color:var(--text); }
   .group{margin-bottom:18px}
   .group h2{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 9px}
   .field{margin-bottom:10px}
@@ -236,11 +255,47 @@
     transition:transform .6s cubic-bezier(.2,.9,.2,1.1), opacity .6s, box-shadow .6s, border-color .6s}
   .sp-cards .sp-card:nth-child(3){animation-delay:.08s; animation-fill-mode:backwards}
   @keyframes spIn{0%{transform:scale(.5) translateY(30px);opacity:0} 100%{transform:scale(1);opacity:1}}
+  .sp-photo{width:clamp(80px,10vw,160px); height:clamp(80px,10vw,160px); object-fit:cover; border-radius:50%;
+    display:block; margin:0 auto clamp(10px,1.2vw,18px); border:3px solid rgba(255,255,255,.28); background:#1a222c}
+  .sp-photo.psz-sm{width:clamp(56px,6.5vw,110px); height:clamp(56px,6.5vw,110px)}
+  .sp-photo.psz-lg{width:clamp(110px,14vw,220px); height:clamp(110px,14vw,220px)}
   .sp-bar{height:clamp(6px,0.7vw,12px); border-radius:6px; margin-bottom:clamp(12px,1.4vw,22px)}
   .sp-name{font-size:clamp(28px,4.6vw,72px); font-weight:800; color:#fff; line-height:1.15; word-break:break-word}
   .sp-types{font-size:clamp(15px,1.9vw,32px); color:#f1c453; font-weight:700; margin-top:clamp(8px,1vw,16px); word-break:break-word}
   .sp-aff{font-size:clamp(14px,1.7vw,28px); color:#9fb0c4; margin-top:clamp(6px,0.8vw,12px)}
   .sp-intro{font-size:clamp(13px,1.5vw,26px); color:#cfd8e3; margin-top:clamp(8px,1vw,16px); line-height:1.5; word-break:break-word}
+  /* 焦らし演出：同じカードの中で二つ名だけをまず見せ、tease-phase を外すと連続的に本カードへ変化する。
+     枠サイズが常に一定になるよう、二つ名は常に絶対配置（position:absolute）にしてレイアウトの高さに
+     一切影響させない。カード下部は has-nick クラスで二つ名分のスペースをあらかじめ確保しておき、
+     焦らし中は画面中央（top:50%）、通常時はその確保スペース内（top:calc(100% - Npx)）に位置：
+     top と font-size だけが変化するので、位置と文字サイズが連続的にアニメーションする。 */
+  .sp-card{min-height:clamp(190px,20vw,270px); display:flex; flex-direction:column; justify-content:center; position:relative}
+  .sp-card.has-nick{padding-bottom:clamp(30px,3.6vw,50px)}
+  .sp-photo, .sp-name, .sp-types, .sp-aff, .sp-intro{
+    transition:opacity .6s ease, transform .6s ease; opacity:1; transform:none;
+  }
+  .sp-nickname{
+    position:absolute; left:0; right:0; top:calc(100% - clamp(20px,2.4vw,34px)); transform:translateY(-50%);
+    font-size:clamp(13px,1.6vw,28px); color:#f1c453; font-style:italic; text-align:center; word-break:break-word;
+    transition:top .6s ease, font-size .6s ease;
+  }
+  .sp-cards.tease-phase .sp-photo,
+  .sp-cards.tease-phase .sp-name,
+  .sp-cards.tease-phase .sp-types,
+  .sp-cards.tease-phase .sp-aff,
+  .sp-cards.tease-phase .sp-intro{
+    opacity:0; transform:translateY(10px); pointer-events:none;
+  }
+  .sp-cards.tease-phase .sp-nickname{
+    top:50%;
+    font-size:clamp(22px,3.2vw,48px); font-weight:900; letter-spacing:.03em;
+    animation:teaseGlow 1.6s ease-in-out infinite;
+  }
+  @keyframes teaseGlow{
+    0%,100%{ text-shadow:0 0 10px rgba(241,196,83,.45), 0 0 22px rgba(241,196,83,.2) }
+    50%{ text-shadow:0 0 20px rgba(241,196,83,.85), 0 0 42px rgba(241,196,83,.45) }
+  }
+  .sp-cards.tease-phase .sp-card{ box-shadow:0 0 46px rgba(241,196,83,.3) }
   .sp-vs{font-size:clamp(24px,3.2vw,56px); font-weight:900; color:#f1c453; letter-spacing:.05em}
   .sp-close{position:absolute; top:20px; right:24px; background:transparent; border:0; color:#fff; font-size:26px; z-index:2}
 
@@ -332,24 +387,26 @@
   #playerPop{position:fixed; z-index:120; max-width:300px; background:#0e141c; border:1px solid #2b3340;
     border-radius:10px; padding:12px 14px; box-shadow:0 8px 28px rgba(0,0,0,.55); color:#e8e8ea; pointer-events:none}
   #playerPop[hidden]{display:none}
+  #playerPop .pp-photo{display:block; width:64px; height:64px; object-fit:cover; border-radius:50%;
+    margin:0 auto 8px; border:2px solid #2b3340; background:#1a222c}
   #playerPop .pp-name{font-size:16px; font-weight:800; margin-bottom:6px; color:#fff; word-break:break-word}
   #playerPop .pp-row{display:flex; gap:8px; font-size:12.5px; line-height:1.7}
   #playerPop .pp-k{flex:0 0 42px; color:#9fb0c4}
   #playerPop .pp-v{color:#e8e8ea; word-break:break-word}
   #playerPop .pp-intro{margin-top:8px; padding-top:8px; border-top:1px solid #2b3340; font-size:12.5px; color:#cfd8e3; line-height:1.6; word-break:break-word}
+  #playerPop .pp-nickname{margin-top:6px; font-size:12px; color:#f1c453; font-style:italic; word-break:break-word}
   #playerPop .pp-empty{font-size:12px; color:#9fb0c4}
   #playerPop .pp-ruby{font-size:11px; color:#9fb0c4; font-weight:400; margin-top:1px; letter-spacing:.04em}
   /* データサイズインジケータ */
   #dataSizeBar{font-size:11px;padding:1px 7px;border-radius:4px;background:var(--panel2);color:var(--muted);white-space:nowrap;cursor:default;display:inline-flex;align-items:center;gap:5px}
   #dataSizeBar .dsb-bar{display:inline-block;width:42px;height:7px;border-radius:3px;background:var(--line);overflow:hidden;vertical-align:middle}
   #dataSizeBar .dsb-fill{display:block;height:100%;border-radius:3px;transition:width .3s,background .3s}
-  /* タイマー（本数別）UI */
+  /* 試合時間（本数別）UI */
   .game-timer{background:var(--panel2); border-radius:7px; padding:8px 10px; margin-bottom:6px}
   .gt-label{font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.02em; flex-shrink:0; white-space:nowrap; text-align:right}
   .gt-row{display:flex; gap:6px; align-items:center}
   .gt-elapsed{font-family:monospace; font-size:15px; font-weight:700; background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; flex:0 0 58px; min-width:0; color:var(--text); text-align:center}
   .kb-focus{outline:2px solid var(--accent); outline-offset:2px}
-  .gt-times{font-size:10.5px; color:var(--muted); margin-top:4px; line-height:1.5}
   .env-pill{font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:20px; padding:3px 9px}
   .theme-toggle{background:transparent; border:0; font-size:17px; opacity:.65; padding:2px 6px; line-height:1}
   .theme-toggle:hover{opacity:1}
@@ -410,6 +467,7 @@
   #boardScreen.bd-dark .bd-furi{color:#6b7a8a}
   #boardScreen.bd-dark .bd-aff{color:#51617a}
   #boardScreen.bd-dark .bd-intro{color:#2a3340}
+  #boardScreen.bd-dark .bd-nick{color:#7a5e10}
   #boardScreen.bd-dark .bd-wait{color:#6b7a90}
   .bd-content{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(20px,4vh,60px); width:100%; transform-style:preserve-3d}
   .bd-head{display:flex; align-items:baseline; gap:clamp(14px,2.4vw,40px); flex-wrap:wrap; justify-content:center}
@@ -424,6 +482,11 @@
   .bd-aff{font-size:clamp(14px,1.7vw,32px); color:#9fb0c4; text-align:center; word-break:break-word}
   .bd-types{font-size:clamp(15px,2vw,38px); font-weight:800; color:#f1c453; text-align:center; word-break:break-word}
   .bd-intro{font-size:clamp(13px,1.6vw,30px); color:#cfd8e3; text-align:center; line-height:1.4; max-width:32vw; word-break:break-word}
+  .bd-photo{width:clamp(90px,9vw,170px); height:clamp(90px,9vw,170px); object-fit:cover; border-radius:50%;
+    border:3px solid rgba(255,255,255,.28); background:#1a222c}
+  .bd-photo.psz-sm{width:clamp(60px,6vw,110px); height:clamp(60px,6vw,110px)}
+  .bd-photo.psz-lg{width:clamp(120px,12.5vw,230px); height:clamp(120px,12.5vw,230px)}
+  .bd-nick{font-size:clamp(13px,1.6vw,30px); color:#f1c453; font-style:italic; text-align:center; word-break:break-word}
   .bd-score{display:flex; align-items:center; gap:clamp(8px,1.4vw,28px); font-weight:900; font-size:clamp(56px,12vw,240px); color:#f1c453; line-height:1}
   .bd-score .bd-dash{color:#5d6b7a; font-size:.7em}
   .bd-vs{color:#4a5a6a; font-size:.8em; letter-spacing:.12em}
@@ -469,6 +532,7 @@
   #laneScreen.bd-dark .ln-name{color:#0b0f15}
   #laneScreen.bd-dark .ln-furi{color:#6b7a8a}
   #laneScreen.bd-dark .ln-aff{color:#51617a}
+  #laneScreen.bd-dark .ln-nick{color:#7a5e10}
   #laneScreen.bd-dark .ln-head{color:#4a6070}
   #laneScreen.bd-dark .ln-time{color:#0b0f15}
   #laneScreen.bd-dark .ln-score{color:#8a5e10}
@@ -481,7 +545,12 @@
   .ln-name{font-size:clamp(18px,3.8vw,80px); font-weight:900; line-height:1.05; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
   .ln-furi{font-size:clamp(10px,1.2vw,24px); color:#7a8ea3; letter-spacing:.04em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
   .ln-aff{font-size:clamp(10px,1.1vw,20px); color:#9fb0c4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
+  .ln-nick{font-size:clamp(9px,1vw,20px); color:#f1c453; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
   .ln-stripe{width:clamp(24px,2.8vw,56px); height:clamp(64px,12vh,120px); border-radius:6px; background:#888; flex-shrink:0}
+  .ln-photo{width:clamp(50px,9vh,120px); height:clamp(50px,9vh,120px); object-fit:cover; border-radius:50%;
+    border:2px solid rgba(255,255,255,.28); background:#1a222c; flex-shrink:0}
+  .ln-photo.psz-sm{width:clamp(34px,6vh,80px); height:clamp(34px,6vh,80px)}
+  .ln-photo.psz-lg{width:clamp(66px,12.5vh,160px); height:clamp(66px,12.5vh,160px)}
   .ln-center{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(1px,0.3vh,4px); flex-shrink:0; padding:0 clamp(12px,2vw,48px)}
   .ln-head-wrap{display:flex; align-items:center; gap:clamp(4px,0.6vw,12px)}
   .ln-head{font-size:clamp(10px,1.3vw,22px); color:#9fb0c4; white-space:nowrap}
@@ -574,10 +643,16 @@
   #meterScreen{position:fixed; inset:0; background:#0a0e14; color:#fff; font-family:inherit; overflow:hidden}
   #meterScreen[hidden]{display:none}
   #wmContent{position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; padding:2vh 3vw; gap:1.2vh}
-  .wm-top{display:flex; align-items:baseline; gap:2vw}
-  .wm-side{flex:1; display:flex; align-items:baseline; gap:1vw; min-width:0}
+  .wm-top{display:flex; align-items:center; gap:2vw}
+  .wm-side{flex:1; display:flex; align-items:center; gap:1vw; min-width:0}
   .wm-side.wm-b{justify-content:flex-end}
+  .wm-namewrap{display:flex; flex-direction:column; min-width:0}
+  .wm-side.wm-b .wm-namewrap{align-items:flex-end}
   .wm-name{font-size:6.5vh; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .wm-nick{font-size:2.2vh; font-style:italic; color:#f1c453; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%}
+  .wm-photo{width:8vh; height:8vh; border-radius:50%; object-fit:cover; border:2px solid rgba(255,255,255,.3); background:#1a222c; flex-shrink:0}
+  .wm-photo.psz-sm{width:5.5vh; height:5.5vh}
+  .wm-photo.psz-lg{width:11vh; height:11vh}
   .wm-dots{font-size:4vh; letter-spacing:.3vw; white-space:nowrap}
   .wm-center{flex:0 0 auto; display:flex; align-items:baseline; gap:1.2vw}
   .wm-pct{font-size:9vh; font-weight:900; font-variant-numeric:tabular-nums; line-height:1}
@@ -597,14 +672,14 @@
   @keyframes wmPointIn{0%{opacity:0; transform:scale(2.2)} 100%{opacity:1; transform:scale(1)}}
   .wm-wait{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:5vh; color:#6b7a90}
   /* 管理画面のWinMeterパネル */
-  #wmPanel{margin-top:10px; padding:10px; border:1px solid var(--line,#2b3340); border-radius:10px; font-size:12.5px}
-  #wmPanel h2{margin:0 0 6px; font-size:13px}
+  #wmPanel, #dbPanel{margin-top:10px; padding:10px; border:1px solid var(--line,#2b3340); border-radius:10px; font-size:12.5px}
+  #wmPanel h2, #dbPanel h2{margin:0 0 6px; font-size:13px}
   #wmPanel .wm-mini{position:relative; height:16px; border-radius:8px; background:#223; overflow:hidden; margin:4px 0}
   #wmPanel .wm-mini-fill{position:absolute; top:0; left:0; bottom:0; transition:width .5s}
   #wmPanel .wm-mini-mid{position:absolute; top:0; bottom:0; left:50%; width:1px; background:rgba(255,255,255,.5)}
-  #wmPanel .wm-row{display:flex; gap:4px; margin-top:6px; flex-wrap:wrap}
-  #wmPanel .wm-row .btn{flex:1; min-width:0; padding:4px 2px; font-size:11.5px; white-space:nowrap}
-  #wmPanel .wm-stat{color:var(--muted,#9fb0c4); font-size:11.5px; margin-top:4px}
+  #wmPanel .wm-row, #dbPanel .wm-row{display:flex; gap:4px; margin-top:6px; flex-wrap:wrap}
+  #wmPanel .wm-row .btn, #dbPanel .wm-row .btn{flex:1; min-width:0; padding:4px 2px; font-size:11.5px; white-space:nowrap}
+  #wmPanel .wm-stat, #dbPanel .wm-stat{color:var(--muted,#9fb0c4); font-size:11.5px; margin-top:4px}
 </style>
 </head>
 <body class="view-mode"><!-- 既定は閲覧モード。初期描画から管理UIを隠しチラつき(FOUC)防止。管理時はJSが外す -->
@@ -632,28 +707,31 @@ window.addEventListener('unhandledrejection', function(ev){
 </script>
 <div class="app">
   <header class="topbar">
-    <h1>🏆 トーナメント管理システム "serval" ver187</h1>
+    <h1>🏆 トーナメント管理システム "serval" ver210</h1>
     <div class="spacer"></div>
-    <span class="env-pill" id="envPill">環境判定中…</span>
-    <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
-    <input id="docKey" class="btn" style="width:160px" value="default" title="保存キー（ドキュメント名）">
-    <button class="btn" id="btnOpen" title="保存済みトーナメントの一覧から開く">📂 開く</button>
-    <button class="btn" id="btnNew" title="新しいトーナメントを作成">✚ 新規</button>
-    <button class="btn primary" id="btnSave">保存</button>
-    <span id="dataSizeBar" title="GAS保存データのサイズ"><span class="dsb-bar"><span class="dsb-fill"></span></span><span class="dsb-text">-</span></span>
-    <button class="btn" id="btnExport" title="現在の内容をJSONファイルとして保存（バックアップ）">⬇ バックアップ</button>
-    <button class="btn" id="btnImport" title="JSONバックアップファイルから復元">⬆ 復元</button>
-    <button class="btn" id="btnBoard" title="別画面１を別ウィンドウで開く">📺 別画1</button>
-    <button class="btn" id="btnLane"  title="別画面２（横長バナー）を別ウィンドウで開く">📡 別画2</button>
-    <button class="btn" id="btnSub"   title="別画面３を別ウィンドウで開く">📺 別画3</button>
-    <button class="btn" id="btnMeter" title="別画面４（WinMeter勝率評価バー）を別ウィンドウで開く">📊 別画4</button>
-    <button class="btn" id="btnViewMode" title="閲覧専用モードを確認">👁 閲覧</button>
-    <button class="btn" id="btnErrLog" title="エラーログを表示">📋 ログ</button>
+    <div class="topbar-actions" id="topbarActions">
+      <span class="env-pill" id="envPill">環境判定中…</span>
+      <button class="theme-toggle" id="themeToggle" title="テーマ切替">🌙</button>
+      <input id="docKey" class="btn" style="width:160px" value="default" title="保存キー（ドキュメント名）">
+      <button class="btn" id="btnOpen" title="保存済みトーナメントの一覧から開く">📂 開く</button>
+      <button class="btn" id="btnNew" title="新しいトーナメントを作成">✚ 新規</button>
+      <button class="btn primary" id="btnSave">保存</button>
+      <span id="dataSizeBar" title="GAS保存データのサイズ"><span class="dsb-bar"><span class="dsb-fill"></span></span><span class="dsb-text">-</span></span>
+      <button class="btn" id="btnExport" title="現在の内容をJSONファイルとして保存（バックアップ）">⬇ バックアップ</button>
+      <button class="btn" id="btnImport" title="JSONバックアップファイルから復元">⬆ 復元</button>
+      <button class="btn" id="btnBoard" title="別画面１を別ウィンドウで開く">📺 別画1</button>
+      <button class="btn" id="btnLane"  title="別画面２（横長バナー）を別ウィンドウで開く">📡 別画2</button>
+      <button class="btn" id="btnSub"   title="別画面３を別ウィンドウで開く">📺 別画3</button>
+      <button class="btn" id="btnMeter" title="別画面４（WinMeter勝率評価バー）を別ウィンドウで開く">📊 別画4</button>
+      <button class="btn" id="btnViewMode" title="閲覧専用モードを確認">👁 閲覧</button>
+      <button class="btn" id="btnErrLog" title="エラーログを表示">📋 ログ</button>
+    </div>
+    <button class="btn sm topbar-collapse-btn" id="btnCollapseTopbar" title="操作ボタンを縮小/展開">▸</button>
   </header>
 
   <div class="body">
     <!-- 左：全体設定 -->
-    <aside class="controls">
+    <aside class="controls" id="controlsPanel">
       <div class="group"><button class="btn" id="btnParticipant" style="width:100%">👥 参加者リスト</button></div>
       <div class="group"><button class="btn" id="btnTournamentCfg" style="width:100%">🏆 トーナメント設定</button></div>
       <div class="group"><button class="btn" id="btnSettings" style="width:100%">⚙ 表示設定</button></div>
@@ -664,8 +742,9 @@ window.addEventListener('unhandledrejection', function(ev){
       <div class="group"><button class="btn" id="btnVoteRank" style="width:100%">⭐ 推し投票ランキング</button></div>
       <div class="group"><button class="btn" id="btnShareX" style="width:100%">🐦 Xでシェア</button></div>
       <div class="group"><button class="btn" id="btnResetResults" style="width:100%;color:var(--danger,#e23b3b)">🗑 試合結果をリセット</button></div>
-      <div class="group"><button class="btn" id="btnResetAll" style="width:100%;color:var(--danger,#e23b3b)">🗑 全てリセット（機体名も含む）</button></div>
+      <div class="group"><button class="btn" id="btnResetAll" style="width:100%;color:var(--danger,#e23b3b)">🗑 全てリセット</button></div>
     </aside>
+    <button class="sidebar-handle" id="btnCollapseSidebar" title="左カラムを縮小/展開">◂</button>
 
     <!-- 中央：ブラケット描画 -->
     <main class="stage" id="stage">
@@ -839,7 +918,30 @@ window.addEventListener('unhandledrejection', function(ev){
           <label class="check"><input type="checkbox" id="bdShowScore">勝ち数</label>
           <label class="check"><input type="checkbox" id="bdShowTime">試合時間</label>
           <label class="check"><input type="checkbox" id="bdShowRepair">修理時間</label>
+          <label class="check"><input type="checkbox" id="bdShowNickname">二つ名</label>
+          <label class="check"><input type="checkbox" id="bdShowPhoto">写真</label>
         </div>
+        <div class="field" style="margin-top:8px;max-width:160px">
+          <label>写真サイズ</label>
+          <select id="bdPhotoSize"><option value="sm">小</option><option value="md">中</option><option value="lg">大</option></select>
+        </div>
+      </div>
+      <div class="admodal-ad">
+        <h3>試合切り替え時の入場演出</h3>
+        <div class="row">
+          <div class="field">
+            <label>方式</label>
+            <select id="bdSwitchAnim">
+              <option value="random">ランダム（既定）</option>
+              <option value="anim-slide">①スライド</option>
+              <option value="anim-flip">②フリップ</option>
+              <option value="anim-zoom">③ズーム</option>
+              <option value="anim-fade">④フェード</option>
+              <option value="anim-rise">⑤ライズ</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn sm" id="bdTestSwitchAnim" style="width:100%;margin-top:6px" title="この画面上に一時的に別画面を表示してテストします">▶ テストプレイ</button>
       </div>
       <div class="admodal-ad">
         <h3>ウィンドウサイズ（開くとき）</h3>
@@ -892,6 +994,12 @@ window.addEventListener('unhandledrejection', function(ev){
           <label class="check"><input type="checkbox" id="lnShowAff">所属</label>
           <label class="check"><input type="checkbox" id="lnShowScore">勝ち数</label>
           <label class="check"><input type="checkbox" id="lnShowTime" checked>試合時間</label>
+          <label class="check"><input type="checkbox" id="lnShowNickname">二つ名</label>
+          <label class="check"><input type="checkbox" id="lnShowPhoto">写真</label>
+        </div>
+        <div class="field" style="margin-top:8px;max-width:160px">
+          <label>写真サイズ</label>
+          <select id="lnPhotoSize"><option value="sm">小</option><option value="md">中</option><option value="lg">大</option></select>
         </div>
       </div>
       <div class="admodal-ad">
@@ -947,6 +1055,13 @@ window.addEventListener('unhandledrejection', function(ev){
           <label class="check"><input type="checkbox" id="sbShowIntro">一言紹介</label>
           <label class="check"><input type="checkbox" id="sbShowScore">勝ち数</label>
           <label class="check"><input type="checkbox" id="sbShowTime">試合時間</label>
+          <label class="check"><input type="checkbox" id="sbShowRepair">修理時間</label>
+          <label class="check"><input type="checkbox" id="sbShowNickname">二つ名</label>
+          <label class="check"><input type="checkbox" id="sbShowPhoto">写真</label>
+        </div>
+        <div class="field" style="margin-top:8px;max-width:160px">
+          <label>写真サイズ</label>
+          <select id="sbPhotoSize"><option value="sm">小</option><option value="md">中</option><option value="lg">大</option></select>
         </div>
       </div>
       <div class="admodal-ad">
@@ -1012,26 +1127,32 @@ window.addEventListener('unhandledrejection', function(ev){
 <div class="admodal" id="effectsModal" hidden>
   <div class="admodal-card">
     <h2>🎬 演出設定</h2>
-    <h3 style="font-size:12px;color:var(--muted);margin:0 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">自動演出（送信時）</h3>
-    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAutoAdvance" checked>勝ち上がり演出を自動再生する</label>
-    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAutoSpotlight" checked>次の試合カードを自動表示する</label>
-    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAutoBlinkWins">勝者線を点滅させる</label>
-    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAdminOnlyAnim">演出を管理側のみに表示する（閲覧者に配信しない）</label>
-    <label class="check" style="margin-bottom:4px"><input type="checkbox" id="efxAdminOnlySfx" checked>効果音を管理側のみで再生する（閲覧者では鳴らさない）</label>
+    <h3 style="font-size:12px;color:var(--muted);margin:0 0 8px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">共通設定</h3>
+    <label class="check" style="margin-bottom:8px"><input type="checkbox" id="efxAdminOnlyAnim">演出を管理側のみに表示する（閲覧者に配信しない）</label>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAdminOnlySfx" checked>効果音を管理側のみで再生する（閲覧者では鳴らさない）</label>
+
     <hr class="insp-rule">
-    <h3 style="font-size:12px;color:var(--muted);margin:12px 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">演出時間</h3>
-    <div class="row">
+    <h3 style="font-size:14px;margin:12px 0 8px;font-weight:800;color:var(--accent)">🃏 対戦カード演出</h3>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAutoSpotlight" checked>次の試合が決まったら自動表示する</label>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxSpTeaseNickname" checked>先に二つ名だけ表示する（焦らし演出）</label>
+    <div class="check-grid" style="margin-bottom:8px">
+      <label class="check"><input type="checkbox" id="efxSpShowPhoto" checked>写真</label>
+      <label class="check"><input type="checkbox" id="efxSpShowNickname">二つ名</label>
+      <label class="check"><input type="checkbox" id="efxSpShowTypes" checked>タイプ</label>
+      <label class="check"><input type="checkbox" id="efxSpShowAff" checked>所属</label>
+      <label class="check"><input type="checkbox" id="efxSpShowIntro" checked>一言紹介</label>
+    </div>
+    <div class="row" style="margin-bottom:8px">
       <div class="field">
-        <label>勝ち上がり演出（秒）</label>
-        <select id="efxAdvMs">
-          <option value="2000">2秒</option>
-          <option value="3000" selected>3秒（標準）</option>
-          <option value="4000">4秒</option>
-          <option value="5000">5秒</option>
+        <label>写真サイズ</label>
+        <select id="efxSpPhotoSize">
+          <option value="sm">小</option>
+          <option value="md" selected>中</option>
+          <option value="lg">大</option>
         </select>
       </div>
       <div class="field">
-        <label>対戦カード演出（秒）</label>
+        <label>演出時間</label>
         <select id="efxSpMs">
           <option value="1500">1.5秒</option>
           <option value="2000" selected>2秒（標準）</option>
@@ -1040,41 +1161,73 @@ window.addEventListener('unhandledrejection', function(ev){
         </select>
       </div>
     </div>
-    <hr class="insp-rule">
-    <h3 style="font-size:12px;color:var(--muted);margin:12px 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">効果音 — 勝ち上がり演出</h3>
-    <div class="field">
-      <div style="display:flex;gap:6px;align-items:center">
-        <select id="efxAdvSfxMode" style="flex:1">
-          <option value="none">なし</option>
-          <option value="preset1">プリセット1 — ファンファーレ</option>
-          <option value="preset2">プリセット2 — 勝利ドラム</option>
-          <option value="preset3">プリセット3 — 勝利チャイム</option>
-          <option value="url">URLを指定…</option>
-        </select>
-        <button class="btn sm" id="efxAdvSfxTest" title="試聴">▶</button>
-      </div>
-    </div>
-    <div class="field" id="efxAdvUrlRow" style="display:none">
-      <label>音声ファイルURL（mp3 / ogg 等）</label>
-      <input type="text" id="efxAdvSfxUrl" placeholder="https://example.com/sound.mp3">
-    </div>
-    <h3 style="font-size:12px;color:var(--muted);margin:14px 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">効果音 — 対戦カード演出</h3>
-    <div class="field">
-      <div style="display:flex;gap:6px;align-items:center">
-        <select id="efxSpSfxMode" style="flex:1">
+    <div class="row" style="margin-bottom:8px">
+      <div class="field">
+        <label>効果音</label>
+        <select id="efxSpSfxMode">
           <option value="none">なし</option>
           <option value="preset1">プリセット1 — ドラムロール</option>
           <option value="preset2">プリセット2 — 衝撃＆スウッシュ</option>
           <option value="preset3">プリセット3 — カウントダウン</option>
           <option value="url">URLを指定…</option>
         </select>
-        <button class="btn sm" id="efxSpSfxTest" title="試聴">▶</button>
       </div>
     </div>
     <div class="field" id="efxSpUrlRow" style="display:none">
       <label>音声ファイルURL（mp3 / ogg 等）</label>
-      <input type="text" id="efxSpSfxUrl" placeholder="https://example.com/sound.mp3">
+      <input type="text" id="efxSpSfxUrl" placeholder="https:&#47;&#47;example.com/sound.mp3">
     </div>
+    <button class="btn sm" id="efxTestSpotlight" style="width:100%;margin-top:6px" title="このカード単体だけを確認">▶ テストプレイ</button>
+
+    <hr class="insp-rule">
+    <h3 style="font-size:14px;margin:12px 0 8px;font-weight:800;color:var(--accent)">🏆 勝ち上がり演出</h3>
+    <label class="check" style="margin-bottom:8px"><input type="checkbox" id="efxAutoAdvance" checked>試合送信時に自動再生する</label>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAutoBlinkWins">勝者線を点滅させる</label>
+    <label class="check" style="margin-bottom:10px"><input type="checkbox" id="efxAdvTeaseNickname">先に二つ名だけ表示する（焦らし演出）</label>
+    <div class="check-grid" style="margin-bottom:8px">
+      <label class="check"><input type="checkbox" id="efxAdvShowPhoto" checked>写真</label>
+      <label class="check"><input type="checkbox" id="efxAdvShowNickname">二つ名</label>
+      <label class="check"><input type="checkbox" id="efxAdvShowTypes" checked>タイプ</label>
+      <label class="check"><input type="checkbox" id="efxAdvShowAff" checked>所属</label>
+      <label class="check"><input type="checkbox" id="efxAdvShowIntro" checked>一言紹介</label>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <div class="field">
+        <label>写真サイズ</label>
+        <select id="efxAdvPhotoSize">
+          <option value="sm">小</option>
+          <option value="md" selected>中</option>
+          <option value="lg">大</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>演出時間</label>
+        <select id="efxAdvMs">
+          <option value="2000">2秒</option>
+          <option value="3000" selected>3秒（標準）</option>
+          <option value="4000">4秒</option>
+          <option value="5000">5秒</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <div class="field">
+        <label>効果音</label>
+        <select id="efxAdvSfxMode">
+          <option value="none">なし</option>
+          <option value="preset1">プリセット1 — ファンファーレ</option>
+          <option value="preset2">プリセット2 — 勝利ドラム</option>
+          <option value="preset3">プリセット3 — 勝利チャイム</option>
+          <option value="url">URLを指定…</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" id="efxAdvUrlRow" style="display:none">
+      <label>音声ファイルURL（mp3 / ogg 等）</label>
+      <input type="text" id="efxAdvSfxUrl" placeholder="https:&#47;&#47;example.com/sound.mp3">
+    </div>
+    <button class="btn sm" id="efxTestAdvance" style="width:100%;margin-top:6px" title="勝ち上がり演出をこの試合データで確認">▶ テストプレイ</button>
+
     <div class="admodal-actions" style="display:flex;flex-direction:column;gap:8px">
       <button class="btn" id="btnExportVideo" style="width:100%">🎞 動画用に書き出し</button>
       <button class="btn primary" id="effectsClose" style="width:100%">閉じる</button>
@@ -1293,8 +1446,19 @@ window.addEventListener('unhandledrejection', function(ev){
       <div class="font-lab" style="margin-top:8px">ベースフォント（その他テキスト）</div>
       <div id="mainBaseFontRow"></div>
 
+      <h2 style="margin-top:16px">選手ポップアップ（選手名をクリック・タップした時の表示）</h2>
+      <div class="check-grid">
+        <label class="check"><input type="checkbox" id="setPopupNum" checked>番号</label>
+        <label class="check"><input type="checkbox" id="setPopupAff" checked>所属</label>
+        <label class="check"><input type="checkbox" id="setPopupFuri" checked>フリガナ</label>
+        <label class="check"><input type="checkbox" id="setPopupTypes" checked>タイプ</label>
+        <label class="check"><input type="checkbox" id="setPopupIntro" checked>一言紹介</label>
+        <label class="check"><input type="checkbox" id="setShowNickname">二つ名（演出設定の二つ名表示とは別設定）</label>
+        <label class="check"><input type="checkbox" id="setPopupPhoto">写真</label>
+      </div>
+
       <h2 style="margin-top:16px">対戦カードの色</h2>
-      <div class="row">
+      <div class="row" style="margin-top:12px">
         <div class="field"><label>上側の色</label><div class="colorseg" id="colTop"></div></div>
         <div class="field"><label>下側の色</label><div class="colorseg" id="colBottom"></div></div>
       </div>
@@ -1456,10 +1620,10 @@ window.addEventListener('unhandledrejection', function(ev){
   <div class="bd-content" id="bdContent">
     <div class="bd-head"><span id="bdHead"></span><span id="bdNo" class="bd-no"></span></div>
     <div class="bd-grid">
-      <div class="bd-side bd-a"><span class="bd-stripe" id="bdColA"></span><span class="bd-name" id="bdNameA"></span>
+      <div class="bd-side bd-a"><span class="bd-stripe" id="bdColA"></span><img class="bd-photo" id="bdPhotoA" alt="" style="display:none" onerror="this.style.display='none'"><span class="bd-name" id="bdNameA"></span><span class="bd-nick" id="bdNickA"></span>
         <span class="bd-furi" id="bdFuriA"></span><span class="bd-aff" id="bdAffA"></span><span class="bd-types" id="bdTypeA"></span><span class="bd-intro" id="bdIntroA"></span></div>
       <div class="bd-score"><span id="bdScoreA">0</span><span class="bd-dash">-</span><span id="bdScoreB">0</span><span id="bdVs" class="bd-vs" style="display:none">VS</span></div>
-      <div class="bd-side bd-b"><span class="bd-stripe" id="bdColB"></span><span class="bd-name" id="bdNameB"></span>
+      <div class="bd-side bd-b"><span class="bd-stripe" id="bdColB"></span><img class="bd-photo" id="bdPhotoB" alt="" style="display:none" onerror="this.style.display='none'"><span class="bd-name" id="bdNameB"></span><span class="bd-nick" id="bdNickB"></span>
         <span class="bd-furi" id="bdFuriB"></span><span class="bd-aff" id="bdAffB"></span><span class="bd-types" id="bdTypeB"></span><span class="bd-intro" id="bdIntroB"></span></div>
     </div>
     <div class="bd-time"><span class="bd-time-lab">試合時間</span>
@@ -1476,9 +1640,11 @@ window.addEventListener('unhandledrejection', function(ev){
   <canvas id="lnCanvas"></canvas>
   <div id="lnContent">
     <div class="ln-side ln-a">
+      <img class="ln-photo" id="lnPhotoA" alt="" style="display:none" onerror="this.style.display='none'">
       <div class="ln-info" id="lnInfoA">
         <span class="ln-furi" id="lnFuriA"></span>
         <span class="ln-name" id="lnNameA"></span>
+        <span class="ln-nick" id="lnNickA"></span>
         <span class="ln-aff"  id="lnAffA"></span>
       </div>
       <span class="ln-stripe" id="lnColA"></span>
@@ -1496,8 +1662,10 @@ window.addEventListener('unhandledrejection', function(ev){
       <div class="ln-info" id="lnInfoB">
         <span class="ln-furi" id="lnFuriB"></span>
         <span class="ln-name" id="lnNameB"></span>
+        <span class="ln-nick" id="lnNickB"></span>
         <span class="ln-aff"  id="lnAffB"></span>
       </div>
+      <img class="ln-photo" id="lnPhotoB" alt="" style="display:none" onerror="this.style.display='none'">
     </div>
   </div>
   <div class="ln-wait" id="lnWait">待機中…</div>
@@ -1507,9 +1675,9 @@ window.addEventListener('unhandledrejection', function(ev){
 <div id="meterScreen" hidden>
   <div id="wmContent" style="display:none">
     <div class="wm-top">
-      <div class="wm-side wm-a"><span class="wm-name" id="wmNameA"></span><span class="wm-dots" id="wmDotsA"></span></div>
+      <div class="wm-side wm-a"><img class="wm-photo" id="wmPhotoA" alt="" style="display:none" onerror="this.style.display='none'"><div class="wm-namewrap"><span class="wm-name" id="wmNameA"></span><span class="wm-nick" id="wmNickA" style="display:none"></span></div><span class="wm-dots" id="wmDotsA"></span></div>
       <div class="wm-center"><span class="wm-pct" id="wmPctA">50%</span><span class="wm-pct-sep">-</span><span class="wm-pct" id="wmPctB">50%</span></div>
-      <div class="wm-side wm-b"><span class="wm-dots" id="wmDotsB"></span><span class="wm-name" id="wmNameB"></span></div>
+      <div class="wm-side wm-b"><span class="wm-dots" id="wmDotsB"></span><div class="wm-namewrap"><span class="wm-name" id="wmNameB"></span><span class="wm-nick" id="wmNickB" style="display:none"></span></div><img class="wm-photo" id="wmPhotoB" alt="" style="display:none" onerror="this.style.display='none'"></div>
     </div>
     <div class="wm-bar"><div class="wm-fill" id="wmFill"></div><div class="wm-mid"></div></div>
   </div>
@@ -1517,6 +1685,13 @@ window.addEventListener('unhandledrejection', function(ev){
   <div class="wm-point" id="wmPoint" hidden></div>
   <div class="wm-wait" id="wmWait">WinMeter 待機中…</div>
 </div>
+
+<!-- 永続ノード(dbPanel/wmPanel)の退避先。renderInspector()がel.innerHTMLを書き換える直前に
+     一時的にここへ移す（elの子のままだとinnerHTML書き換えでノードごと破棄されてしまうため）。 -->
+<div id="panelStash" hidden></div>
+
+<!-- 対戦データベース パネル（renderRunInspector がWinMeterより先に移設する永続ノード＝表示上WinMeterの上に来る） -->
+<div id="dbPanel" hidden></div>
 
 <!-- WinMeter 管理パネル（renderRunInspector が右カラム末尾へ移設する永続ノード） -->
 <div id="wmPanel" hidden></div>
@@ -1629,13 +1804,16 @@ function makeTournament(id, size){
 
 let state = {
   phase:'create',
-  config:{ size:8, count:1, third:false, order:'block', players:0, seedCount:0, palette:clonePalette(),
-           zoom:1, showAff:false, showNumber:false, showSeed:false, lineColor:'#33404f', autoSave:false,
+  config:{ size:8, count:1, third:true, order:'block', players:0, seedCount:0, palette:clonePalette(),
+           zoom:1, showAff:false, showNumber:false, showSeed:false, showScore:true, lineColor:'#33404f', autoSave:false,
            theme:'light', playerSize:148, otherSize:148, otherHidden:true, thirdWidth:114, standWidth:114,
            recordTime:false, repMode:'tournament', repThird:false, hideByes:true,
            avoidSameAff:true, showMatchNo:true, centerStyle:false, winLineColor:'#e23b3b',
            autoAdvance:true, autoSpotlight:true, autoBlinkWins:true,
            adminOnlyAnim:false, adminOnlySfx:true, shakeCheer:true, stageBg:'', stageDot:true,
+           advShowPhoto:true, advShowTypes:true, advShowAff:true, advShowIntro:true, advShowNickname:false, advPhotoSize:'md', advTeaseNickname:false,
+           spShowPhoto:true, spShowTypes:true, spShowAff:true, spShowIntro:true, spShowNickname:false, spPhotoSize:'md', spTeaseNickname:true,
+           popupShowNum:true, popupShowAff:true, popupShowFuri:true, popupShowTypes:true, popupShowIntro:true, popupShowPhoto:false,
            timerMode:'down', matchDuration:120,
            nameFont:'', baseFont:'', nameFontBold:false, baseFontBold:false },
   version: SCHEMA_VERSION,
@@ -1860,7 +2038,7 @@ function maybeShowBroadcast(){
       // 閲覧者はポップアップ表示・効果音をそれぞれ独立にローカル設定で切替可（点滅・進行タイミングは変えない）
       if(viewerPlaysSfx()) playAdvSfx();
       if(!viewMode || viewerShowEffects()) showAdvance(a, b, adv.win, adv.colA, adv.colB, _matchXY(adv.key||null));
-      delay=ADV_MS()+CARD_GAP; advEnd=ADV_MS(); advKey=adv.key||null;
+      delay=ADV_TOTAL_MS(a,b)+CARD_GAP; advEnd=ADV_TOTAL_MS(a,b); advKey=adv.key||null;
     }
     lastAdvanceTs=adv.ts;
   }
@@ -1874,7 +2052,7 @@ function maybeShowBroadcast(){
       if(showPopup || playSfxFlag){
         setTimeout(()=>{ if(playSfxFlag) playSpSfx(); if(showPopup) showSpotlight(a, b, sp.colTop, sp.colBot, sp.header||'', _matchXY(spKey)); }, delay);
       }
-      lastEnd=delay+SP_MS();
+      lastEnd=delay+SP_TOTAL_MS(a,b);
     }
     lastSpotlightTs=sp.ts;
   }
@@ -2922,7 +3100,7 @@ function buildSlot(t, slot, i){
     box.onclick = ()=>{ state.sel = {t:t.id, slot:i}; state.runSel=null; renderAll(); };
     enableDnD(box, t, i);
   } else if(p.playerName){                                         // 閲覧：選手詳細ポップアップ
-    attachPlayerPopup(box, {name:p.playerName, furigana:p.furigana, aff:p.affiliation, num:p.number, type1:p.type1, type2:p.type2, intro:p.intro});
+    attachPlayerPopup(box, {name:p.playerName, furigana:p.furigana, aff:p.affiliation, num:p.number, type1:p.type1, type2:p.type2, intro:p.intro, nickname:p.nickname, photoUrl:p.photoUrl});
   }
   return box;
 }
@@ -2931,19 +3109,30 @@ function buildSlot(t, slot, i){
  *   - マウス：hoverで表示。クリック/タップ：固定表示（画面内に収める）
  * ============================================================ */
 let _popPinned=false;
-function hasPlayerDetail(d){ return !!(d && (d.aff||d.num||d.type1||d.type2||d.intro)); }
+function hasPlayerDetail(d){
+  const c=state.config;
+  return !!(d && (
+    (c.popupShowNum!==false&&d.num) || (c.popupShowAff!==false&&d.aff) ||
+    (c.popupShowTypes!==false&&(d.type1||d.type2)) || (c.popupShowIntro!==false&&d.intro) ||
+    (c.showNickname&&d.nickname) || (c.popupShowPhoto&&d.photoUrl)
+  ));
+}
 function playerPopHTML(d){
-  const rows=[];
-  if(d.num) rows.push('<div class="pp-row"><span class="pp-k">'+esc(L('number'))+'</span><span class="pp-v">'+esc(d.num)+'</span></div>');
-  if(d.aff) rows.push('<div class="pp-row"><span class="pp-k">'+esc(L('affiliation'))+'</span><span class="pp-v">'+esc(d.aff)+'</span></div>');
-  const types=[d.type1,d.type2].filter(Boolean).map(esc).join('　/　');
+  const c=state.config, rows=[];
+  if(c.popupShowNum!==false && d.num) rows.push('<div class="pp-row"><span class="pp-k">'+esc(L('number'))+'</span><span class="pp-v">'+esc(d.num)+'</span></div>');
+  if(c.popupShowAff!==false && d.aff) rows.push('<div class="pp-row"><span class="pp-k">'+esc(L('affiliation'))+'</span><span class="pp-v">'+esc(d.aff)+'</span></div>');
+  const types=(c.popupShowTypes!==false)?[d.type1,d.type2].filter(Boolean).map(esc).join('　/　'):'';
   if(types) rows.push('<div class="pp-row"><span class="pp-k">'+esc(L('type1'))+'</span><span class="pp-v">'+types+'</span></div>');
-  let nameHtml='<div class="pp-name">'+esc(d.name||'');
-  if(d.furigana) nameHtml+='<div class="pp-ruby">'+esc(d.furigana)+'</div>';
+  const showPhoto = c.popupShowPhoto && d.photoUrl;
+  let nameHtml=(showPhoto?'<img class="pp-photo" src="'+esc(d.photoUrl)+'" alt="" onerror="this.remove()">':'')+
+    '<div class="pp-name">'+esc(d.name||'');
+  if(c.popupShowFuri!==false && d.furigana) nameHtml+='<div class="pp-ruby">'+esc(d.furigana)+'</div>';
   nameHtml+='</div>';
+  const hasNick = state.config.showNickname && d.nickname;
   let html=nameHtml+rows.join('');
-  if(!rows.length && !d.intro) html+='<div class="pp-empty">詳細情報はありません</div>';
-  if(d.intro) html+='<div class="pp-intro">'+esc(d.intro)+'</div>';
+  if(!rows.length && !(c.popupShowIntro!==false && d.intro) && !hasNick) html+='<div class="pp-empty">詳細情報はありません</div>';
+  if(c.popupShowIntro!==false && d.intro) html+='<div class="pp-intro">'+esc(d.intro)+'</div>';
+  if(hasNick) html+='<div class="pp-nickname">'+esc(d.nickname)+'</div>';
   // 閲覧モード：推し投票ボタン（1人だけ・取り消し可能）＋一言応援欄
   if(viewMode && d.name){
     let myVote=null; try{ myVote=localStorage.getItem('serval_myvote_'+curDocKey())||null; }catch(e){}
@@ -3127,7 +3316,7 @@ function competitorOf(t, origin){
   if(origin==null) return null;
   const s=t.slots[origin]; const p=(s&&s.player)||{};
   return { origin, name:p.playerName||'', furigana:p.furigana||'', aff:p.affiliation||'', num:p.number||'',
-           type1:p.type1||'', type2:p.type2||'', intro:p.intro||'',
+           type1:p.type1||'', type2:p.type2||'', intro:p.intro||'', nickname:p.nickname||'', photoUrl:p.photoUrl||'',
            colorIdx:(origin%2===0)?t.colorTop:t.colorBottom };
 }
 
@@ -3149,7 +3338,8 @@ function syncRepTournament(){
   }
   for(let i=0;i<repSize;i++){
     const c = i<n ? champOf(i) : null;
-    state.repT.slots[i].player = c ? {playerName:c.name, affiliation:c.aff, number:c.num} : null;
+    state.repT.slots[i].player = c ? {playerName:c.name, affiliation:c.aff, number:c.num,
+      furigana:c.furigana, type1:c.type1, type2:c.type2, intro:c.intro, nickname:c.nickname, photoUrl:c.photoUrl} : null;
   }
 }
 
@@ -3302,7 +3492,7 @@ function runNode(t, r, j, rounds){
   if(!viewMode){
     if(r<rounds){ box.style.cursor='pointer'; box.onclick=()=>{ openRunMatch(t, r, j); }; }
   } else if(comp){                                                 // 閲覧：勝ち上がった選手も詳細ポップアップ
-    attachPlayerPopup(box, {name:comp.name, aff:comp.aff, num:comp.num, type1:comp.type1, type2:comp.type2, intro:comp.intro});
+    attachPlayerPopup(box, {name:comp.name, furigana:comp.furigana, aff:comp.aff, num:comp.num, type1:comp.type1, type2:comp.type2, intro:comp.intro, nickname:comp.nickname, photoUrl:comp.photoUrl});
   }
   return box;
 }
@@ -3334,8 +3524,19 @@ function openMatchByKey(key){
 /* ============================================================
  *  インスペクタ（選手エディタ）
  * ============================================================ */
+/* el.innerHTMLをこれから書き換える箇所の直前で必ず呼ぶこと。
+ * 永続ノード(dbPanel/wmPanel)が現在elの子なら、innerHTML書き換えで
+ * ノードごと破棄される前に退避する（appendChildで戻すだけなので退避先はどこでもよい）。
+ * renderRunInspector()はrenderInspector()を経由せず直接呼ばれる箇所が複数あるため、
+ * 両方の入口で呼ぶ必要がある。 */
+function _rescuePersistentPanels(el){
+  const _stash = document.getElementById('panelStash'); if(!_stash) return;
+  const _db = document.getElementById('dbPanel'); if(_db && _db.parentElement===el) _stash.appendChild(_db);
+  const _wm = document.getElementById('wmPanel'); if(_wm && _wm.parentElement===el) _stash.appendChild(_wm);
+}
 function renderInspector(){
   const el = document.getElementById('inspector');
+  _rescuePersistentPanels(el);
   if(viewMode){ el.innerHTML=''; return; }                 // 閲覧専用：右パネルは出さない
   if(state.runSel){ renderRunInspector(el); return; }      // 試合番号を選択中→結果入力
   if(!state.sel){
@@ -3361,6 +3562,10 @@ function renderInspector(){
         <div class="field"><label>${esc(L('type2'))}</label><input type="text" id="fType2" value="${esc(p.type2||'')}" placeholder="例: 二足歩行"></div>
       </div>
       <div class="field"><label>${esc(L('intro'))}</label><input type="text" id="fIntro" value="${esc(p.intro||'')}" placeholder="演出で表示される紹介文"></div>
+      <div class="field"><label>二つ名</label><input type="text" id="fNickname" value="${esc(p.nickname||'')}" placeholder="演出で表示される二つ名"></div>
+      <div class="field"><label>写真URL</label><input type="text" id="fPhotoUrl" value="${esc(p.photoUrl||'')}" placeholder="対戦カード演出で表示される画像のURL（http/https）">
+        <div id="fPhotoUrlWarn" style="display:none;color:var(--danger,#e23b3b);font-size:11px;margin-top:4px">data:形式や長すぎるURLは保存できません。画像をアップロードしてURLを発行できるサービスをご利用ください。</div>
+      </div>
     </div>
     <div class="group">
       <h2>シード設定</h2>
@@ -3377,13 +3582,24 @@ function renderInspector(){
       <div class="call-desc">番号を元に登録済のLINEへ連絡</div>
     </div>
   `;
-  // バインド
+  // バインド（別画面・大型表示は publishBoard() を呼ばない限り更新されないため、編集内容を都度配信する）
   const bind=(id,key)=>{ const inp=document.getElementById(id); inp.oninput=()=>{
-    slot.player = slot.player||{}; slot.player[key]=inp.value; renderBracket(); }; };
+    slot.player = slot.player||{}; slot.player[key]=inp.value; renderBracket(); publishBoard(); }; };
   bind('fNumber','number'); bind('fPlayer','playerName'); bind('fFurigana','furigana'); bind('fAff','affiliation');
   bind('fAffFurigana','affiliationFurigana');
   bind('fRep','representative'); bind('fContact','contact');
   bind('fType1','type1'); bind('fType2','type2'); bind('fIntro','intro');
+  bind('fNickname','nickname');
+  { // 写真URL：data:形式や長すぎる値は保存データ全体の上限(49,500字)を壊すため弾く
+    const inp=document.getElementById('fPhotoUrl'), warn=document.getElementById('fPhotoUrlWarn');
+    inp.oninput=()=>{
+      const v=inp.value, bad = v.length>1800 || /^\s*data:/i.test(v);
+      warn.style.display = bad ? '' : 'none';
+      inp.style.borderColor = bad ? 'var(--danger,#e23b3b)' : '';
+      if(bad) return;                          // 不正な間は保存しない（直前の正常値を維持）
+      slot.player = slot.player||{}; slot.player.photoUrl=v; renderBracket(); publishBoard();
+    };
+  }
   el.querySelectorAll('[data-seed]').forEach(b=> b.onclick=()=>{
     if((slot.seed==='seed')===(b.dataset.seed==='seed')) return;        // 変化なし
     if(!confirmIfResults('シードを変更すると入力済みの結果と矛盾する可能性があります。続けますか？')){ renderInspector(); return; }
@@ -3563,11 +3779,11 @@ function renderAdFields(st){
       '<h3>バナー'+L+' <span class="kanban-clicks">リンク'+L+'クリック数：'+(clicks[i]||0)+'</span></h3>'+
       '<label>画像'+L+'指定（画像URL）</label>'+
       (hasFile
-        ? '<div style="display:flex;gap:4px;align-items:center"><input type="text" class="kanbanImg" data-i="'+i+'" value="'+esc(ad.img||'')+'" placeholder="https://…/banner.png" style="flex:1;min-width:0">'+
+        ? '<div style="display:flex;gap:4px;align-items:center"><input type="text" class="kanbanImg" data-i="'+i+'" value="'+esc(ad.img||'')+'" placeholder="https:&#47;&#47;.../banner.png" style="flex:1;min-width:0">'+
           '<button class="btn kanbanFile" data-i="'+i+'" style="font-size:11px;padding:2px 6px;white-space:nowrap">ファイル</button>'+borderChk+'</div>'
-        : '<div style="display:flex;gap:4px;align-items:center"><input type="text" class="kanbanImg" data-i="'+i+'" value="'+esc(ad.img||'')+'" placeholder="https://…/banner.png" style="flex:1;min-width:0">'+borderChk+'</div>')+
+        : '<div style="display:flex;gap:4px;align-items:center"><input type="text" class="kanbanImg" data-i="'+i+'" value="'+esc(ad.img||'')+'" placeholder="https:&#47;&#47;.../banner.png" style="flex:1;min-width:0">'+borderChk+'</div>')+
       '<label style="margin-top:6px">リンク'+L+'指定（クリック先URL）</label>'+
-      '<input type="text" class="kanbanLink" data-i="'+i+'" value="'+esc(ad.link||'')+'" placeholder="https://sponsor.example.com">';
+      '<input type="text" class="kanbanLink" data-i="'+i+'" value="'+esc(ad.link||'')+'" placeholder="https:&#47;&#47;sponsor.example.com">';
     wrap.appendChild(div);
   }
   wrap.querySelectorAll('.kanbanImg').forEach(inp=> inp.oninput=()=>{ const ad=ensureAds().items[+inp.dataset.i]; ad.img=inp.value.trim(); ad.borderColor=null; renderBracket(); });
@@ -3694,9 +3910,13 @@ function wcKbClick(side){
 }
 /* 運用フェーズのインスペクタ（結果入力パネル） */
 function renderRunInspector(el){
+  _rescuePersistentPanels(el);   // renderInspector()を経由しない直接呼び出しに備えて、ここでも退避
   if(!state.runSel){
     el.innerHTML='<div class="placeholder">試合番号をクリックして<br>勝敗を入力します。</div>';
-    if(typeof wmAttachPanel==='function') wmAttachPanel(el);
+    try{ if(typeof dbAttachPanel==='function') dbAttachPanel(el); }
+    catch(e){ if(typeof _showErr==='function') _showErr('dbAttachPanel: '+(e&&e.message||e)); }
+    try{ if(typeof wmAttachPanel==='function') wmAttachPanel(el); }
+    catch(e){ if(typeof _showErr==='function') _showErr('wmAttachPanel: '+(e&&e.message||e)); }
     return;
   }
   const ctx=runMatchCtx();
@@ -3737,14 +3957,14 @@ function renderRunInspector(el){
     const g=games[idx]||{elapsed:'',startTime:'',endTime:''};
     const isActive=stopwatch.running && stopwatch.gameIdx===idx;
     const placeholder=timerMode==='down'?fmtTime(matchDuration):'0:00';
-    const timesHtml=(g.startTime||g.endTime)?`<div class="gt-times">${g.startTime?'開始 '+g.startTime:''}${(g.startTime&&g.endTime)?' ／ ':''}${g.endTime?'終了 '+g.endTime:''}</div>`:'';
+    // 開始・終了時刻(g.startTime/g.endTime)はstartStopwatch/stopStopwatchが内部的に記録するのみで画面表示はしない
     return `<div class="game-timer"><div class="gt-row">
         <span class="gt-label">${idx+1}本目</span>
         <input type="text" class="gt-elapsed" id="gt-elapsed-${idx}" value="${esc(g.elapsed||'')}" placeholder="${placeholder}">
         <button class="btn sm" id="gt-sw-${idx}" style="flex:0 0 52px">${isActive?'停止':'開始'}</button>
-      </div>${timesHtml}</div>`;
+      </div></div>`;
   }).join('');
-  const timeRow=`<div class="group"><h2>タイマー（本数別）</h2>${gamesHtml}</div>`;
+  const timeRow=`<div class="group"><h2>試合時間（本数別）</h2>${gamesHtml}</div>`;
   const repairHtml=[0,1].map(function(side){
     const c=side===0?a:b;
     const dotColor=side===0?colTop:colBot;
@@ -3843,7 +4063,11 @@ function renderRunInspector(el){
     if(inp) inp.oninput=(e)=>{ if(state.pending){ if(side===0) state.pending.repairA=e.target.value; else state.pending.repairB=e.target.value; } };
   });
   if(typeof _kbHighlight==='function') _kbHighlight();   // Tabフォーカスのハイライトを再適用
-  if(typeof wmAttachPanel==='function') wmAttachPanel(el);   // WinMeterパネルを末尾へ移設（永続ノード）
+  // 対戦DB→WinMeterの順（DB側が上に来る）。片方が例外を投げてももう片方は道連れにしない。
+  try{ if(typeof dbAttachPanel==='function') dbAttachPanel(el); }
+  catch(e){ if(typeof _showErr==='function') _showErr('dbAttachPanel: '+(e&&e.message||e)); }
+  try{ if(typeof wmAttachPanel==='function') wmAttachPanel(el); }
+  catch(e){ if(typeof _showErr==='function') _showErr('wmAttachPanel: '+(e&&e.message||e)); }
 }
 
 /* 結果を取り消して未送信（未実施）に戻す。保存して閲覧側にも反映。 */
@@ -3897,10 +4121,11 @@ function sendResultCtx(ctx){
       if(hasWin){
         if(animate) animate();
         if(cfgAdv) showAdvanceCtx({a:ctx.a, b:ctx.b, win:pend.win, colTop:ctx.colTop, colBot:ctx.colBot, noKey:ctx.noKey});  // ①勝ち上がり演出
-        const advDelay = cfgAdv ? ADV_MS()+CARD_GAP : 0;
+        const [nkA,nkB] = nextChanged ? matchCompetitors(nk) : [null,null];
+        const advDelay = cfgAdv ? ADV_TOTAL_MS(ctx.a,ctx.b)+CARD_GAP : 0;
         if(cfgSp && nextChanged) setTimeout(()=> spotlightForKey(nk, '次の試合'), advDelay);    // ②次の試合の対戦カード演出
         if(cfgBlink){
-          const blinkAt = (cfgAdv ? ADV_MS() : 0) + (cfgSp && nextChanged ? CARD_GAP+SP_MS() : 0) + 200;
+          const blinkAt = (cfgAdv ? ADV_TOTAL_MS(ctx.a,ctx.b) : 0) + (cfgSp && nextChanged ? CARD_GAP+SP_TOTAL_MS(nkA,nkB) : 0) + 200;
           setTimeout(()=> blinkBracketWins(ctx.noKey), blinkAt);
         }
       } else if(cfgSp && nextChanged){
@@ -4024,6 +4249,20 @@ function syncEffectsModal(){
   document.getElementById('efxAutoBlinkWins').checked  = state.config.autoBlinkWins  !== false;
   document.getElementById('efxAdminOnlyAnim').checked  = !!state.config.adminOnlyAnim;
   document.getElementById('efxAdminOnlySfx').checked   = state.config.adminOnlySfx   !== false;
+  document.getElementById('efxAdvTeaseNickname').checked = !!state.config.advTeaseNickname;
+  document.getElementById('efxSpTeaseNickname').checked  = state.config.spTeaseNickname !== false;
+  document.getElementById('efxAdvShowPhoto').checked     = state.config.advShowPhoto !== false;
+  document.getElementById('efxAdvShowNickname').checked  = !!state.config.advShowNickname;
+  document.getElementById('efxAdvShowTypes').checked     = state.config.advShowTypes !== false;
+  document.getElementById('efxAdvShowAff').checked       = state.config.advShowAff   !== false;
+  document.getElementById('efxAdvShowIntro').checked     = state.config.advShowIntro !== false;
+  document.getElementById('efxSpShowPhoto').checked      = state.config.spShowPhoto !== false;
+  document.getElementById('efxSpShowNickname').checked   = !!state.config.spShowNickname;
+  document.getElementById('efxSpShowTypes').checked      = state.config.spShowTypes !== false;
+  document.getElementById('efxSpShowAff').checked        = state.config.spShowAff   !== false;
+  document.getElementById('efxSpShowIntro').checked      = state.config.spShowIntro !== false;
+  document.getElementById('efxAdvPhotoSize').value = state.config.advPhotoSize||'md';
+  document.getElementById('efxSpPhotoSize').value  = state.config.spPhotoSize||'md';
   const asel=document.getElementById('efxAdvMs'), ssel=document.getElementById('efxSpMs');
   asel.value=String(state.config.advMs||_ADV_MS_DEF); if(!asel.value) asel.value=String(_ADV_MS_DEF);
   ssel.value=String(state.config.spMs||_SP_MS_DEF);   if(!ssel.value) ssel.value=String(_SP_MS_DEF);
@@ -4170,30 +4409,30 @@ function playSpSfx(){
   else if(m==='preset3') sfxSp3();
   else if(m==='url' && state.config.spSfxUrl) playSfxUrl(state.config.spSfxUrl);
 }
-function testAdvSfx(){
-  const m=document.getElementById('efxAdvSfxMode').value;
-  if(m==='preset1') sfxAdv1(); else if(m==='preset2') sfxAdv2(); else if(m==='preset3') sfxAdv3();
-  else if(m==='url'){ const u=document.getElementById('efxAdvSfxUrl').value.trim(); if(u) playSfxUrl(u); }
-}
-function testSpSfx(){
-  const m=document.getElementById('efxSpSfxMode').value;
-  if(m==='preset1') sfxSp1(); else if(m==='preset2') sfxSp2(); else if(m==='preset3') sfxSp3();
-  else if(m==='url'){ const u=document.getElementById('efxSpSfxUrl').value.trim(); if(u) playSfxUrl(u); }
-}
 /* 演出カードの中身（対戦カード/勝ち上がり 共通）。上に色線、下に名前＋タイプ＋紹介文。
    extra=追加クラス（例 'adv-card'）。c={name,aff,type1,type2,intro}|null */
 </script>
 <script>
-function spotCardInner(c, col){
-  const types=c?[c.type1,c.type2].filter(Boolean).map(esc).join('　/　'):'';
-  return '<div class="sp-bar" style="background:'+col+'"></div>'+
+function spotCardInner(c, col, kind){
+  const cfg=state.config, pfx=(kind==='adv')?'adv':'sp';
+  const showPhoto=cfg[pfx+'ShowPhoto']!==false, showTypes=cfg[pfx+'ShowTypes']!==false,
+        showAff=cfg[pfx+'ShowAff']!==false, showIntro=cfg[pfx+'ShowIntro']!==false,
+        showNick=!!(cfg[pfx+'ShowNickname']||cfg[pfx+'TeaseNickname']);
+  const photoSize=cfg[pfx+'PhotoSize']||'md';
+  const types=(showTypes&&c)?[c.type1,c.type2].filter(Boolean).map(esc).join('　/　'):'';
+  return (showPhoto&&c&&c.photoUrl?'<img class="sp-photo psz-'+photoSize+'" src="'+esc(c.photoUrl)+'" alt="" onerror="this.remove()">':'')+
+    '<div class="sp-bar" style="background:'+col+'"></div>'+
     '<div class="sp-name">'+(c?esc(c.name||'（無名）'):'（未定）')+'</div>'+
     (types?'<div class="sp-types">'+types+'</div>':'')+
-    (c&&c.aff?'<div class="sp-aff">'+esc(c.aff)+'</div>':'')+
-    (c&&c.intro?'<div class="sp-intro">'+esc(c.intro)+'</div>':'');
+    (showAff&&c&&c.aff?'<div class="sp-aff">'+esc(c.aff)+'</div>':'')+
+    (showIntro&&c&&c.intro?'<div class="sp-intro">'+esc(c.intro)+'</div>':'')+
+    (showNick&&c&&c.nickname?'<div class="sp-nickname">'+esc(c.nickname)+'</div>':'');
 }
-function spotCard(c, col, extra){
-  return '<div class="sp-card'+(extra?' '+extra:'')+'" style="border-color:'+col+'">'+spotCardInner(c,col)+'</div>';
+function spotCard(c, col, extra, kind){
+  const cfg=state.config, pfx=(kind==='adv')?'adv':'sp';
+  const showNick=!!(cfg[pfx+'ShowNickname']||cfg[pfx+'TeaseNickname']);
+  const hasNick=!!(showNick&&c&&c.nickname);
+  return '<div class="sp-card'+(hasNick?' has-nick':'')+(extra?' '+extra:'')+'" style="border-color:'+col+'">'+spotCardInner(c,col,kind)+'</div>';
 }
 /* ブラケット上の試合の交点 {x, y} を viewport 座標で返す。noKey="tid:r:j"。
    X = ソーススロット右端とWinnerスロット左端の中点（コネクタ線の分岐点）
@@ -4244,20 +4483,35 @@ function _applyOverlayFonts(ov){
   if(cfg.nameFont) loadGFont(cfg.nameFont);
   ov.querySelectorAll('.sp-name').forEach(el=>{ el.style.fontFamily=nf; el.style.fontWeight=nw; });
 }
+/* 焦らし演出：二つ名を先に見せてから本カードを表示するかどうか（両側とも二つ名が無ければ通常表示）。
+   勝ち上がり演出・対戦カード演出でそれぞれ独立に設定可能（advTeaseNickname / spTeaseNickname）。 */
+function _teaseEligible(a,b,kind){ const pfx=(kind==='adv')?'adv':'sp';
+  return !!(state.config[pfx+'TeaseNickname'] && ((a&&a.nickname)||(b&&b.nickname))); }
+function TEASE_MS(){ return 1400; }
+/* 焦らし演出が有効な組み合わせでは、他コードが演出の合計尺（焦らし＋本体）を知る必要がある（次演出との連携タイミング用） */
+function ADV_TOTAL_MS(a,b){ return ADV_MS() + (_teaseEligible(a,b,'adv')?TEASE_MS():0); }
+function SP_TOTAL_MS(a,b){ return SP_MS() + (_teaseEligible(a,b,'sp')?TEASE_MS():0); }
 /* 演出：対戦カードを大写しにするオーバーレイ（表示のみ）。a,b={name,aff,type1,type2,intro}|null */
-let spotlightTimer;
+let spotlightTimer, spotlightTeaseTimer;
 function showSpotlight(a,b,colTop,colBot,header,xy){
   const ov=document.getElementById('spotlight');
   const head = header ? '<div class="sp-head">'+esc(header)+'</div>' : '';
-  ov.querySelector('.sp-body').innerHTML = head + '<div class="sp-cards">'+spotCard(a,colTop)+'<div class="sp-vs">VS</div>'+spotCard(b,colBot)+'</div>';
+  const tease=_teaseEligible(a,b,'sp');
+  ov.querySelector('.sp-body').innerHTML = head + '<div class="sp-cards'+(tease?' tease-phase':'')+'">'+spotCard(a,colTop,'','sp')+'<div class="sp-vs">VS</div>'+spotCard(b,colBot,'','sp')+'</div>';
   _applyOverlayFonts(ov);
   _setOverlayXY(ov, '.sp-body', xy);
   ov.classList.add('show');
-  clearTimeout(spotlightTimer);
-  spotlightTimer=setTimeout(()=> ov.classList.remove('show'), SP_MS());   // 自動で消える
+  clearTimeout(spotlightTimer); clearTimeout(spotlightTeaseTimer);
+  if(tease){
+    // 同じDOMのまま tease-phase クラスを外すだけ＝二つ名カードが連続的に本カードへ変化する
+    spotlightTeaseTimer=setTimeout(()=>{
+      const cards=ov.querySelector('.sp-cards'); if(cards) cards.classList.remove('tease-phase');
+    }, TEASE_MS());
+  }
+  spotlightTimer=setTimeout(()=> ov.classList.remove('show'), (tease?TEASE_MS():0)+SP_MS());   // 自動で消える
 }
 /* 配信用：演出に出す選手情報（名前・所属・タイプ・紹介文）を抜き出す。 */
-function spotPersist(c){ return c ? {name:c.name||'', aff:c.aff||'', type1:c.type1||'', type2:c.type2||'', intro:c.intro||''} : null; }
+function spotPersist(c){ return c ? {name:c.name||'', aff:c.aff||'', type1:c.type1||'', type2:c.type2||'', intro:c.intro||'', nickname:c.nickname||'', photoUrl:c.photoUrl||''} : null; }
 /* 管理者が演出ボタンを押したとき：自分で表示し、閲覧側にも配信（stateに合図を保存）。 */
 function showSpotlightCtx(ctx){
   const {a,b,colTop,colBot,header,matchKey}=ctx;
@@ -4271,18 +4525,33 @@ function showSpotlightCtx(ctx){
 }
 
 /* 勝ち上がり演出：両枠が火花→勝者拡大・敗者縮小＋赤線。win=0:a / 1:b */
-let advanceTimer;
+let advanceTimer, advanceTeaseTimer;
 function showAdvance(a,b,win,colA,colB,xy){
   const ov=document.getElementById('advance');
+  clearTimeout(advanceTimer); clearTimeout(advanceTeaseTimer);
+  ov.classList.remove('phase-result');
+  const tease=_teaseEligible(a,b,'adv');
   // 対戦カード演出と同じカード構造（上の色線・名前・タイプ・紹介文）に勝敗の拡大縮小を重ねる
-  ov.querySelector('.adv-body').innerHTML='<div class="sp-head">リザルト</div><div class="adv-cards sp-cards">'+spotCard(a,colA,'adv-card')+'<div class="adv-spark">⚡</div>'+spotCard(b,colB,'adv-card')+'</div><div class="adv-line"></div>';
+  ov.querySelector('.adv-body').innerHTML='<div class="sp-head">リザルト</div><div class="adv-cards sp-cards'+(tease?' tease-phase':'')+'">'+spotCard(a,colA,'adv-card','adv')+'<div class="adv-spark">⚡</div>'+spotCard(b,colB,'adv-card','adv')+'</div><div class="adv-line"></div>';
   _applyOverlayFonts(ov);
   _setOverlayXY(ov, '.adv-body', xy);
-  ov.classList.remove('phase-result'); ov.classList.add('show');
-  setTimeout(()=>{ const c=ov.querySelectorAll('.adv-card');
-    if(c[win]) c[win].classList.add('win'); if(c[1-win]) c[1-win].classList.add('lose');
-    ov.classList.add('phase-result'); }, 1150);
-  clearTimeout(advanceTimer); advanceTimer=setTimeout(()=> ov.classList.remove('show','phase-result'), ADV_MS());
+  ov.classList.add('show');
+  const startResult=()=>{
+    setTimeout(()=>{ const c=ov.querySelectorAll('.adv-card');
+      if(c[win]) c[win].classList.add('win'); if(c[1-win]) c[1-win].classList.add('lose');
+      ov.classList.add('phase-result'); }, 1150);
+  };
+  if(tease){
+    // 同じDOMのまま tease-phase クラスを外すだけ＝二つ名カードが連続的に本カードへ変化する
+    advanceTeaseTimer=setTimeout(()=>{
+      const cards=ov.querySelector('.adv-cards'); if(cards) cards.classList.remove('tease-phase');
+      startResult();
+    }, TEASE_MS());
+    advanceTimer=setTimeout(()=> ov.classList.remove('show','phase-result'), TEASE_MS()+ADV_MS());
+    return;
+  }
+  startResult();
+  advanceTimer=setTimeout(()=> ov.classList.remove('show','phase-result'), ADV_MS());
 }
 /* 勝ち上がった試合の勝者線だけを点滅（key=matchNoMapキー）。 */
 function blinkBracketWins(key){
@@ -4297,10 +4566,43 @@ function showAdvanceCtx(ctx){
   playAdvSfx();
   showAdvance(a,b,win,colTop,colBot, _matchXY(noKey||null));
   if(state.config.adminOnlyAnim){ lastAdvanceTs=Date.now(); return; }  // 閲覧側へ配信しない
-  state.advance={ a:spotPersist(a), b:spotPersist(b), win, colA:colTop, colB:colBot, key:noKey||'', ts:Date.now() };
+  state.advance={ a:spotPersist(a), b:spotPersist(b), win, colA:colTop, colB:colBot, key:noKey||'', ts:Date.now(),
+    cardCfg:{advShowPhoto:state.config.advShowPhoto, advShowTypes:state.config.advShowTypes, advShowAff:state.config.advShowAff,
+             advShowIntro:state.config.advShowIntro, advShowNickname:state.config.advShowNickname, advPhotoSize:state.config.advPhotoSize,
+             advTeaseNickname:state.config.advTeaseNickname} };
   lastAdvanceTs=state.advance.ts;
   const key=document.getElementById('docKey').value||'default';
   Backend.save(key, JSON.stringify(state)).then(()=>markSaved()).catch(()=>{});
+}
+
+/* テストプレイ対象のカードデータ：右カラムで選択中の試合。未選択なら試合番号１。 */
+function _testCardCtx(){
+  if(state.runSel){
+    try{ const ctx=runMatchCtx(); return {a:ctx.a, b:ctx.b, colTop:ctx.colTop, colBot:ctx.colBot}; }catch(e){}
+  }
+  let key=null; for(const k in matchNoMap){ if(matchNoMap[k]===1){ key=k; break; } }
+  if(!key) return null;
+  const [ca,cb]=matchCompetitors(key);
+  let colTop=paletteHex(0), colBot=paletteHex(1);
+  if(key.slice(0,3)!=='LG:' && key.slice(0,4)!=='REP:'){
+    const i=key.indexOf(':'); const t=tournById(+key.slice(0,i));
+    if(t){ colTop=paletteHex(t.colorTop); colBot=paletteHex(t.colorBottom); }
+  }
+  return {a:ca, b:cb, colTop, colBot};
+}
+/* 演出設定「テストプレイ」ボタン：実在の試合データで再生する（Backend.save・配信は行わずこの画面だけで確認）。
+   勝ち上がり演出・対戦カード演出はそれぞれ単体で再生する（連続再生はしない）。 */
+function testAdvancePlay(){
+  const ctx=_testCardCtx();
+  if(!ctx){ toast('テスト対象の試合が見つかりません', true); return; }
+  playAdvSfx();
+  showAdvance(ctx.a, ctx.b, Math.random()<0.5?0:1, ctx.colTop, ctx.colBot);
+}
+function testSpotlightPlay(){
+  const ctx=_testCardCtx();
+  if(!ctx){ toast('テスト対象の試合が見つかりません', true); return; }
+  playSpSfx();
+  showSpotlight(ctx.a, ctx.b, ctx.colTop, ctx.colBot, 'テストプレイ');
 }
 
 /* ============================================================
@@ -4323,6 +4625,7 @@ const BOARD_BGS=['none','gradient','dots','constellation','flame'];   // 星座�
 function boardCfg(){
   const d={ bg:'gradient', showHead:true, showNo:true, showName:true, showScore:true, showTime:true,
             showAff:false, showFuri:false, showType:true, showIntro:false, showRepair:false,
+            showNickname:false, showPhoto:false, photoSize:'md', switchAnim:'random',
             baseColor:'#11202f', subColor:'#060a10', dark:false, winSize:'1280x720',
             nameFont:'', baseFont:'', numFont:'', nameFontBold:false, baseFontBold:false, numFontBold:false };
   if(!state.board || typeof state.board!=='object') state.board={};
@@ -4333,7 +4636,7 @@ function boardCfg(){
 /* lane（別画面２）設定。既定値を補完して返す。 */
 function laneCfg(){
   const d={ bg:'gradient', showHead:true, showNo:false, showName:true, showScore:true, showTime:true,
-            showAff:false, showFuri:false,
+            showAff:false, showFuri:false, showNickname:false, showPhoto:false, photoSize:'md',
             baseColor:'#0d1620', subColor:'#060a10', dark:false, winSize:'1920x200',
             nameFont:'', baseFont:'', numFont:'', nameFontBold:false, baseFontBold:false, numFontBold:false };
   if(!state.lane || typeof state.lane!=='object') state.lane={};
@@ -4355,7 +4658,8 @@ function ensureLaneChannel(onmsg){
 /* sub（別画面３）設定。boardCfg と同構造で独立した設定。 */
 function subCfg(){
   const d={ bg:'gradient', showHead:true, showNo:true, showName:true, showScore:true, showTime:true,
-            showAff:false, showFuri:false, showType:true, showIntro:false,
+            showAff:false, showFuri:false, showType:true, showIntro:false, showRepair:false,
+            showNickname:false, showPhoto:false, photoSize:'md',
             baseColor:'#11202f', subColor:'#060a10', dark:false, winSize:'1280x720',
             nameFont:'', baseFont:'', numFont:'', nameFontBold:false, baseFontBold:false, numFontBold:false };
   if(!state.sub || typeof state.sub!=='object') state.sub={};
@@ -4414,6 +4718,8 @@ function computeBoardData(){
            aAff:(ca&&ca.aff)||'', bAff:(cb&&cb.aff)||'',
            aFuri:(ca&&ca.furigana)||'', bFuri:(cb&&cb.furigana)||'',
            aTypes:typesOf(ca), aIntro:(ca&&ca.intro)||'', bTypes:typesOf(cb), bIntro:(cb&&cb.intro)||'',
+           aNickname:(ca&&ca.nickname)||'', bNickname:(cb&&cb.nickname)||'',
+           aPhotoUrl:(ca&&ca.photoUrl)||'', bPhotoUrl:(cb&&cb.photoUrl)||'',
            repairA:(_repA&&_repA!==_defRepair)?_repA:'', repairB:(_repB&&_repB!==_defRepair)?_repB:'', cfg };
 }
 /* 管理タブ：ボードデータを配信（このタブが管理中のときのみ）。
@@ -4512,25 +4818,38 @@ function onBoardData(d){
     const first=(_lastBoardAdvTs===null); _lastBoardAdvTs=adv.ts;
     if(!first){
       const a=adv.a||{name:adv.aName||''}, b=adv.b||{name:adv.bName||''};
+      if(adv.cardCfg) Object.assign(state.config, adv.cardCfg);   // 別画面タブは本体のstate.configを読み込んでいないため、表示項目の設定を配信データから反映する
       showAdvance(a, b, adv.win, adv.colA, adv.colB);               // 勝ち上がり演出を別画面でも再生
       renderBoard(d, true);                                          // 内容は裏で更新（入場アニメは抑止）
       const c=document.getElementById('bdContent'); if(c) c.style.visibility='hidden';   // 演出中は文字を隠す（背景はそのまま）
-      clearTimeout(_boardSwT); _boardSwT=setTimeout(playBoardSwitch, ADV_MS());  // 演出が消えると同時に入場
+      const _swAnim=(d.cfg&&d.cfg.switchAnim)||null;
+      clearTimeout(_boardSwT); _boardSwT=setTimeout(()=>playBoardSwitch(_swAnim), ADV_TOTAL_MS(a,b));  // 演出が消えると同時に入場
       return;
     }
   }
   renderBoard(d);
 }
-/* 試合が切り替わったとき、5種からランダムで入場アニメを再生（別画面側で実行）。 */
-function playBoardSwitch(){
+/* 試合が切り替わったとき、入場アニメを再生（別画面側で実行）。anim未指定/'random'ならランダム、
+   指定があればその方式に固定（画面設定で選択可）。 */
+function playBoardSwitch(anim){
   const c=document.getElementById('bdContent'); if(!c) return;
   c.style.visibility='visible';                         // 演出で隠していた文字を表示してアニメ開始
-  const cls=BOARD_ANIMS[Math.floor(Math.random()*BOARD_ANIMS.length)];
+  const cls=(anim && anim!=='random' && BOARD_ANIMS.indexOf(anim)>=0) ? anim : BOARD_ANIMS[Math.floor(Math.random()*BOARD_ANIMS.length)];
   BOARD_ANIMS.forEach(a=>c.classList.remove(a)); c.classList.remove('anim-on');
   void c.offsetWidth;                                   // リフローでアニメ再起動
   c.classList.add(cls, 'anim-on');
   clearTimeout(playBoardSwitch._t);
   playBoardSwitch._t=setTimeout(()=>{ c.classList.remove(cls,'anim-on'); }, 2500);
+}
+/* 画面設定「テストプレイ」：管理タブ上に一時的に別画面１を表示し、選択中の入場演出を確認する。 */
+function testBoardSwitchAnim(){
+  const scr=document.getElementById('boardScreen'); if(!scr) return;
+  const wasHidden=scr.hidden;
+  const cfg=boardCfg();
+  renderBoard(computeBoardData(), true);
+  scr.hidden=false;
+  playBoardSwitch(cfg.switchAnim);
+  if(wasHidden) setTimeout(()=>{ scr.hidden=true; }, 2600);
 }
 function renderBoard(d, silent){
   const scr=document.getElementById('boardScreen'); if(!scr) return;
@@ -4550,7 +4869,7 @@ function renderBoard(d, silent){
   wait.style.display='none';
   // 試合が変わったら（番号・対戦者で判定）切り替えアニメ。スコア/時間だけの更新では発火しない
   const sig=(d.no||'')+'|'+(d.aName||'')+'|'+(d.bName||'');
-  if(!silent && _boardSig!==null && _boardSig!=='empty' && _boardSig!==sig) playBoardSwitch();
+  if(!silent && _boardSig!==null && _boardSig!=='empty' && _boardSig!==sig) playBoardSwitch(cfg.switchAnim);
   _boardSig=sig;
   // 見出し（ブロック・回戦）と試合番号
   const headOn = cfg.showHead||cfg.showNo;
@@ -4573,6 +4892,11 @@ function renderBoard(d, silent){
   setSpan('bdAffA', d.aAff, cfg.showAff); setSpan('bdAffB', d.bAff, cfg.showAff);
   setSpan('bdTypeA', d.aTypes, cfg.showType); setSpan('bdTypeB', d.bTypes, cfg.showType);
   setSpan('bdIntroA', d.aIntro, cfg.showIntro); setSpan('bdIntroB', d.bIntro, cfg.showIntro);
+  setSpan('bdNickA', d.aNickname, cfg.showNickname); setSpan('bdNickB', d.bNickname, cfg.showNickname);
+  const setPhoto=(id,url,on)=>{ const el=document.getElementById(id); if(!el) return; const show=!!(on&&url);
+    el.style.display=show?'':'none'; if(show && el.src!==url) el.src=url;
+    el.classList.remove('psz-sm','psz-lg'); const psz=cfg.photoSize; if(psz==='sm'||psz==='lg') el.classList.add('psz-'+psz); };
+  setPhoto('bdPhotoA', d.aPhotoUrl, cfg.showPhoto); setPhoto('bdPhotoB', d.bPhotoUrl, cfg.showPhoto);
   // 勝ち数（ON/OFF）。OFF時は「VS」を代わりに表示
   const scoreOn=cfg.showScore!==false;
   const scEl=scr.querySelector('.bd-score'); if(scEl) scEl.style.display='flex';
@@ -4733,6 +5057,12 @@ function syncBoardModal(){
   set('bdShowHead','showHead'); set('bdShowNo','showNo'); set('bdShowName','showName');
   set('bdShowFuri','showFuri'); set('bdShowAff','showAff'); set('bdShowType','showType');
   set('bdShowIntro','showIntro'); set('bdShowScore','showScore'); set('bdShowTime','showTime'); set('bdShowRepair','showRepair');
+  set('bdShowNickname','showNickname'); set('bdShowPhoto','showPhoto');
+  const bdPsz=document.getElementById('bdPhotoSize'); bdPsz.value=c.photoSize||'md';
+  bdPsz.onchange=()=>{ c.photoSize=bdPsz.value; applyBoardCfgChange(); };
+  const bdAnim=document.getElementById('bdSwitchAnim'); bdAnim.value=c.switchAnim||'random';
+  bdAnim.onchange=()=>{ c.switchAnim=bdAnim.value; applyBoardCfgChange(); };
+  document.getElementById('bdTestSwitchAnim').onclick=testBoardSwitchAnim;
   setupWinSizeUI('bd', c, applyBoardCfgChange);
   setupFontUI('bdNameFontRow', c, 'nameFont', 'nameFontBold', applyBoardCfgChange);
   setupFontUI('bdNumFontRow',  c, 'numFont',  'numFontBold',  applyBoardCfgChange);
@@ -4776,6 +5106,11 @@ function renderLane(d){
   document.getElementById('lnColB').style.background=d.colB||'#888';
   g('lnFuriA',d.aFuri,cfg.showFuri); g('lnFuriB',d.bFuri,cfg.showFuri);
   g('lnAffA',d.aAff,cfg.showAff); g('lnAffB',d.bAff,cfg.showAff);
+  g('lnNickA',d.aNickname,cfg.showNickname); g('lnNickB',d.bNickname,cfg.showNickname);
+  const lnSetPhoto=(id,url,on)=>{ const el=document.getElementById(id); if(!el) return; const show=!!(on&&url);
+    el.style.display=show?'':'none'; if(show && el.src!==url) el.src=url;
+    el.classList.remove('psz-sm','psz-lg'); const psz=cfg.photoSize; if(psz==='sm'||psz==='lg') el.classList.add('psz-'+psz); };
+  lnSetPhoto('lnPhotoA', d.aPhotoUrl, cfg.showPhoto); lnSetPhoto('lnPhotoB', d.bPhotoUrl, cfg.showPhoto);
   g('lnHead',d.head,cfg.showHead); g('lnNo',d.no?('試合 '+d.no):'',cfg.showNo&&d.no);
   const scoreOn2=cfg.showScore!==false;
   const lnScore=document.querySelector('#laneScreen .ln-score');
@@ -4861,7 +5196,10 @@ function syncSubTab(){
   const set=(id,key)=>{ const el=document.getElementById(id); if(!el) return; el.checked=!!c[key]; el.onchange=()=>{ c[key]=el.checked; applySubCfgChange(); }; };
   set('sbShowHead','showHead'); set('sbShowNo','showNo'); set('sbShowName','showName');
   set('sbShowFuri','showFuri'); set('sbShowAff','showAff'); set('sbShowType','showType');
-  set('sbShowIntro','showIntro'); set('sbShowScore','showScore'); set('sbShowTime','showTime');
+  set('sbShowIntro','showIntro'); set('sbShowScore','showScore'); set('sbShowTime','showTime'); set('sbShowRepair','showRepair');
+  set('sbShowNickname','showNickname'); set('sbShowPhoto','showPhoto');
+  const sbPsz=document.getElementById('sbPhotoSize'); sbPsz.value=c.photoSize||'md';
+  sbPsz.onchange=()=>{ c.photoSize=sbPsz.value; applySubCfgChange(); };
   setupWinSizeUI('sb', c, applySubCfgChange);
   setupFontUI('sbNameFontRow', c, 'nameFont', 'nameFontBold', applySubCfgChange);
   setupFontUI('sbNumFontRow',  c, 'numFont',  'numFontBold',  applySubCfgChange);
@@ -4890,6 +5228,9 @@ function syncLaneModal(){
   set('lnShowHead','showHead'); set('lnShowNo','showNo'); set('lnShowName','showName');
   set('lnShowFuri','showFuri'); set('lnShowAff','showAff');
   set('lnShowScore','showScore'); set('lnShowTime','showTime');
+  set('lnShowNickname','showNickname'); set('lnShowPhoto','showPhoto');
+  const lnPsz=document.getElementById('lnPhotoSize'); lnPsz.value=c.photoSize||'md';
+  lnPsz.onchange=()=>{ c.photoSize=lnPsz.value; applyLaneCfgChange(); };
   setupWinSizeUI('ln', c, applyLaneCfgChange);
   setupFontUI('lnNameFontRow', c, 'nameFont', 'nameFontBold', applyLaneCfgChange);
   setupFontUI('lnNumFontRow',  c, 'numFont',  'numFontBold',  applyLaneCfgChange);
@@ -5175,12 +5516,14 @@ function applyCsv(text, fileName){
     rep:         ['代表者名','代表者','操縦者','操縦者名'],                                   // 代表者・操縦者
     contact:     ['連絡先','メール','mail','電話','TEL','tel'],                               // 連絡先
     intro:       ['コメント','備考','一言','紹介文','紹介','一言紹介','PR'],                   // 一言紹介文に転記
+    nickname:    ['二つ名','二つ名・愛称','愛称','ニックネーム'],                             // 二つ名
+    photoUrl:    ['写真URL','写真','画像URL','ロボット写真','機体写真URL'],                    // 対戦カード演出用の写真URL
   };
   const first=rows[0].map(s=>s.trim());
   const idxOf=(keys)=> first.findIndex(h=> keys.includes(h));
-  const ci={ name:idxOf(HEAD.name), furigana:idxOf(HEAD.furigana), aff:idxOf(HEAD.aff), affFurigana:idxOf(HEAD.affFurigana), num:idxOf(HEAD.num), rep:idxOf(HEAD.rep), contact:idxOf(HEAD.contact), intro:idxOf(HEAD.intro) };
+  const ci={ name:idxOf(HEAD.name), furigana:idxOf(HEAD.furigana), aff:idxOf(HEAD.aff), affFurigana:idxOf(HEAD.affFurigana), num:idxOf(HEAD.num), rep:idxOf(HEAD.rep), contact:idxOf(HEAD.contact), intro:idxOf(HEAD.intro), nickname:idxOf(HEAD.nickname), photoUrl:idxOf(HEAD.photoUrl) };
   const hasHeader = Object.values(ci).some(v=> v>=0);
-  const map = hasHeader ? ci : { name:0, aff:1, furigana:-1, affFurigana:-1, num:-1, rep:-1, contact:-1, intro:-1 };
+  const map = hasHeader ? ci : { name:0, aff:1, furigana:-1, affFurigana:-1, num:-1, rep:-1, contact:-1, intro:-1, nickname:-1, photoUrl:-1 };
   const dataRows = hasHeader ? rows.slice(1) : rows;
   const get=(r,i)=> (i>=0 && i<r.length) ? r[i].trim() : '';
   const players = dataRows.map(r=>{
@@ -5194,9 +5537,13 @@ function applyCsv(text, fileName){
     const rep=get(r,map.rep); if(rep) p.representative=rep;
     const ct=get(r,map.contact); if(ct) p.contact=ct;
     const intr=get(r,map.intro); if(intr) p.intro=intr;
+    const nick=get(r,map.nickname); if(nick) p.nickname=nick;
+    const photo=get(r,map.photoUrl); if(photo) p.photoUrl=photo;
     return p;
   }).filter(p=> p.playerName);
   if(!players.length){ toast('選手名の列が読めませんでした', true); return; }
+  // 選手名の集合が既存名簿と完全一致するなら、配置・結果はそのままにプロフィール項目だけ更新する
+  if(tryMergeCsvProfiles(players, fileName)) return;
   if(!confirmIfResults('CSVを読み込むと現在の配置・結果がすべて置き換わります。続けますか？')) return;
   state.tournaments.forEach(t=> t.results={});                 // 結果をクリア（CSVは総入れ替え）
   state.repLeague={}; state.skipped={}; state.priority=[]; if(state.repT) state.repT.results={};
@@ -5212,6 +5559,32 @@ function applyCsv(text, fileName){
   state.tournaments.forEach(t=> t.slots.forEach(s=>{ s.player=null; })); // rebuild()がサイズ同一時に旧選手を温存するため明示クリア
   buildAffGroups();                // スロットクリア後に判定（roster のみが対象になる）
   fillNames(true);          // ランダム配置（同所属回避はデフォルトON、番号等もroster補完）
+}
+/* 選手名の集合（多重集合）が既存名簿と完全一致する場合、配置・結果を一切変更せず
+ * フリガナ・所属・番号・連絡先などのプロフィール項目だけをCSVの内容で上書きする。
+ * 同名重複がある場合は対応関係が一意に決まらず危険なため、falseを返して
+ * 呼び出し元の通常の全置換フローに委ねる。 */
+function tryMergeCsvProfiles(players, fileName){
+  const oldRoster = state.roster || [];
+  if(!oldRoster.length || oldRoster.length !== players.length) return false;
+  const oldNames = oldRoster.map(p=> p.playerName);
+  const newNames = players.map(p=> p.playerName);
+  const oldSet = new Set(oldNames), newSet = new Set(newNames);
+  if(oldSet.size!==oldNames.length || newSet.size!==newNames.length) return false;  // 同名重複あり→安全のため全置換へ
+  if(oldSet.size!==newSet.size) return false;
+  for(const n of oldSet){ if(!newSet.has(n)) return false; }
+
+  const byName={}; players.forEach(p=> byName[p.playerName]=p);
+  const FIELDS=['affiliation','furigana','affiliationFurigana','number','representative','contact','intro','nickname','photoUrl'];
+  const mergeOne=(target, src)=>{ FIELDS.forEach(f=>{ if(src[f]!==undefined) target[f]=src[f]; }); };
+
+  oldRoster.forEach(r=>{ const src=byName[r.playerName]; if(src) mergeOne(r, src); });
+  state.tournaments.forEach(t=> t.slots.forEach(s=>{
+    if(s.player && s.player.playerName && byName[s.player.playerName]) mergeOne(s.player, byName[s.player.playerName]);
+  }));
+  toast(`CSV「${fileName||'CSV'}」からプロフィール情報のみ更新しました（配置・結果は変更していません）`);
+  renderAll();
+  return true;
 }
 
 /* ============================================================
@@ -5328,6 +5701,7 @@ function newDocument(){
   state.spotlight=null; state.advance=null;
   state.ads={ items:[{img:'',link:'',pos:null},{img:'',link:'',pos:null},{img:'',link:'',pos:null},{img:'',link:'',pos:null},{img:'',link:'',pos:null},{img:'',link:'',pos:null},{img:'',link:'',pos:null},{img:'',link:'',pos:null}] };
   state.config.players=0; state.config.seedCount=0; state.config.count=1;
+  state.config.third=true; state.config.showScore=true;   // 新規トーナメントは3位決定戦・勝ち数表示を標準でON
   document.getElementById('docKey').value=key;
   syncConfigInputs(); renderAll(); markSaved();
   toast('新規トーナメントを作成しました（「保存」で確定）');
@@ -5593,6 +5967,44 @@ function renderParticipantList(){
   tbl.appendChild(tbody);
 }
 
+/* 管理画面レイアウト（トップバー操作ボタン・左カラム）の開閉。個人設定なのでstateではなくlocalStorageに保持。 */
+function initLayoutToggles(){
+  let layout={};
+  try{ layout=JSON.parse(localStorage.getItem('servalAdminLayoutV1')||'{}'); }catch(e){}
+  const topbarActions=document.getElementById('topbarActions');
+  const btnCollapseTopbar=document.getElementById('btnCollapseTopbar');
+  const controlsPanel=document.getElementById('controlsPanel');
+  const btnCollapseSidebar=document.getElementById('btnCollapseSidebar');
+  const save=()=>{ try{ localStorage.setItem('servalAdminLayoutV1', JSON.stringify(layout)); }catch(e){} };
+  // topbar-actionsはwidth:0へアニメーションするため、開く直前の実測幅をインラインwidthとして固定してから遷移させる。
+  // animate=falseは初期ロード用（チラつき防止のためtransitionなしで即反映）。
+  const applyTopbar=(animate)=>{
+    const collapsed=!!layout.topbarCollapsed;
+    if(!animate){
+      topbarActions.style.transition='none';
+      topbarActions.style.width = collapsed ? '0px' : '';
+      topbarActions.classList.toggle('collapsed', collapsed);
+      void topbarActions.offsetWidth;                    // 反映を強制
+      topbarActions.style.transition='';
+    } else if(collapsed){
+      topbarActions.style.width = topbarActions.scrollWidth+'px';
+      void topbarActions.offsetWidth;
+      topbarActions.classList.add('collapsed');
+    } else {
+      topbarActions.classList.remove('collapsed');
+      topbarActions.style.width = topbarActions.scrollWidth+'px';
+      setTimeout(()=>{ if(!layout.topbarCollapsed) topbarActions.style.width=''; }, 320);
+    }
+    btnCollapseTopbar.textContent = collapsed ? '◂' : '▸';
+  };
+  const applySidebar=()=>{
+    controlsPanel.classList.toggle('collapsed', !!layout.sidebarCollapsed);
+    btnCollapseSidebar.textContent = layout.sidebarCollapsed ? '▸' : '◂';
+  };
+  btnCollapseTopbar.onclick=()=>{ layout.topbarCollapsed=!layout.topbarCollapsed; applyTopbar(true); save(); };
+  btnCollapseSidebar.onclick=()=>{ layout.sidebarCollapsed=!layout.sidebarCollapsed; applySidebar(); save(); };
+  applyTopbar(false); applySidebar();
+}
 function openErrLog(){
   const list=document.getElementById('errLogList');
   if(!_errorLog.length){
@@ -5755,11 +6167,18 @@ function syncConfigInputs(){
     ? state.config.leagueSize * (state.config.count||1) : null;
   document.getElementById('cfgPlayers').value=state.config.players||_lgPlayersDefault||'';
   document.getElementById('cfgSeed').value=state.config.seedCount||0;
-  const _zSel=document.getElementById('setZoom'); _zSel.value=String(state.config.zoom||1); if(_zSel.selectedIndex<0) _zSel.value='1';
+  const _zSel=document.getElementById('setZoom'); _zSel.value=String(state.config.zoom||1); if(_zSel.selectedIndex<0){ _zSel.value='1'; state.config.zoom=1; }
   document.getElementById('setShowAff').checked=!!state.config.showAff;
   document.getElementById('setShowNumber').checked=!!state.config.showNumber;
   document.getElementById('setShowSeed').checked=!!state.config.showSeed;
   document.getElementById('setShowFurigana').checked=!!state.config.showFurigana;
+  document.getElementById('setShowNickname').checked=!!state.config.showNickname;
+  document.getElementById('setPopupNum').checked=state.config.popupShowNum!==false;
+  document.getElementById('setPopupAff').checked=state.config.popupShowAff!==false;
+  document.getElementById('setPopupFuri').checked=state.config.popupShowFuri!==false;
+  document.getElementById('setPopupTypes').checked=state.config.popupShowTypes!==false;
+  document.getElementById('setPopupIntro').checked=state.config.popupShowIntro!==false;
+  document.getElementById('setPopupPhoto').checked=!!state.config.popupShowPhoto;
   document.getElementById('setShowNextMatch').checked=state.config.showNextMatch!==false;
   document.getElementById('setShowScore').checked=state.config.showScore!==false;
   document.getElementById('setShowCheer').checked=state.config.showCheer!==false;
@@ -6167,18 +6586,32 @@ function init(){
   document.getElementById('efxAutoBlinkWins').onchange=(e)=>{ state.config.autoBlinkWins=e.target.checked; };
   document.getElementById('efxAdminOnlyAnim').onchange=(e)=>{ state.config.adminOnlyAnim=e.target.checked; };
   document.getElementById('efxAdminOnlySfx').onchange=(e)=>{ state.config.adminOnlySfx=e.target.checked; };
+  document.getElementById('efxAdvTeaseNickname').onchange=(e)=>{ state.config.advTeaseNickname=e.target.checked; };
+  document.getElementById('efxSpTeaseNickname').onchange=(e)=>{ state.config.spTeaseNickname=e.target.checked; };
+  document.getElementById('efxAdvShowPhoto').onchange=(e)=>{ state.config.advShowPhoto=e.target.checked; };
+  document.getElementById('efxAdvShowNickname').onchange=(e)=>{ state.config.advShowNickname=e.target.checked; };
+  document.getElementById('efxAdvShowTypes').onchange=(e)=>{ state.config.advShowTypes=e.target.checked; };
+  document.getElementById('efxAdvShowAff').onchange=(e)=>{ state.config.advShowAff=e.target.checked; };
+  document.getElementById('efxAdvShowIntro').onchange=(e)=>{ state.config.advShowIntro=e.target.checked; };
+  document.getElementById('efxSpShowPhoto').onchange=(e)=>{ state.config.spShowPhoto=e.target.checked; };
+  document.getElementById('efxSpShowNickname').onchange=(e)=>{ state.config.spShowNickname=e.target.checked; };
+  document.getElementById('efxSpShowTypes').onchange=(e)=>{ state.config.spShowTypes=e.target.checked; };
+  document.getElementById('efxSpShowAff').onchange=(e)=>{ state.config.spShowAff=e.target.checked; };
+  document.getElementById('efxSpShowIntro').onchange=(e)=>{ state.config.spShowIntro=e.target.checked; };
+  document.getElementById('efxAdvPhotoSize').onchange=(e)=>{ state.config.advPhotoSize=e.target.value; };
+  document.getElementById('efxSpPhotoSize').onchange=(e)=>{ state.config.spPhotoSize=e.target.value; };
   document.getElementById('efxAdvMs').onchange=(e)=>{ state.config.advMs=+e.target.value; };
   document.getElementById('efxSpMs').onchange=(e)=>{ state.config.spMs=+e.target.value; };
   document.getElementById('efxAdvSfxMode').onchange=(e)=>{
     state.config.advSfxMode=e.target.value; _sfxUrlRow('efxAdvUrlRow','efxAdvSfxMode');
   };
   document.getElementById('efxAdvSfxUrl').onchange=(e)=>{ state.config.advSfxUrl=e.target.value.trim(); };
-  document.getElementById('efxAdvSfxTest').onclick=testAdvSfx;
+  document.getElementById('efxTestAdvance').onclick=testAdvancePlay;
   document.getElementById('efxSpSfxMode').onchange=(e)=>{
     state.config.spSfxMode=e.target.value; _sfxUrlRow('efxSpUrlRow','efxSpSfxMode');
   };
   document.getElementById('efxSpSfxUrl').onchange=(e)=>{ state.config.spSfxUrl=e.target.value.trim(); };
-  document.getElementById('efxSpSfxTest').onclick=testSpSfx;
+  document.getElementById('efxTestSpotlight').onclick=testSpotlightPlay;
   // 広告設定モーダル
   document.getElementById('btnKanban').onclick=openAdModal;
   document.getElementById('kanbanClose').onclick=closeAdModal;
@@ -6230,6 +6663,13 @@ function init(){
   document.getElementById('setShowNumber').onchange=(e)=>{ state.config.showNumber=e.target.checked; renderBracket(); };
   document.getElementById('setShowSeed').onchange=(e)=>{ state.config.showSeed=e.target.checked; renderBracket(); };
   document.getElementById('setShowFurigana').onchange=(e)=>{ state.config.showFurigana=e.target.checked; renderBracket(); };
+  document.getElementById('setShowNickname').onchange=(e)=>{ state.config.showNickname=e.target.checked; };
+  document.getElementById('setPopupNum').onchange=(e)=>{ state.config.popupShowNum=e.target.checked; };
+  document.getElementById('setPopupAff').onchange=(e)=>{ state.config.popupShowAff=e.target.checked; };
+  document.getElementById('setPopupFuri').onchange=(e)=>{ state.config.popupShowFuri=e.target.checked; };
+  document.getElementById('setPopupTypes').onchange=(e)=>{ state.config.popupShowTypes=e.target.checked; };
+  document.getElementById('setPopupIntro').onchange=(e)=>{ state.config.popupShowIntro=e.target.checked; };
+  document.getElementById('setPopupPhoto').onchange=(e)=>{ state.config.popupShowPhoto=e.target.checked; };
   document.getElementById('setShowNextMatch').onchange=(e)=>{ state.config.showNextMatch=e.target.checked; renderQueueBar(); };
   document.getElementById('setShowScore').onchange=(e)=>{ state.config.showScore=e.target.checked; renderBracket(); };
   document.getElementById('setShowCheer').onchange=(e)=>{ state.config.showCheer=e.target.checked; renderQueueBar(); };
@@ -6272,6 +6712,7 @@ function init(){
   setInterval(publishBoard, 700);           // 大型表示への配信ハートビート（選択変更・時計を追従）
   document.addEventListener('keydown', _kbHandler);
   initDraggableModals();
+  initLayoutToggles();
 }
 
 /* モーダルカードをh2タイトルのドラッグで移動可能にする */
@@ -7968,7 +8409,7 @@ function drawLeagueBlock(t, ti, xOff, yOff, svg, inner, multi){
     wrap.querySelectorAll('.lg-row').forEach(th=>{                      // 閲覧：選手詳細ポップアップ
       const c=competitorOf(t, +th.dataset.slot);
       if(c && typeof attachPlayerPopup==='function')
-        attachPlayerPopup(th, {name:c.name, aff:c.aff, num:c.num, type1:c.type1, type2:c.type2, intro:c.intro});
+        attachPlayerPopup(th, {name:c.name, furigana:c.furigana, aff:c.aff, num:c.num, type1:c.type1, type2:c.type2, intro:c.intro, nickname:c.nickname, photoUrl:c.photoUrl});
     });
   }
   const tw=wrap.offsetWidth, th=wrap.offsetHeight;
@@ -8001,6 +8442,7 @@ var WME=(function(){
     DRAW_COIN:0.5,          // 判定（≒コイントス）の勝率
     W_H2H:0.3,              // 直接対決項の重み
     H2H_PRIOR:2,            // h2h平滑化の仮想本数（片側）
+    BP_LOGIT_K:Math.log(9)/(0.7*20),   // BP差1点あたりのロジット傾き。BP差20・h2hなしで約10:90になるよう較正
     HALF_LIFE:8,            // 手動モメンタム半減期（秒）
     HALF_LIFE_KD:60,        // ダウン奪取モメンタム半減期（秒）
     MOM_MANUAL:0.4,         // 攻勢ボタンの加算
@@ -8009,11 +8451,11 @@ var WME=(function(){
     ROUND_SEC:120           // 1ラウンド秒数（試合時間設定に連動して上書き）
   };
   function sigmoid(x){ return 1/(1+Math.exp(-x)); }
-  /* 事前シェアのロジット。elo差 + 平滑化h2h の加重和 */
-  function preLogit(eloA,eloB,ptsA,ptsB){
-    var eloL=(eloA-eloB)/400*Math.LN10;
+  /* 事前シェアのロジット。BP差（勝敗実績） + 平滑化h2h の加重和。記録なしはBP=0として扱う。 */
+  function preLogit(bpA,bpB,ptsA,ptsB){
+    var bpL=PARAMS.BP_LOGIT_K*(bpA-bpB);
     var h2hL=Math.log((ptsA+PARAMS.H2H_PRIOR)/(ptsB+PARAMS.H2H_PRIOR));
-    return (1-PARAMS.W_H2H)*eloL+PARAMS.W_H2H*h2hL;
+    return (1-PARAMS.W_H2H)*bpL+PARAMS.W_H2H*h2hL;
   }
   /* ラウンドの (A勝ち, B勝ち, 引き分け) 確率。残り時間 t 秒 */
   function roundOutcome(share,lam,t){
@@ -8071,7 +8513,7 @@ var WME=(function(){
      [matchWinProb(0.6,lam,3,[0,0],120,false),0.647999,'決勝事前'],
      [matchWinProb(0.6,lam,3,[1,1],60,true),0.599994,'決勝(1,1)t=60'],
      [matchWinProb(0.5,lam,1,[0,0],120,false),0.5,'五分'],
-     [sigmoid(preLogit(1581.5,1572.6,2,1)),0.530504,'share照合']
+     [sigmoid(preLogit(20,0,0,0)),0.9,'BP差20・h2hなし較正']
     ].forEach(function(c){ var p=Math.abs(c[0]-c[1])<EPS; if(!p) ok=false;
       console.log((p?'PASS':'FAIL')+' '+c[2]+': got '+c[0].toFixed(6)+' want '+c[1].toFixed(6)); });
     return ok;
@@ -8090,25 +8532,51 @@ var WME=(function(){
  * ============================================================ */
 function wmCfg(){
   if(!state.winmeter||typeof state.winmeter!=='object') state.winmeter={};
-  var d={ratings:null, showName:true, winSize:'1920x200', bestOf:1, enabled:false};
+  var d={ratings:null, showName:true, showNickname:false, showPhoto:false, photoSize:'md', winSize:'1920x200', bestOf:1, enabled:false};
   for(var k in d){ if(state.winmeter[k]===undefined) state.winmeter[k]=d[k]; }
   return state.winmeter;
 }
 var wm={matchKey:'__init__', score:[0,0], downs:[null,null], mom:[0,0], momKD:[0,0],
-        lastDecay:0, logit0:0, eloA:1500, eloB:1500, names:['',''], frozenT:null, lastPoint:null};
+        lastDecay:0, logit0:0, bpA:0, bpB:0, names:['',''], frozenT:null, lastPoint:null};
 var _wmWasRunning=false, _wmLastRemain=null;
 
-function wmRatingOf(name){
-  var r=wmCfg().ratings, e=r&&r.entities&&r.entities[name];
-  return e?(+e.elo||1500):1500;
+/* エイリアス（大会をまたぐ改名）を正規名に解決。ratings未取込・未登録なら元の名前のまま。 */
+function wmCanonical(name){
+  var r=wmCfg().ratings, al=r&&r.aliases;
+  return (al&&al[name])||name;
 }
+/* 対戦データベース用: 正規名でのBP合計（未取込・データなしはnull） */
+function wmBpOf(name){
+  var r=wmCfg().ratings, e=r&&r.entities&&r.entities[wmCanonical(name)];
+  return (e&&e.bp!=null)?(+e.bp):null;
+}
+/* WinMeter事前値用: 記録なしはBP0として扱う */
+function wmBpOrZero(name){ var v=wmBpOf(name); return v==null?0:v; }
 function wmH2hOf(nameA,nameB){
-  var r=wmCfg().ratings, a=0,b=0;
+  var r=wmCfg().ratings, a=0,b=0, cA=wmCanonical(nameA), cB=wmCanonical(nameB);
   if(r&&Array.isArray(r.h2h)) r.h2h.forEach(function(h){
-    if(h.a===nameA&&h.b===nameB){a+=(+h.pts_a||0);b+=(+h.pts_b||0);}
-    else if(h.a===nameB&&h.b===nameA){a+=(+h.pts_b||0);b+=(+h.pts_a||0);}
+    if(h.a===cA&&h.b===cB){a+=(+h.pts_a||0);b+=(+h.pts_b||0);}
+    else if(h.a===cB&&h.b===cA){a+=(+h.pts_b||0);b+=(+h.pts_a||0);}
   });
   return [a,b];
+}
+/* 対戦データベース用: 直接対決を「どの大会で何勝何敗か」の内訳付きで返す。
+ * 戻り値: {pts:[nameA視点の勝ち,nameB視点の勝ち], byYear:[{year,ptsA,ptsB}, ...]} または null（記録なし） */
+function wmH2hDetail(nameA,nameB){
+  var r=wmCfg().ratings; if(!r||!Array.isArray(r.h2h)) return null;
+  var cA=wmCanonical(nameA), cB=wmCanonical(nameB);
+  var found=null, swap=false;
+  r.h2h.forEach(function(h){
+    if(h.a===cA&&h.b===cB){ found=h; swap=false; }
+    else if(h.a===cB&&h.b===cA){ found=h; swap=true; }
+  });
+  if(!found) return null;
+  var byYear=(Array.isArray(found.by_year)?found.by_year:[]).map(function(y){
+    return swap ? {year:y.year, ptsA:+y.pts_b||0, ptsB:+y.pts_a||0} : {year:y.year, ptsA:+y.pts_a||0, ptsB:+y.pts_b||0};
+  });
+  var ptsA = swap ? (+found.pts_b||0) : (+found.pts_a||0);
+  var ptsB = swap ? (+found.pts_a||0) : (+found.pts_b||0);
+  return {pts:[ptsA,ptsB], byYear:byYear};
 }
 function wmLambda(){ var r=wmCfg().ratings; return (r&&+r.lambda)||WME.PARAMS.LAMBDA_FALLBACK; }
 
@@ -8126,9 +8594,9 @@ function wmSyncMatch(force){
   if(nk){ try{ var cs=matchCompetitors(nk);
     wm.names=[(cs[0]&&cs[0].name)||'',(cs[1]&&cs[1].name)||''];
   }catch(e){} }
-  wm.eloA=wmRatingOf(wm.names[0]); wm.eloB=wmRatingOf(wm.names[1]);
+  wm.bpA=wmBpOrZero(wm.names[0]); wm.bpB=wmBpOrZero(wm.names[1]);
   var hh=wmH2hOf(wm.names[0],wm.names[1]);
-  wm.logit0=WME.preLogit(wm.eloA,wm.eloB,hh[0],hh[1]);
+  wm.logit0=WME.preLogit(wm.bpA,wm.bpB,hh[0],hh[1]);
 }
 /* 残り時間（秒）。動作中=ライブ / 停止中=凍結値 / ラウンド間=フル */
 function wmRemain(){
@@ -8173,7 +8641,7 @@ function wmPreP(){
 function wmPublishData(base){
   wmSyncMatch(); wmDecayTick();
   var c=wmCfg();
-  var d=Object.assign({}, base, {mcfg:{showName:c.showName!==false}});
+  var d=Object.assign({}, base, {mcfg:{showName:c.showName!==false, showNickname:!!c.showNickname, showPhoto:!!c.showPhoto, photoSize:c.photoSize||'md'}});
   d.wm = wm.matchKey ? {
     on:!!c.enabled, bestOf:c.bestOf||1, score:wm.score.slice(), downs:wm.downs.slice(),
     mom:wm.mom.slice(), momKD:wm.momKD.slice(), logit0:wm.logit0, lambda:wmLambda(),
@@ -8213,7 +8681,7 @@ function wmOpPoint(side){
 function wmOpMomentum(side){ wm.mom[side]+=WME.PARAMS.MOM_MANUAL; wmTouch(); }
 function wmOpRetake(){ wm.mom=[0,0]; wm.momKD=[0,0]; wmTouch(); }
 function wmOpReset(){ wmSyncMatch(true); wmTouch(); }
-function wmTouch(){ publishBoard(); }
+function wmTouch(){ publishBoard(); try{ if(typeof dbUpdatePanel==='function') dbUpdatePanel(); }catch(e){ if(typeof _showErr==='function') _showErr('dbUpdatePanel: '+(e&&e.message||e)); } }
 
 /* ---- ratings.json インポート（roster該当分のみ抽出＝GAS容量対策） ---- */
 function wmImportRatings(file){
@@ -8222,13 +8690,33 @@ function wmImportRatings(file){
     try{
       var j=JSON.parse(fr.result);
       if(!j||!j.entities) throw new Error('entities がありません');
-      var names={}; (state.roster||[]).forEach(function(p){ if(p&&p.name) names[p.name]=1; });
+      // roster側の表記(今大会のエントリー名)は年によってエイリアス違いのことがあるため、
+      // 「roster名 そのもの」or「roster名がエイリアスとして指す正規名」のどちらかで一致すれば採用する
+      var rosterNames={}; (state.roster||[]).forEach(function(p){ if(p&&p.playerName) rosterNames[p.playerName]=1; });
+      var srcAliases=(j.aliases&&typeof j.aliases==='object')?j.aliases:{};
+      // 採用する正規名の集合＝roster名そのもの、またはroster名がエイリアスとして指す正規名。
+      // ※entitiesに載っているか（＝勝った実績があるか）とは無関係に判定すること。
+      //   一度も勝ったことがない選手はentitiesに現れないため、entitiesキーだけで判定すると
+      //   その選手が絡む直接対決(h2h)が全部除外されてしまう（一方的に負け続けた対戦相手の記録が消える）。
+      var relevant={};
+      for(var k in rosterNames){ relevant[k]=1; }
+      for(var a in srcAliases){ if(rosterNames[a]) relevant[srcAliases[a]]=1; }
       var ents={}, total=0, kept=0;
-      for(var k in j.entities){ total++;
-        if(names[k]){ ents[k]={elo:Math.round((+j.entities[k].elo||1500)*10)/10}; kept++; } }
-      var h2h=(Array.isArray(j.h2h)?j.h2h:[]).filter(function(h){ return names[h.a]&&names[h.b]; })
-        .map(function(h){ return {a:h.a,b:h.b,pts_a:+h.pts_a||0,pts_b:+h.pts_b||0}; });
-      wmCfg().ratings={generated:j.generated||'', lambda:+j.lambda||0, entities:ents, h2h:h2h};
+      for(var k2 in j.entities){ total++;
+        if(relevant[k2]){
+          var e={}; if(j.entities[k2].elo!=null) e.elo=Math.round((+j.entities[k2].elo||1500)*10)/10;
+          if(j.entities[k2].bp!=null) e.bp=+j.entities[k2].bp||0;
+          ents[k2]=e; kept++;
+        } }
+      var aliases={};
+      for(var a2 in srcAliases){ if(relevant[srcAliases[a2]]) aliases[a2]=srcAliases[a2]; }
+      var h2h=(Array.isArray(j.h2h)?j.h2h:[]).filter(function(h){ return relevant[h.a]&&relevant[h.b]; })
+        .map(function(h){
+          var o={a:h.a,b:h.b,pts_a:+h.pts_a||0,pts_b:+h.pts_b||0};
+          if(Array.isArray(h.by_year)) o.by_year=h.by_year.map(function(y){ return {year:y.year,pts_a:+y.pts_a||0,pts_b:+y.pts_b||0}; });
+          return o;
+        });
+      wmCfg().ratings={generated:j.generated||'', excludes:j.excludes||'', lambda:+j.lambda||0, entities:ents, aliases:aliases, h2h:h2h};
       wmSyncMatch(true);
       if(typeof updateDataSizeBar==='function') updateDataSizeBar();
       toast('ratings取込: '+kept+'/'+total+'機が参加者と一致（直接対決 '+h2h.length+'組）。保存で確定します');
@@ -8251,7 +8739,9 @@ function wmAttachPanel(el){
 function wmBuildPanel(p){
   p.innerHTML=
     '<h2>📊 WinMeter <label style="font-weight:normal;font-size:11.5px;margin-left:6px"><input type="checkbox" id="wmEnable"> 配信ON</label>'+
-    '<select id="wmBestOf" class="btn sm" style="margin-left:6px;font-size:11.5px"><option value="1">1本先取</option><option value="3">2本先取</option></select></h2>'+
+    '<select id="wmBestOf" class="btn sm" style="margin-left:6px;font-size:11.5px"><option value="1">1本先取</option><option value="3">2本先取</option></select>'+
+    '<button class="btn sm" id="wmFoldBtn" style="float:right" title="折りたたみ">▾</button></h2>'+
+    '<div id="wmBody">'+
     '<div class="wm-stat" id="wmPre">事前: -</div>'+
     '<div class="wm-mini"><div class="wm-mini-fill" id="wmMiniFill" style="width:50%"></div><div class="wm-mini-mid"></div></div>'+
     '<div class="wm-stat" id="wmNow">現在: -</div>'+
@@ -8261,8 +8751,16 @@ function wmBuildPanel(p){
     '<div class="wm-row"><button class="btn sm" id="wmMomA">赤攻勢</button><button class="btn sm" id="wmMomB">青攻勢</button></div>'+
     '<div class="wm-row"><button class="btn sm" id="wmRetake">取り直し</button><button class="btn sm" id="wmReset">リセット</button></div>'+
     '<div class="wm-row"><label style="font-size:11.5px"><input type="checkbox" id="wmShowName"> 別画4に名前表示</label></div>'+
+    '<div class="wm-row"><label style="font-size:11.5px"><input type="checkbox" id="wmShowNickname"> 二つ名</label>'+
+    '<label style="font-size:11.5px"><input type="checkbox" id="wmShowPhoto"> 写真</label>'+
+    '<select id="wmPhotoSize" class="btn sm" style="font-size:11.5px"><option value="sm">小</option><option value="md">中</option><option value="lg">大</option></select></div>'+
     '<div class="wm-stat" id="wmRatingsStat">ratings: 未取込（全機体 Elo1500 扱い）</div>'+
-    '<div class="wm-row"><button class="btn sm" id="wmImportBtn">📥 ratings.json 取込</button><input type="file" id="wmImportFile" accept=".json,application/json" style="display:none"></div>';
+    '<div class="wm-row"><button class="btn sm" id="wmImportBtn">📥 ratings.json 取込</button><input type="file" id="wmImportFile" accept=".json,application/json" style="display:none"></div>'+
+    '</div>';
+  var foldBtn=p.querySelector('#wmFoldBtn'), body=p.querySelector('#wmBody');
+  var applyFold=function(){ var c=panelFolded('wm'); body.hidden=c; foldBtn.textContent=c?'▸':'▾'; };
+  foldBtn.onclick=function(){ setPanelFolded('wm', !panelFolded('wm')); applyFold(); };
+  applyFold();
   var c=wmCfg();
   var en=p.querySelector('#wmEnable'); en.checked=!!c.enabled;
   en.onchange=function(){ c.enabled=en.checked; wmTouch(); };
@@ -8270,6 +8768,12 @@ function wmBuildPanel(p){
   bo.onchange=function(){ c.bestOf=+bo.value||1; wmTouch(); };
   var sn=p.querySelector('#wmShowName'); sn.checked=c.showName!==false;
   sn.onchange=function(){ c.showName=sn.checked; wmTouch(); };
+  var snk=p.querySelector('#wmShowNickname'); snk.checked=!!c.showNickname;
+  snk.onchange=function(){ c.showNickname=snk.checked; wmTouch(); };
+  var sph=p.querySelector('#wmShowPhoto'); sph.checked=!!c.showPhoto;
+  sph.onchange=function(){ c.showPhoto=sph.checked; wmTouch(); };
+  var psz=p.querySelector('#wmPhotoSize'); psz.value=c.photoSize||'md';
+  psz.onchange=function(){ c.photoSize=psz.value; wmTouch(); };
   p.querySelector('#wmDownA').onclick=function(){ wmOpDown(0); };
   p.querySelector('#wmDownB').onclick=function(){ wmOpDown(1); };
   p.querySelector('#wmRecover').onclick=wmOpRecover;
@@ -8295,7 +8799,7 @@ function wmUpdatePanel(){
   var pPre=wm.matchKey?wmPreP():0.5;
   var nA=wm.names[0]||'赤', nB=wm.names[1]||'青';
   p.querySelector('#wmPre').textContent='事前: '+nA+' '+Math.round(pPre*100)+'% / '+nB+' '+Math.round((1-pPre)*100)+'%'
-    +'（Elo '+Math.round(wm.eloA)+' vs '+Math.round(wm.eloB)+'）';
+    +'（BP '+wm.bpA+' vs '+wm.bpB+'）';
   p.querySelector('#wmNow').textContent='現在: '+Math.round(pNow*100)+'% / '+Math.round((1-pNow)*100)+'%'
     +(counts[0]!=null?'　🔴赤ダウン '+counts[0]:'')+(counts[1]!=null?'　🔵青ダウン '+counts[1]:'');
   p.querySelector('#wmScoreLine').textContent='本数 '+wm.score[0]+' - '+wm.score[1];
@@ -8305,7 +8809,82 @@ function wmUpdatePanel(){
   var r=wmCfg().ratings;
   p.querySelector('#wmRatingsStat').textContent = r
     ? 'ratings: '+Object.keys(r.entities||{}).length+'機・λ='+(+r.lambda||0).toFixed(4)+'・'+String(r.generated||'').slice(0,10)
+      +(r.excludes?'・'+r.excludes+'自身のデータは除外済み':'')
     : 'ratings: 未取込（全機体 Elo1500 扱い）';
+}
+</script>
+<script>
+/* ============================================================
+ *  対戦データベース パネル（実況参考用: 過去BP・直接対決）
+ *  - WinMeterと同じ ratings.json（entities.bp / aliases / h2h）を流用する。
+ *  - 表示対象は「現在state.runSelで選ばれている試合」の2競技者
+ *    （wm.namesは"次の試合"限定のため使わない。runMatchCtx()経由で選択中の試合を見る）。
+ *  - 永続ノード #dbPanel を renderRunInspector が wmPanel より先に移設する
+ *    （DOM順＝WinMeterの上に表示）。
+ * ============================================================ */
+/* パネル折りたたみ状態。個人設定なのでstateではなくlocalStorageへ（保存の要否に影響させない）。 */
+function panelFolded(key){
+  try{ return !!(JSON.parse(localStorage.getItem('servalPanelFoldV1')||'{}')[key]); }catch(e){ return false; }
+}
+function setPanelFolded(key, val){
+  try{
+    var o=JSON.parse(localStorage.getItem('servalPanelFoldV1')||'{}');
+    o[key]=!!val;
+    localStorage.setItem('servalPanelFoldV1', JSON.stringify(o));
+  }catch(e){}
+}
+var _dbPanelBuilt=false;
+function dbAttachPanel(el){
+  if(viewMode) return;
+  var p=document.getElementById('dbPanel'); if(!p) return;
+  if(!_dbPanelBuilt){ dbBuildPanel(p); _dbPanelBuilt=true; }
+  p.hidden=false;
+  el.appendChild(p);                 // wmAttachPanelより先に呼ぶこと＝DOM順で上に来る
+  dbUpdatePanel();
+}
+function dbBuildPanel(p){
+  p.innerHTML=
+    '<h2>🗂️ 対戦データベース<button class="btn sm" id="dbFoldBtn" style="float:right" title="折りたたみ">▾</button></h2>'+
+    '<div id="dbBody"><div class="wm-stat" id="dbContent">試合番号をクリックすると表示されます。</div></div>';
+  var foldBtn=p.querySelector('#dbFoldBtn'), body=p.querySelector('#dbBody');
+  var applyFold=function(){ var c=panelFolded('db'); body.hidden=c; foldBtn.textContent=c?'▸':'▾'; };
+  foldBtn.onclick=function(){ setPanelFolded('db', !panelFolded('db')); applyFold(); };
+  applyFold();
+}
+/* 選手名1件分のBP・直接対決を組み立てる（データなしは「-」表示） */
+function dbLineFor(nameA, nameB){
+  var bpA=wmBpOf(nameA), bpB=wmBpOf(nameB);
+  var det=wmH2hDetail(nameA,nameB);
+  var bpLine='BP　'+(esc(nameA)||'（未定）')+': '+(bpA==null?'-':bpA)
+    +'　/　'+(esc(nameB)||'（未定）')+': '+(bpB==null?'-':bpB);
+  var html='<div class="wm-stat">'+bpLine+'</div>';
+  if(!det || det.pts[0]+det.pts[1]===0){
+    html+='<div class="wm-stat">直接対決　記録なし</div>';
+  } else {
+    html+='<div class="wm-stat">直接対決　通算 '+det.pts[0]+'勝 - '+det.pts[1]+'勝</div>';
+    det.byYear.forEach(function(y){
+      html+='<div class="wm-stat" style="padding-left:10px">・'+esc(y.year)+'　'+y.ptsA+'勝 - '+y.ptsB+'勝</div>';
+    });
+  }
+  return html;
+}
+function dbUpdatePanel(){
+  var p=document.getElementById('dbPanel');
+  if(!p||p.hidden||!_dbPanelBuilt||!p.isConnected) return;
+  var c=p.querySelector('#dbContent'); if(!c) return;
+  try{
+    if(!state.runSel){ c.innerHTML='試合番号をクリックすると表示されます。'; return; }
+    var ctx; try{ ctx=runMatchCtx(); }catch(e){ ctx=null; }
+    if(!ctx){ c.innerHTML='この試合の対戦者を特定できません。'; return; }
+    var nameA=(ctx.a&&ctx.a.name)||'', nameB=(ctx.b&&ctx.b.name)||'';
+    if(!nameA && !nameB){ c.innerHTML='対戦者未定のため表示できません。'; return; }
+    var r=wmCfg().ratings;
+    c.innerHTML = (r?'':'<div class="wm-stat">ratings.json未取込（WinMeterパネルから取込むとBP・直接対決が表示されます）</div>')
+      + dbLineFor(nameA, nameB);
+  }catch(e){
+    c.innerHTML='(対戦データベース表示エラー: '+((e&&e.message)||e)+')';
+    if(typeof _showErr==='function') _showErr('dbUpdatePanel body: '+(e&&e.message||e));
+  }
 }
 </script>
 <script>
@@ -8358,6 +8937,17 @@ function renderMeter(d){
   document.getElementById('wmNameB').textContent=showName?(w.names[1]||d.bName||''):'';
   document.getElementById('wmNameA').style.color=colA;
   document.getElementById('wmNameB').style.color=colB;
+  // 二つ名・写真（表示設定に従う）
+  var showNick=!!(d.mcfg&&d.mcfg.showNickname), showPhoto=!!(d.mcfg&&d.mcfg.showPhoto);
+  var nkA=document.getElementById('wmNickA'), nkB=document.getElementById('wmNickB');
+  if(nkA){ var onA=showNick&&d.aNickname; nkA.textContent=onA?d.aNickname:''; nkA.style.display=onA?'':'none'; }
+  if(nkB){ var onB=showNick&&d.bNickname; nkB.textContent=onB?d.bNickname:''; nkB.style.display=onB?'':'none'; }
+  var phA=document.getElementById('wmPhotoA'), phB=document.getElementById('wmPhotoB');
+  var wmPsz=(d.mcfg&&d.mcfg.photoSize)||'md';
+  if(phA){ var spA=showPhoto&&d.aPhotoUrl; phA.style.display=spA?'':'none'; if(spA&&phA.src!==d.aPhotoUrl) phA.src=d.aPhotoUrl;
+    phA.classList.remove('psz-sm','psz-lg'); if(wmPsz==='sm'||wmPsz==='lg') phA.classList.add('psz-'+wmPsz); }
+  if(phB){ var spB=showPhoto&&d.bPhotoUrl; phB.style.display=spB?'':'none'; if(spB&&phB.src!==d.bPhotoUrl) phB.src=d.bPhotoUrl;
+    phB.classList.remove('psz-sm','psz-lg'); if(wmPsz==='sm'||wmPsz==='lg') phB.classList.add('psz-'+wmPsz); }
   // パーセント・バー
   document.getElementById('wmPctA').textContent=pctA+'%';
   document.getElementById('wmPctB').textContent=pctB+'%';

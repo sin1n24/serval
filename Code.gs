@@ -55,6 +55,7 @@ function doPost(e) {
   if (act === 'registerSeeding') return _jsonOut_(apiRegisterSeeding(req.docKey, JSON.stringify(req.seeding || {}), token));
   if (act === 'ping')            return _jsonOut_(apiPing(token));
   if (act === 'clearIdemForMatch') return _jsonOut_(apiClearIdemForMatch(req.docKey, req.matchKey, token));
+  if (act === 'pageList')       return _jsonOut_(apiPageList());
   return _jsonOut_({ ok: false, error: '不明なaction: ' + act });
 }
 
