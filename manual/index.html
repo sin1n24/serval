@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>serval 取扱説明書</title>
+<link rel="icon" href="../serval.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#0D141F; --panel:#16202E; --panel2:#1B2736; --line:#263447;
+    --serval:#E9A93D; --serval-dim:#8A6B2E;
+    --text:#E8EDF4; --muted:#8A97A8; --danger:#E05B5B; --ok:#5BBB7B;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --disp:'Zen Kaku Gothic New',system-ui,sans-serif;
+    --shadow:rgba(0,0,0,.4);
+  }
+  [data-theme="light"]{
+    --night:#F0F2F5; --panel:#FFFFFF; --panel2:#F5F6FA; --line:#DDE2EA;
+    --serval:#C57C0E; --serval-dim:#A86A0C;
+    --text:#1A2230; --muted:#5B6778; --danger:#C0392B; --ok:#27AE60;
+    --shadow:rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box; margin:0}
+  html,body{min-height:100%}
+  body{
+    background:var(--night); color:var(--text);
+    font-family:var(--disp); font-weight:400; font-size:15px; line-height:1.75;
+    transition:background .25s, color .25s;
+  }
+
+  /* ─── 上部ナビ ─── */
+  .topnav{
+    position:sticky; top:0; z-index:10;
+    background:var(--panel); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:14px; padding:10px 20px;
+  }
+  .topnav .brand{display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--text)}
+  .topnav .brand img{width:28px; height:28px; object-fit:contain}
+  [data-theme="dark"] .topnav .brand img{filter:invert(1); opacity:.9}
+  .topnav .brand-name{font-weight:700; font-size:15px; letter-spacing:.1em}
+  .topnav .brand-sub{font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.2em}
+  .topnav .sp{flex:1}
+  #themeBtn{
+    display:flex; align-items:center; justify-content:center;
+    width:32px; height:32px; padding:0; border-radius:50%;
+    background:transparent; border:1px solid var(--line); cursor:pointer;
+    font-size:15px; font-family:inherit;
+  }
+  #themeBtn:hover{border-color:var(--serval-dim)}
+  .back-link{
+    font-size:12px; font-family:var(--mono); color:var(--muted); text-decoration:none;
+    letter-spacing:.05em; padding:6px 10px; border:1px solid var(--line); border-radius:7px;
+  }
+  .back-link:hover{color:var(--text); border-color:var(--serval-dim)}
+
+  /* ─── レイアウト ─── */
+  .layout{display:flex; max-width:1060px; margin:0 auto; padding:0 20px}
+  .sidebar{
+    width:220px; flex-shrink:0; position:sticky; top:57px; align-self:flex-start;
+    height:calc(100vh - 57px); overflow-y:auto; padding:28px 0 60px;
+  }
+  .sidebar nav a{
+    display:block; font-size:12.5px; color:var(--muted); text-decoration:none;
+    padding:5px 12px; border-radius:6px; margin-bottom:1px;
+  }
+  .sidebar nav a:hover{background:var(--panel); color:var(--text)}
+  .sidebar nav .group{
+    font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.2em;
+    text-transform:uppercase; padding:16px 12px 4px; opacity:.7;
+  }
+  .content{flex:1; min-width:0; padding:36px 0 100px 40px}
+
+  @media(max-width:720px){
+    .sidebar{display:none}
+    .content{padding:24px 0 80px}
+  }
+
+  /* ─── コンテンツタイポグラフィ ─── */
+  .content h1{font-size:26px; font-weight:700; margin-bottom:8px; letter-spacing:.04em}
+  .content .subtitle{color:var(--muted); font-size:14px; margin-bottom:36px}
+  .content h2{
+    font-size:17px; font-weight:700; margin:44px 0 14px;
+    padding-bottom:10px; border-bottom:1px solid var(--line);
+  }
+  .content h3{font-size:14.5px; font-weight:700; margin:28px 0 10px; color:var(--serval)}
+  .content p{margin-bottom:14px}
+  .content ul,.content ol{margin:0 0 16px 22px; padding:0}
+  .content li{margin-bottom:5px}
+  .content code{
+    font-family:var(--mono); font-size:12.5px; background:var(--panel);
+    border:1px solid var(--line); border-radius:4px; padding:1px 6px;
+  }
+  .content pre{
+    background:var(--panel); border:1px solid var(--line); border-radius:9px;
+    padding:16px 18px; overflow-x:auto; margin-bottom:18px;
+    font-family:var(--mono); font-size:12.5px; line-height:1.65;
+  }
+  .content a{color:var(--serval); text-decoration:none}
+  .content a:hover{text-decoration:underline}
+
+  /* ─── コールアウト ─── */
+  .callout{
+    border-left:3px solid var(--serval); background:var(--panel); border-radius:0 9px 9px 0;
+    padding:14px 18px; margin:18px 0; font-size:13.5px;
+  }
+  .callout.warn{border-color:var(--danger); background:rgba(224,91,91,.07)}
+  .callout.tip{border-color:var(--ok)}
+  .callout .label{font-size:10.5px; font-weight:700; letter-spacing:.18em; margin-bottom:5px; opacity:.75}
+  .callout.warn .label{color:var(--danger)}
+  .callout.tip .label{color:var(--ok)}
+
+  /* ─── ステップ番号 ─── */
+  .steps{list-style:none; margin:0 0 18px; padding:0; counter-reset:step}
+  .steps li{
+    counter-increment:step; display:flex; gap:14px; margin-bottom:16px;
+  }
+  .steps li::before{
+    content:counter(step); flex-shrink:0; width:26px; height:26px;
+    background:var(--serval); color:#151004; font-weight:700; font-size:13px;
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    margin-top:2px;
+  }
+
+  /* ─── 機能表 ─── */
+  table{width:100%; border-collapse:collapse; font-size:13px; margin-bottom:20px}
+  th{text-align:left; font-size:11px; letter-spacing:.1em; color:var(--muted); padding:6px 10px; border-bottom:1px solid var(--line)}
+  td{padding:10px 10px; border-bottom:1px solid var(--panel2); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .badge{
+    display:inline-block; font-family:var(--mono); font-size:10px; padding:2px 7px;
+    border-radius:4px; font-weight:500; letter-spacing:.05em;
+  }
+  .badge.new{background:rgba(233,169,61,.18); color:var(--serval)}
+  .badge.adv{background:rgba(91,187,123,.12); color:var(--ok)}
+  .badge.untested{background:rgba(138,151,168,.18); color:var(--muted)}
+  .badge.planned{background:rgba(224,91,91,.1); color:var(--danger)}
+
+  /* ─── TOC アンカー ─── */
+  [id]{scroll-margin-top:72px}
+</style>
+</head>
+<body>
+
+<!-- 上部ナビ -->
+<nav class="topnav">
+  <a class="brand" href="../">
+    <img src="../serval.png" alt="serval">
+    <div>
+      <div class="brand-name">serval</div>
+      <div class="brand-sub">TOURNAMENT MANAGER</div>
+    </div>
+  </a>
+  <span class="sp"></span>
+  <a class="back-link" href="../">← ポータルへ戻る</a>
+  <button id="themeBtn" aria-label="テーマ切り替え">🌙</button>
+</nav>
+
+<div class="layout">
+
+  <!-- サイドバー目次 -->
+  <aside class="sidebar">
+    <nav>
+      <div class="group">はじめに</div>
+      <a href="#getting-started">はじめての方へ</a>
+      <a href="#overview">servalとは</a>
+      <a href="#features">できること</a>
+      <a href="#structure">システム構成</a>
+      <div class="group">セットアップ</div>
+      <a href="#new-book">新規ブックの作り方</a>
+      <a href="#add-tournament">トーナメントの追加</a>
+      <a href="#gas-register">GASの登録・更新手順</a>
+      <a href="#settings">初期設定</a>
+      <div class="group">基本操作</div>
+      <a href="#players">選手・機体登録</a>
+      <a href="#checkin">参加者リスト（受付）</a>
+      <a href="#tournament">トーナメント進行</a>
+      <a href="#multiblock">複数ブロック・代表戦</a>
+      <a href="#league">リーグ戦進行</a>
+      <a href="#board">別画面表示</a>
+      <div class="group">応用機能</div>
+      <a href="#voting">応援・推し投票</a>
+      <a href="#repair">修理タイマー</a>
+      <a href="#line">LINE通知</a>
+      <a href="#announce">アナウンス</a>
+      <a href="#ads">バナー広告</a>
+      <a href="#xshare">X（Twitter）シェア</a>
+      <div class="group">管理</div>
+      <a href="#portal">ポータル管理</a>
+      <a href="#export">大会成績CSV出力</a>
+      <a href="#backup">データ管理</a>
+      <a href="#trouble">トラブルシュート</a>
+      <a href="#changelog">更新履歴</a>
+    </nav>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <main class="content">
+    <h1 id="top">serval 取扱説明書</h1>
+    <p class="subtitle">トーナメント・リーグ戦管理システム — Google Apps Script ウェブアプリ</p>
+
+    <!-- ─── はじめての方へ ─── -->
+    <h2 id="getting-started">🔰 はじめての方へ</h2>
+    <p>
+      大会用のページ（doc）は開発者（sin1.studio）が事前に用意しています。<strong>GASのコピーや設定は不要</strong>で、受け取ったURLを開くだけで使い始められます。
+    </p>
+    <h3>事前に受け取るもの</h3>
+    <table>
+      <tr><th>もの</th><th>用途</th><th>共有範囲</th></tr>
+      <tr><td>管理用URL（末尾が <code>&amp;admin</code>）</td><td>運営スタッフが登録・進行に使う</td><td>スタッフのみ</td></tr>
+      <tr><td>閲覧用URL</td><td>観客・参加者がスマホで見る</td><td>誰に共有してもOK</td></tr>
+      <tr><td>管理者パスワード</td><td>管理用URLを開いたときに入力</td><td>スタッフのみ（別途お知らせします）</td></tr>
+    </table>
+
+    <h3>当日までの準備</h3>
+    <ol class="steps">
+      <li><div><strong>管理用URLを開いてパスワードを入力</strong><br>正しく入力すると、同じ端末・ブラウザでは次回から入力を省略できます。</div></li>
+      <li><div><strong>大会名を入力</strong><br>画面上部中央の欄に入力します。観客の画面にも表示されます。</div></li>
+      <li><div><strong>選手を登録</strong><br>「🏆 トーナメント設定」の「⬆ CSV読込」で名簿を一括登録します（<a href="sample_players.csv">サンプルCSV</a>をExcelで編集すると簡単です）。選手数に合わせてトーナメント表とシード（不戦勝枠）が自動で作られます。項目の詳細は<a href="#players">選手・機体登録</a>へ。</div></li>
+      <li><div><strong>組み合わせを調整</strong><br>選手の枠をドラッグ＆ドロップで入れ替えられます。シードは枠をクリックして「シード設定」で変更します。</div></li>
+    </ol>
+    <div class="callout warn">
+      <div class="label">注意</div>
+      シードを手で調整した後に、選手数・トーナメント数などの「構成」を変えると、シードが自動配置で振り直されます（実行前に確認が出ます）。構成は先に決めてから、最後にシードと並びを調整してください。
+    </div>
+
+    <h3>大会当日</h3>
+    <ol class="steps">
+      <li><div><strong>結果を入力</strong><br>トーナメント表の試合をクリックすると右側に入力欄が出ます。勝者と勝ち方を選んで「送信」すると、勝ち上がりと演出が自動で行われます。</div></li>
+      <li><div><strong>観客に公開</strong><br>閲覧用URL（QRコード化すると便利です）を共有します。会場のスクリーンには「📺 画面設定」から別画面を開いて映します（<a href="#board">別画面表示</a>）。</div></li>
+    </ol>
+    <div class="callout tip">
+      <div class="label">ヒント</div>
+      1本先取と2本先取は、試合ごとに<strong>チェックした本数のまま</strong>送信できます。先取本数を2本に設定しておけば、序盤の試合は勝者に1つチェックして送信すると「1-0勝ち」（1本先取）、上位の試合は2つチェックすると「2-0／2-1勝ち」（2本先取）になります。切り替える回戦を事前に決める必要はありません（同点のときだけは送信できません）。
+    </div>
+
+    <div class="callout tip">
+      <div class="label">保存について</div>
+      変更は数秒ごとに自動で保存され、観客の画面にも反映されます。念のため、準備の節目や大会の前後には「保存」ボタンと「⬇ バックアップ」（手元にファイルで保存）を使ってください。
+    </div>
+    <div class="callout warn">
+      <div class="label">お願い</div>
+      管理用URLとパスワードはスタッフ内だけで共有し、SNSや配布物には載せないでください。観客に案内するのは<strong>閲覧用URLのみ</strong>です。
+    </div>
+    <p>ご自身のGoogleアカウントでデータを完全に分けて運用したい場合は、<a href="#new-book">新規ブックの作り方</a>を参照してください。</p>
+
+    <!-- ─── はじめに ─── -->
+    <h2 id="overview">servalとは</h2>
+    <p>
+      <strong>serval</strong> はロボット競技大会を対象としたトーナメント・リーグ戦管理ウェブアプリです。
+      Google スプレッドシートをデータベースとして利用し、Google Apps Script（GAS）のウェブアプリとしてブラウザ上で動作します。インストール不要、サーバー不要。
+    </p>
+    <ul>
+      <li>トーナメント・リーグ戦の管理と、観客向けのリアルタイムウェブ配信</li>
+      <li>試合演出・応援機能・別画面表示による会場の盛り上げ</li>
+      <li>LINE呼出しやSNSシェアなど周辺サービスとの連携</li>
+    </ul>
+    <p>詳しい機能は次の<a href="#features">「できること」</a>にまとめています。</p>
+
+    <h2 id="features">できること</h2>
+    <p>serval で実際にできることを、運用実績のステータス別にまとめます。分かりやすさを優先し、<a href="#overview">上記の概要</a>と重なる項目もあえて含めています。詳しい操作は各項目のリンク先を参照してください。</p>
+
+    <h3>実運用で検証済み</h3>
+
+    <h4 style="font-size:13.5px; font-weight:700; margin:20px 0 8px; color:var(--text)">ブラケット作成</h4>
+    <ul>
+      <li>シングル・ダブルエリミネーション形式のトーナメント表を自動生成（基本サイズ4〜128、<a href="#multiblock">1〜4ブロック</a>まで対応、選手数からサイズを自動算出）</li>
+      <li>シード設定（不戦枠は繰り上げ表示）、<strong>逆シード</strong>（シードが多いブロックでは非シード同士の対戦を優先的に採番）</li>
+      <li>通常の<a href="#tournament">3位決定戦</a>（あり/なし切り替え、ドラッグで表示位置を移動可能）</li>
+      <li>通常スタイル／中央決勝（左右対向）スタイルの切り替え</li>
+      <li>上下の対戦相手ごとの色分け（6色編集可能パレット）、枠サイズ・テーマ（ダーク/ライト）・表示倍率の変更</li>
+      <li><a href="#players">選手・機体登録</a>：名前リスト貼り付け、CSV取込（UTF-8/Shift_JIS）、ランダム配置、<strong>同所属の初戦回避</strong>（対戦がぶつかった場合の自動入替修復つき）、ドラッグ＆ドロップでの手動配置編集</li>
+      <li><a href="#checkin">参加者リストでの出欠・遅刻確認</a>：大会当日の受付チェック、遅刻・早退・棄権・失格・出禁の状態管理</li>
+      <li>スマホでのピンチイン・ピンチアウトによる表示倍率変更</li>
+    </ul>
+
+    <h4 style="font-size:13.5px; font-weight:700; margin:20px 0 8px; color:var(--text)">試合運営</h4>
+    <ul>
+      <li><a href="#tournament">試合番号クリックで結果入力</a>（勝者・勝ち方：1本先取／2本先取／不戦勝／勝者なし、試合時間の記録）</li>
+      <li>結果の取り消し（未送信の状態に戻す）。致命的な変更（試合後のドラッグ＆ドロップ・シード変更など）には確認ダイアログが出ます</li>
+      <li>ウェブ配信（管理モードでの入力が閲覧モードに自動反映）。選手の「一言紹介」（自由記入のコメント）を対戦カード・別画面・選手詳細ポップアップに表示</li>
+      <li>対戦カード・勝ち上がり演出：次の試合が決まると対戦カードが大きく表示され、結果確定後は勝者側が拡大・敗者側が縮小しつつ勝者線が点滅するアニメーションが流れます。管理画面の操作は閲覧モード・別画面すべてにリアルタイム配信されます</li>
+      <li>画面下部の「次の試合バー」（次の試合／2番手／3番手＋スキップ、最大4件表示）。試合のスキップ、「この試合を次の試合にする」の入れ替えが可能</li>
+      <li>順位表の自動表示（単独/代表トーナメントは優勝・準優勝・3位、代表リーグは勝ち本数→負け本数→総試合時間の順で決定）</li>
+      <li><a href="#line">選手へのLINE呼出し</a>ボタン（line-call-system連携）。結果入力パネルの「対戦チームを呼出」で両チームを一括呼出</li>
+      <li><a href="#ads">バナー</a>：ブラケット上に画像バナーを配置（ドラッグで移動・拡大縮小）。表示回数と各リンクのクリック数を集計</li>
+    </ul>
+
+    <h4 style="font-size:13.5px; font-weight:700; margin:20px 0 8px; color:var(--text)">複数ブロック・代表戦</h4>
+    <ul>
+      <li><a href="#multiblock">代表トーナメント</a>（各ブロック優勝者同士で全体優勝を決定）、または代表リーグ戦（3ブロック時、2名トーナメント×3を縦並べ）</li>
+      <li>代表の<strong>3位決定戦</strong>（2ブロック時は各ブロック準優勝者同士、4ブロック時は代表戦準決勝の敗者同士）</li>
+    </ul>
+
+    <h4 style="font-size:13.5px; font-weight:700; margin:20px 0 8px; color:var(--text)">別画面・配信連携</h4>
+    <ul>
+      <li><a href="#board">別画面1（<code>?board</code>）</a>：縦型の大型表示。OBSなどでの配信に対応</li>
+      <li>別画面2（<code>?lane</code>）：横長バナー表示（画面下3分の1など）</li>
+      <li>別画面3（<code>?sub</code>）：追加の大型表示</li>
+      <li>別画面4（<code>?meter</code>）：WinMeter（勝敗メーター）。両者のBP（バトルポイント）から算出した事前勝率と、試合中のダウン・攻勢を加味したリアルタイム勝率バーを表示</li>
+      <li>各別画面で表示項目（ブロック・回戦、試合番号、選手名、フリガナ、所属、<strong>タイプ</strong>＝自由記入欄が2つでアーム種類等を記録可、一言紹介、勝ち数、試合時間、<a href="#repair">修理時間</a>、<strong>二つ名・写真</strong>＝写真は表示サイズを小/中/大から選択可、<strong>推しコメント</strong>＝別画面1〜3、複数あれば6秒ごとに切り替え）・背景・フォント・ウィンドウサイズを個別に設定可能。フリガナは選手名の直上に表示されます。別画面1は試合切り替え時の入場演出（5方式＋ランダム）も選択できます</li>
+      <li>管理画面からの演出（勝ち上がり・対戦カード）が別画面にリアルタイム配信されます。演出設定では表示項目・写真サイズ・演出時間・効果音を勝ち上がり／対戦カードそれぞれ個別に設定でき、二つ名を先に見せる「焦らし演出」もON/OFF可能です（既定：対戦カードON／勝ち上がりOFF）</li>
+      <li>対戦カード演出には「通常／🔥派手／🌈ド派手」の3段階があり、「使用する（上位）」でベスト16・ベスト8・準決勝を<strong>派手</strong>、「使用する（決勝）」で3位決定戦・決勝を<strong>ド派手</strong>に自動で切り替えられます（既定はどちらもOFF）。各段階は演出設定のボタンでテストプレイできます</li>
+    </ul>
+
+    <h4 style="font-size:13.5px; font-weight:700; margin:20px 0 8px; color:var(--text)">応援・推し投票</h4>
+    <ul>
+      <li><a href="#voting">推し投票</a>：閲覧者が選手枠をタップして投票（端末1人1票、取り消し・投票し直し可）。32文字までの一言応援コメントを添えられます</li>
+      <li>「❤ 応援！」ボタン・スマホのシェイクで送る応援ハート（何度でも送信可）。別画面に炎上アニメーションで表示</li>
+      <li>管理画面の「📣 応援パネル」で推しランキング・応援ランキング・推しコメント一覧を確認可能</li>
+    </ul>
+
+    <h4 style="font-size:13.5px; font-weight:700; margin:20px 0 8px; color:var(--text)">Xシェア・フォント</h4>
+    <ul>
+      <li><a href="#xshare">Xシェア</a>：ブラケットを画像としてキャプチャし、OGP付きシェアURLを生成してX（旧Twitter）に投稿</li>
+      <li>フォント選択機能（選手名・数字・ベースの3系統を個別に設定）。Google Fontsから11種の和文フォントを動的ロード</li>
+    </ul>
+
+    <h4 style="font-size:13.5px; font-weight:700; margin:20px 0 8px; color:var(--text)">データ入出力</h4>
+    <ul>
+      <li>JSON形式での保存・読込・書き出し・取込（書式バージョン付き）</li>
+      <li><a href="#players">選手名簿のCSV取込</a>（選手名・フリガナ・所属・所属フリガナ・番号・代表者名・連絡先・一言紹介・二つ名・写真URL）</li>
+      <li><a href="#export">大会成績CSV出力</a>（<code>?result&amp;doc=&lt;docKey&gt;</code>）：優勝〜ベストNの成績・勝敗数・本数を一覧化</li>
+    </ul>
+
+    <h3>作成済みだが実戦での検証がまだのもの <span class="badge untested">未検証</span></h3>
+    <ul>
+      <li>
+        <strong>選手へのLINE呼出し</strong>：次の試合の選手にLINEで自動通知する機能自体は動作しますが、大会当日に選手の「番号」欄へ呼び出し用番号を登録する運用手順込みでの実戦検証はまだです。選手が待機所に来ているかどうかは判定せず、一律に通知が送られます
+      </li>
+      <li>
+        <strong>ブロック代表のリーグ戦</strong>：3ブロック構成時、代表決定をトーナメント方式ではなく総当たり（3試合）のリーグ戦で行う設定が可能です。実戦での使用実績はまだありません
+      </li>
+    </ul>
+
+    <h3>まだ作れていない機能（今後の構想） <span class="badge planned">未実装</span></h3>
+    <ul>
+      <li>
+        <strong>全体を通したリーグ戦</strong>：現状のリーグ戦機能はブロック内の総当たり戦にとどまり、本大会のような「全参加者を通した総当たり」形式には対応していません
+      </li>
+      <li>
+        <strong>選手待機所のセルフチェックイン</strong>：待機所にタブレットを置き、選手自身が「来た」ボタンをセルフで押す、来ない場合は自動でLINE呼出しする、という運用は未実装です
+      </li>
+      <li>
+        <strong>ストップウォッチ型の審判用デバイス</strong>：審判が手元の専用デバイス（M5Stack Stopwatchを想定したハードウェア）で試合時間・修理時間の計測、勝敗入力、次の試合の確認までできるようにする構想です。ブラウザの管理画面を開かずに試合を進行できるようにするのが狙いですが、現状はまだ設計段階です
+      </li>
+    </ul>
+    <div class="callout">
+      <div class="label">補足</div>
+      「未検証」「未実装」の項目は今後変わる可能性があります。最新の実装状況は本ドキュメントの各セクション、または開発者に確認してください。
+    </div>
+
+    <h2 id="structure">システム構成</h2>
+    <p>
+      大会シリーズ（<strong>ブック</strong>）ごとに独立した GAS プロジェクトを1つ用意します。
+      各ブックの中に第1回・第2回…の各<strong>トーナメント</strong>が入る、2階層の構造です。
+      すべてのブックは <a href="../">serval ポータル</a> から一元管理します。
+    </p>
+    <table>
+      <tr><th>用語</th><th>説明</th></tr>
+      <tr><td><strong>ブック</strong>（Book）</td><td>GASプロジェクト1つ＝大会シリーズ1つ。例：「中島杯」全体。データは1つのスプレッドシートで管理される</td></tr>
+      <tr><td><strong>トーナメント</strong>（Tournament）</td><td>ブック内の各回。例：中島杯の第7回・第6回・…。「第N回」と「トーナメント名（docKey）」をペアで登録する</td></tr>
+      <tr><td>GASウェブアプリ（/exec）</td><td>トーナメント管理アプリ本体。URLに <code>?doc=JimaCup7</code> のように docKey を付けて各回のデータを区別する</td></tr>
+      <tr><td>Googleスプレッドシート</td><td>GASに自動紐付けされるデータ保存先。「Store」シートに全回分のデータを保存</td></tr>
+      <tr><td>ポータル（sin1.studio/serval/）</td><td>ブック一覧・トーナメント追加の管理画面。GitHub Pagesで配信</td></tr>
+    </table>
+
+    <div class="callout">
+      <div class="label">ポイント</div>
+      1つのGASプロジェクト = 1ブック（大会シリーズ）。中島杯の第7回・第6回はすべて同じGASとスプレッドシートで管理します。
+      第N回のデータは docKey（例: JimaCup7）で区別され、GAS URLに <code>?doc=JimaCup7</code> を付けてアクセスします。
+    </div>
+
+    <!-- ─── セットアップ ─── -->
+    <h2 id="new-book">新規ブックの作り方（新しい大会シリーズを登録する）</h2>
+    <ol class="steps">
+      <li>
+        <div>
+          <strong>GASプロジェクトをコピー作成</strong><br>
+          <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> にアクセスします。
+          既存の serval プロジェクト（例: TournamentManager）を開き、左上メニュー「…」→「コピーを作成」を選択します。
+          新しいスプレッドシートとGASプロジェクトが自動で作成されます。
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>ウェブアプリとしてデプロイ</strong><br>
+          コピーしたGASを開き、右上「デプロイ」→「新しいデプロイ」を選択。
+          種類「ウェブアプリ」を選び、次のように設定します：
+          <ul style="margin-top:6px">
+            <li>説明：任意（例: 中島杯）</li>
+            <li>次のユーザーとして実行：自分（例: sin1@sin1.studio）</li>
+            <li>アクセスできるユーザー：<strong>全員</strong>（Googleアカウント不要）</li>
+          </ul>
+          「デプロイ」をクリックし、承認ダイアログが出た場合は「アクセスを承認」→ Googleアカウントを選択 →「詳細」→「（プロジェクト名）に移動」→「許可」の順に操作します。
+          表示された <code>/exec</code> の URL をコピーします。
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>スクリプトプロパティを設定</strong><br>
+          GASエディタの左側「⚙ プロジェクトの設定」→「スクリプトプロパティ」を開きます。
+          「プロパティを追加」で以下を設定してください：
+          <table style="margin-top:8px; font-size:12.5px">
+            <tr><th>プロパティ名</th><th>値</th><th>用途</th></tr>
+            <tr><td><code>ADMIN_TOKEN</code></td><td>任意のパスワード</td><td>ポータルからの書き込み認証</td></tr>
+            <tr><td><code>LINE_TOKEN</code></td><td>LINE Notifyトークン</td><td>LINE通知（任意）</td></tr>
+            <tr><td><code>LINE_CALL_URL</code></td><td>呼び出しサーバーのURL</td><td>LINE呼び出し（任意）</td></tr>
+          </table>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>ポータルでブックを作成・URLを登録</strong><br>
+          <a href="../">serval ポータル</a> を開き、「＋ 新規ブック」をクリックします。
+          ブック名（例: 中島杯）を入力し、コピーした <code>/exec</code> URLを「GAS WebアプリURL」欄に貼り付けて保存します。
+          準備中カードが作成され、黄色バーに変わります。
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>ブックカードにトーナメントを追加</strong><br>
+          ポータルのブックカード下部の「第 __ 回　トーナメント名」欄に入力して「＋ 追加」をクリックします。
+          例：第 <code>7</code> 回、トーナメント名 <code>JimaCup7</code> → 「第7回 / JimaCup7 / 開く / 管理」の行が表示されます。
+          「開く」は <code>?doc=JimaCup7</code> 付きのURL、「管理」は <code>?doc=JimaCup7&amp;admin</code> 付きのURLを開きます。
+        </div>
+      </li>
+    </ol>
+
+    <div class="callout tip">
+      <div class="label">ヒント</div>
+      デプロイ後に「コードを修正してもウェブアプリに反映されない」場合は、「デプロイ → デプロイを管理 → 編集（鉛筆アイコン）→ バージョン：新バージョン → デプロイ」で更新できます。
+    </div>
+
+    <h2 id="add-tournament">トーナメントの追加（同じブックの次の回を登録する）</h2>
+    <p>
+      中島杯の第6回・第8回など、同じ大会シリーズの新しい回を追加するには、<strong>同じGASに新しいトーナメントを登録するだけ</strong>です。
+      新たにGASをコピーする必要はありません。同じスプレッドシートに回ごとのデータが別キーで保存されます。
+    </p>
+    <ol class="steps">
+      <li>
+        <div>
+          ポータルで対象のブックカード（例: 中島杯）を開く
+        </div>
+      </li>
+      <li>
+        <div>
+          カード下部の追加行に「第 <code>8</code> 回　<code>JimaCup8</code>」のように入力して「＋ 追加」をクリック
+        </div>
+      </li>
+      <li>
+        <div>
+          「開く」ボタンから <code>?doc=JimaCup8</code> 付きのURLを開いて、新しいトーナメントの選手登録・設定を行う
+        </div>
+      </li>
+    </ol>
+
+    <div class="callout">
+      <div class="label">注意</div>
+      同じGAS内でデータが共存するため、docKey（例: JimaCup8）は他の回と重複しないようにしてください。
+      容量が逼迫してきたら（管理画面のデータサイズバーが70%超）、新しいGASを別途コピーして新ブックとして登録してください（ver211以降は保存データを圧縮するため、通常の大会規模で逼迫することはほぼありません）。
+    </div>
+
+    <h2 id="gas-register">GASのコード更新手順（servalのバージョンアップ時）</h2>
+    <p>serval 本体のコード（Code.gs / app.html など）が更新された場合、各ブックのGASにも反映が必要です。</p>
+    <ol class="steps">
+      <li>
+        <div>
+          更新済みの serval プロジェクト（TournamentManager）から更新内容を確認
+        </div>
+      </li>
+      <li>
+        <div>
+          各ブックのGASプロジェクトを開き、該当するファイルを差し替えてコードを貼り替える
+        </div>
+      </li>
+      <li>
+        <div>
+          「デプロイ → デプロイを管理 → 編集（鉛筆）→ バージョン：新バージョン → デプロイ」で反映
+        </div>
+      </li>
+      <li>
+        <div>
+          スクリプトプロパティ（<code>ADMIN_TOKEN</code> 等）は引き継がれるため、通常は再設定不要
+        </div>
+      </li>
+    </ol>
+
+    <h2 id="settings">初期設定</h2>
+    <p>GASウェブアプリを開き、右上の歯車アイコンから「設定」を開きます。</p>
+    <table>
+      <tr><th>項目</th><th>説明</th></tr>
+      <tr><td>大会名</td><td>試合結果の表示やXシェアに使われます</td></tr>
+      <tr><td>試合時間</td><td>1試合あたりの制限時間（秒）。デフォルト 120秒</td></tr>
+      <tr><td>修理時間</td><td>修理タイマーのデフォルト上限（秒）。デフォルト 300秒</td></tr>
+      <tr><td>フリガナ表示</td><td>ON にすると、漢字・英字を含む選手名にフリガナを表示</td></tr>
+      <tr><td>別画面（観客用）</td><td>表示する情報を選択。URL末尾に <code>?board</code> を付けてアクセス</td></tr>
+    </table>
+
+    <!-- ─── 基本操作 ─── -->
+    <h2 id="players">選手・機体登録</h2>
+    <p>左サイドバーの「選手」タブから登録します。</p>
+    <ul>
+      <li><strong>選手名</strong>：表示名（漢字・英字可）</li>
+      <li><strong>フリガナ</strong>：カタカナ。漢字・英字名がある場合のみ表示されます</li>
+      <li><strong>所属</strong>：チーム名・学校名など（任意）</li>
+      <li><strong>番号</strong>：LINE通知で使う呼び出し番号（数字のみ）</li>
+      <li><strong>シード</strong>：トーナメントの山の組み分けに影響します</li>
+    </ul>
+
+    <h3>CSV取込</h3>
+    <p>
+      「⬆ CSV読込」ボタンからExcel等で作成した選手名簿を一括登録できます。文字コードはUTF-8・Shift_JISの両方に対応（Excelで保存したCSVもそのまま読み込めます）。
+    </p>
+    <p>サンプルファイル：<a href="sample_players.csv">sample_players.csv</a>（対応する全項目を網羅した例です。ダウンロードして書式の参考にしてください）</p>
+    <pre>選手名,フリガナ,所属,所属（フリガナ）,番号,代表者名,連絡先,一言紹介,二つ名,写真URL
+サンプルナイト,サンプルナイト,はるかぜ工業高校,ハルカゼコウギョウコウコウ,1,山田太郎,yamada@example.com,初出場です。よろしくお願いします,鋼鉄の意地,https://example.com/photos/sample-knight.jpg
+テストランナー,,個人参加,,2,鈴木一郎,,,,
+デモウォリアー,デモウォリアー,みなと大学ロボット研究会,ミナトダイガクロボットケンキュウカイ,3,,demo@example.com,ベスト8を目指します,,
+シンプル号,,,,4,,,,,</pre>
+    <p>
+      1行目は見出し行です。以下の見出し名（<strong>いずれか1つでも完全一致すればOK</strong>）に対応しています。列の順序・列数は自由で、<strong>選手名以外は全て省略可能</strong>です（上のサンプルの4行目「シンプル号」のように選手名と番号だけでも読み込めます）。
+    </p>
+    <table>
+      <tr><th>項目</th><th>使える見出し名（表記ゆれ）</th><th>必須</th></tr>
+      <tr><td>選手名</td><td>選手名／名前／ロボット名／機体名／氏名</td><td>必須</td></tr>
+      <tr><td>フリガナ</td><td>フリガナ／ふりがな／よみ／読み／ヨミ／選手名（フリガナ）／機体名（フリガナ）など（全角・半角括弧どちらも可）</td><td>任意</td></tr>
+      <tr><td>所属</td><td>所属／チーム／チーム名／団体名</td><td>任意</td></tr>
+      <tr><td>所属フリガナ</td><td>所属（フリガナ）／団体名（フリガナ）など（全角・半角括弧どちらも可）</td><td>任意</td></tr>
+      <tr><td>番号</td><td>番号／No／no／ナンバー／ゼッケン</td><td>任意</td></tr>
+      <tr><td>代表者名</td><td>代表者名／代表者／操縦者／操縦者名</td><td>任意</td></tr>
+      <tr><td>連絡先</td><td>連絡先／メール／mail／電話／TEL／tel</td><td>任意</td></tr>
+      <tr><td>一言紹介</td><td>コメント／備考／一言／紹介文／紹介／一言紹介／PR</td><td>任意</td></tr>
+      <tr><td>二つ名</td><td>二つ名／二つ名・愛称／愛称／ニックネーム</td><td>任意</td></tr>
+      <tr><td>写真URL</td><td>写真URL／写真／画像URL／ロボット写真／機体写真URL</td><td>任意</td></tr>
+    </table>
+    <div class="callout warn">
+      <div class="label">注意</div>
+      見出し行の文字列が上表のどれとも一致しない場合、見出し行ごと1件のデータとして読み込まれてしまいます（例：「ロボット」「Tel」「チーム名（カナ）」などは非対応の表記のため誤認識します）。見出しは<strong>上表の表記をそのままコピー</strong>して使ってください。
+    </div>
+    <div class="callout warn">
+      <div class="label">注意</div>
+      CSVを読み込むと、<strong>現在の選手一覧・配置・対戦結果はすべて置き換わります</strong>（元に戻せません）。既に対戦が進んでいる大会では実行前に「保存」しておくことを推奨します。
+    </div>
+    <p>
+      見出し行を省略し「選手名,所属」の2列だけを並べる簡易形式にも対応しています。また所属列自体を省略し、選手名の列に <code>選手名（所属名）</code> の形式でまとめて書いた場合も自動的に選手名と所属に分割されます。
+    </p>
+
+    <h2 id="checkin">参加者リスト（受付チェック）</h2>
+    <p>管理画面左の「👥 参加者リスト」ボタンから、大会当日の出欠・遅刻確認ができます。</p>
+    <ul>
+      <li><strong>受付</strong>：選手ごとにチェックボックスで受付済みかどうかを記録します。上部に「受付済み ○ / ○ 名」と表示されます</li>
+      <li><strong>状態</strong>：遅刻・早退・棄権・失格・出禁を選手ごとにプルダウンで設定できます（設定した選手は一覧で薄く表示されます）</li>
+      <li>番号順・名前順・所属順・試合順（最初の対戦番号順）・受付済み優先の5種類でソートできます</li>
+    </ul>
+
+    <h2 id="tournament">トーナメント進行</h2>
+    <h3>対戦組み合わせ生成</h3>
+    <p>「トーナメント」タブを開き「組み合わせを生成」ボタンをクリックします。登録済みの選手から自動的にブラケットが生成されます。</p>
+
+    <h3>試合の進行</h3>
+    <ol>
+      <li>トーナメント表の試合（試合番号）をクリックすると、右側に結果入力欄が出ます</li>
+      <li>「1本目」の「開始」で試合時間を計り、終わったら「停止」。「↺」でその本の時間を初期値に戻せます</li>
+      <li>本を取った選手のチェックボックスに印を付けます。2本先取の試合で1本目のあとにチェックすると、別画面の時間は2本目の初期値に切り替わります</li>
+      <li>「送信」で確定すると、勝者が次の試合へ進み、演出が流れます（キーボードは Shift+R / Shift+B で加算、Shift+S で送信）</li>
+    </ol>
+    <div class="callout tip">
+      <div class="label">ヒント</div>
+      チェックした本数のまま送信できます。先取本数を2本にしておけば、序盤は1つチェックして送信（1-0勝ち＝1本先取）、上位は2つ（2-0／2-1勝ち）と使い分けられます。同点（0-0・1-1）のときだけは送信できません。
+    </div>
+    <h3>時間のベル</h3>
+    <p>カウントダウンのとき、残り30秒で「チーン」、10秒で「チンチーン」、0秒で「チンチンチーン」と鳴り、0秒でタイマーが止まります。「⚙ 表示設定」のタイマー設定でそれぞれON/OFFでき、「🔔 ベルを試聴」で音を確認できます。</p>
+    <h3>棄権・失格の試合</h3>
+    <p>参加者リストで棄権・失格（出禁を含む）にした選手がいる試合を開くと、相手の「不戦勝」（両者なら「勝者なし」）が入力済みになります。内容を確認して「送信」してください。トーナメント表の選手枠には（遅刻）（棄権）などが表示されます（出禁は表示されません）。</p>
+
+    <h2 id="multiblock">複数ブロック・代表戦 <span class="badge new">NEW</span></h2>
+    <p>
+      設定でトーナメント数を2以上にすると、A・B…の各ブロックとは別に「代表トーナメント」（または代表リーグ戦）が右側に表示され、各ブロックの優勝者（代表）同士で全体の優勝を争います。
+    </p>
+    <table>
+      <tr><th>ブロック数</th><th>代表の決め方</th></tr>
+      <tr><td>2ブロック</td><td>代表2名によるトーナメント（決勝1試合のみ）</td></tr>
+      <tr><td>3ブロック</td><td>「代表の決め方」設定で<strong>トーナメント方式</strong>（1ブロックが不戦勝で決勝進出）または<strong>リーグ戦方式</strong>（総当たり3試合）を選択</td></tr>
+      <tr><td>4ブロック以上</td><td>代表4名によるトーナメント（準決勝2試合＋決勝）</td></tr>
+    </table>
+
+    <h3>代表の3位決定戦</h3>
+    <p>
+      設定の「代表にも3位決定戦を設ける」にチェックを入れると、全体3位を決める試合が追加されます。ブロック数によって対戦カードの意味が異なります。
+    </p>
+    <ul>
+      <li><strong>2ブロック時</strong>：代表決定戦（決勝）とは別に、<strong>AブロックとBブロックそれぞれの自分自身の決勝で敗れた選手（ブロック準優勝）同士</strong>が3位を争います</li>
+      <li><strong>3ブロック以上（代表4枠）時</strong>：代表トーナメント自身の<strong>準決勝で敗れた2名</strong>が3位を争います</li>
+    </ul>
+    <div class="callout tip">
+      <div class="label">ヒント</div>
+      全体の順位表（優勝・準優勝・3位）は代表戦の結果に基づいて自動集計されます。大会成績のCSV出力（<a href="#export">大会成績CSV出力</a>）にもこの3位が反映されます。
+    </div>
+
+    <h2 id="league">リーグ戦進行</h2>
+    <p>「リーグ」タブで総当たり戦を管理します。各対戦の勝敗ポイントを入力すると自動的に順位表が更新されます。</p>
+
+    <h2 id="board">別画面表示（観客用）</h2>
+    <p>管理画面上部の「📺 別画1」〜「📊 別画4」で、観客・配信向けの表示専用画面を別ウィンドウで開けます。開いている別画面のボタンにマウスを乗せると、1/4に縮小した画面が表示されます。</p>
+    <h3>配信専用モード（別のPCで映す）</h3>
+    <p>次のURLを開くだけで、管理画面なしでも別画面が表示され、サーバーから最新の状態を数秒ごとに取り込みます（結果の反映はおおむね4〜9秒）。</p>
+    <pre>…/exec?board&amp;doc=大会名   別画面1
+…/exec?lane&amp;doc=大会名    別画面2（横長）
+…/exec?sub&amp;doc=大会名     別画面3</pre>
+    <p>同じPCで管理画面が配信している間はそちらを優先します（即時反映）。別画面4（WinMeter）は管理PCで開いてください。試合時間のタイマーや試合途中の本数も表示されます。</p>
+    <h3>画面ごとの設定（「📺 画面設定」）</h3>
+    <ul>
+      <li><strong>推しコメント</strong>：対戦中の2機に寄せられたコメントを表示（複数は6秒ごとに切り替え）。OFFにすると数秒で消えます</li>
+      <li><strong>赤と青を左右入れ替え</strong>：機体と色の組み合わせはそのまま、表示の左右だけを入れ替えます</li>
+      <li><strong>VS（勝ち数OFF時）</strong>とその大きさ（大・中・小）</li>
+      <li>長い機体名は文字の高さを保ったまま横幅を圧縮して表示します（最大50%。それでも入らない場合のみ省略）</li>
+    </ul>
+    <p>演出（勝ち上がり・対戦カード）はタップするといつでも省略できます。「🎬 演出設定」の表で、管理画面と閲覧者・別画面それぞれの表示・効果音をON/OFFできます（例：管理画面では演出を出さず、別画面にだけ出す）。</p>
+    <table>
+      <tr><th>表示オプション</th><th>内容</th></tr>
+      <tr><td>次の試合</td><td>次に行われる試合の選手名・機体名</td></tr>
+      <tr><td>現在の試合</td><td>進行中の試合のタイマー・スコア</td></tr>
+      <tr><td>修理時間</td><td>修理中の機体名と経過時間</td></tr>
+      <tr><td>順位表</td><td>リーグ戦の現在の順位</td></tr>
+    </table>
+
+    <!-- ─── 応用機能 ─── -->
+    <h2 id="voting">応援・推し投票 <span class="badge new">NEW</span></h2>
+    <p>
+      閲覧者が別画面（<code>?board</code>等）や閲覧モードで選手枠をタップすると、選手の詳細ポップアップに「☆ 推す」ボタンと一言応援欄が表示されます。
+    </p>
+    <ul>
+      <li><strong>推し投票</strong>：「☆ 推す」で1票投票（端末（ブラウザ）ごとに1人1票）。ボタンは「⭐ 推し中」に変わり、もう一度押すと<strong>投票を取り消して他の選手に投票し直せます</strong></li>
+      <li><strong>一言応援</strong>：投票中の選手にのみ、32文字までの応援コメントを入力できます。入力後しばらくすると自動送信され、投票を取り消すと同時にコメントも消えます</li>
+      <li><strong>❤ 応援！（応援ハート）</strong>：投票とは別に、ボタンまたはスマホのシェイク操作で送信できる一過性のリアクションです（何度でも送信可）。board/sub画面に炎上アニメーションで表示されます</li>
+    </ul>
+    <p>管理画面の「📣 応援パネル」では、推しランキング・応援ランキングに加え、「💬 推しコメント」タブで選手ごとのコメント一覧（新しい順・投稿日時付き）を確認できます。一覧は管理者のみ閲覧でき、投稿者を特定する情報は表示されません。</p>
+    <p>別画面1〜3の画面設定で「推しコメント」をONにすると、対戦中の2機に寄せられたコメントを別画面にも表示します（複数あれば6秒ごとに切り替え）。コメントは管理画面が約30秒ごとに取得するため、表示までに最大30秒ほどかかり、管理画面を開いている間だけ更新されます。</p>
+    <div class="callout">
+      <div class="label">注意</div>
+      推し投票・一言応援は端末のブラウザ（localStorage）に投票状態を記録する方式です。ブラウザを変える・データを消去すると再度投票できるようになります。
+    </div>
+
+    <h2 id="repair">修理タイマー</h2>
+    <p>試合終了後に修理時間を計測できます。試合の右カラムの「修理開始」ボタンで計測開始。設定で指定した上限時間に達すると別画面の表示から自動的に消えます。</p>
+
+    <h2 id="line">LINE通知</h2>
+    <p>次の試合に呼ばれる選手にLINEで自動通知します。</p>
+
+    <h3>設定手順</h3>
+    <ol class="steps">
+      <li>
+        <div>
+          <a href="https://notify-bot.line.me/" target="_blank" rel="noopener">LINE Notify</a> でトークンを取得（「トークへの通知」で自分のトークに送るのが簡単）
+        </div>
+      </li>
+      <li>
+        <div>
+          呼び出しサーバーを起動。<a href="https://github.com/sin1n24/line-call-system" target="_blank" rel="noopener">line-call-system</a> を PC でローカル起動し、cloudflared などで外部公開URLを取得。
+        </div>
+      </li>
+      <li>
+        <div>
+          GASのスクリプトプロパティに設定：
+          <ul>
+            <li><code>LINE_TOKEN</code>：LINE Notifyのトークン</li>
+            <li><code>LINE_CALL_URL</code>：呼び出しサーバーの外部URL（例：<code>https://xxxx.trycloudflare.com</code>）</li>
+          </ul>
+        </div>
+      </li>
+      <li>
+        <div>
+          選手の「番号」欄に呼び出し用の番号（数字のみ）を登録
+        </div>
+      </li>
+    </ol>
+
+    <div class="callout warn">
+      <div class="label">注意</div>
+      公共WiFiで再認証が発生するとcloudflaredのトンネルURLが失効します。大会中は安定したネットワーク環境を推奨します。
+    </div>
+
+    <h2 id="announce">アナウンス</h2>
+    <p>
+      「設定 → アナウンス」に短いテキストを入力すると、別画面の「応援」ボタンと試合キューの間に表示されます。
+      休憩時間のお知らせや「14時まで 自由練習」などを一時的に表示するのに使います。空にすると非表示になります。
+    </p>
+
+    <h2 id="ads">バナー広告</h2>
+    <p>
+      「設定 → バナー」から画像URLと表示時間を設定できます。別画面で試合と試合の間にバナーが自動的に表示されます。
+    </p>
+
+    <h2 id="xshare">X（Twitter）シェア</h2>
+    <p>
+      試合確定後に「Xシェア」ボタンが表示されます。試合結果の画像を生成してXに投稿できます。
+      Renderにデプロイされたシェアサーバーが画像生成を担当します。
+    </p>
+
+    <!-- ─── 管理 ─── -->
+    <h2 id="portal">ポータル管理</h2>
+    <p>
+      <a href="../">serval ポータル</a> からブックの一覧表示・編集・削除と、各ブック内トーナメントの追加・削除ができます。
+    </p>
+    <ul>
+      <li>ブックカード：「編集」でブック名・GAS URL・メモを更新、「削除」でポータルから非表示（ソフトデリート）</li>
+      <li>トーナメント行：「開く」→選手閲覧モード、「管理」→管理者モード（パスワード認証あり）、「×」で行を削除</li>
+      <li>「削除済みも表示」チェックで削除済みブックを表示し「復元」できます。GASのデータ自体は削除されません。</li>
+    </ul>
+    <p>
+      ポータルの書き込み操作（作成・更新・削除・トーナメント追加）には管理者パスワードが必要です。
+      初回アクセス時にプロンプトが表示され、ブラウザのlocalStorageに保存されます。
+    </p>
+
+    <h2 id="export">大会成績CSV出力 <span class="badge new">NEW</span></h2>
+    <p>
+      GASウェブアプリのURLに <code>?result&amp;doc=&lt;docKey&gt;</code> を付けてアクセスすると、参加選手・機体の大会成績一覧をCSVファイルとしてダウンロードできます。
+    </p>
+    <pre>https://script.google.com/macros/s/…/exec?result&doc=JimaCup7</pre>
+    <div class="callout warn">
+      <div class="label">注意</div>
+      <code>doc=</code> の指定を忘れると <code>default</code> という別データが返ってしまいます。必ず対象のトーナメント名（docKey）を指定してください。
+    </div>
+    <p>CSVには以下の列が出力されます（1試合ごとの細かい情報は含みません）。</p>
+    <table>
+      <tr><th>列</th><th>内容</th></tr>
+      <tr><td>番号／ロボット名／フリガナ／操縦者名／所属／所属フリガナ／タイプ1／タイプ2／一言紹介</td><td>選手・機体登録の内容そのまま</td></tr>
+      <tr><td>大会成績</td><td>大会での最終成績（下表参照）</td></tr>
+      <tr><td>勝ち試合数／負け試合数／勝ち本数／負け本数</td><td>大会を通じた通算成績</td></tr>
+    </table>
+    <p><strong>「大会成績」列の付き方</strong>はブロック数によって変わります。</p>
+    <table>
+      <tr><th>構成</th><th>成績表記</th></tr>
+      <tr><td>単独トーナメント（ブロック1つ）</td><td>優勝・準優勝・3位・4位、それ以外は「ベストN」（Nはその回戦の実際の対戦人数）</td></tr>
+      <tr><td>複数ブロック（代表トーナメントあり）</td><td>ブロックをまたいだ全体成績として <strong>優勝・準優勝・3位・ベスト4・ベスト8・ベスト16</strong> の6段階のみ付与。優勝〜3位・ベスト4は<a href="#multiblock">代表戦</a>の結果、ベスト8は各ブロック決勝の敗者、ベスト16は各ブロック準決勝の敗者。それより浅い試合の敗者は空欄になります</td></tr>
+    </table>
+
+    <h2 id="backup">データ管理</h2>
+    <p>
+      全データはGASに紐付いたGoogleスプレッドシートの「Store」シートに保存されています。
+      ver211以降のデータは圧縮して保存されるため、シートを直接開いても中身は読めません。内容の確認やバックアップは管理画面の「⬇ バックアップ」（JSON保存）を使ってください。
+    </p>
+    <div class="callout warn">
+      <div class="label">容量上限について</div>
+      1大会（1つのdocKey）のデータは、圧縮後で約98万字まで保存できます（ver210以前は圧縮なしで約5万字）。servalは試合数が増えると容量が増加します。管理画面のデータサイズバーで使用率を確認してください。70%を超えたら新規ブック（GASを新たにコピー）への移行を検討してください。
+    </div>
+
+    <h2 id="trouble">トラブルシュート</h2>
+    <table>
+      <tr><th>症状</th><th>対処</th></tr>
+      <tr>
+        <td>画面が白いまま / 古いバージョンが表示される</td>
+        <td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> でキャッシュをクリアして再読み込み</td>
+      </tr>
+      <tr>
+        <td>「init is not defined」エラー</td>
+        <td>GASのスクリプトにSyntaxErrorがある可能性。管理者に報告</td>
+      </tr>
+      <tr>
+        <td>LINE通知が来ない</td>
+        <td>
+          <ol>
+            <li><code>LINE_TOKEN</code> と <code>LINE_CALL_URL</code> が正しく設定されているか確認</li>
+            <li>cloudflaredのトンネルが生きているか確認（公共WiFi再認証後は失効する）</li>
+            <li>選手の「番号」欄が数字のみになっているか確認</li>
+          </ol>
+        </td>
+      </tr>
+      <tr>
+        <td>別画面が更新されない</td>
+        <td>別画面は定期的にポーリングしています。ネットワーク状況を確認し、ページを再読み込みしてください</td>
+      </tr>
+      <tr>
+        <td>ポータルにアクセスできない（CORS エラー）</td>
+        <td>レジストリGASのデプロイが最新か確認。GASを再デプロイ（バージョン更新）してください</td>
+      </tr>
+    </table>
+
+    <h2 id="changelog">更新履歴</h2>
+    <p>主な更新のみを記載しています（軽微な修正は省略）。バージョン番号は管理画面左上の見出しに表示されます。</p>
+    <table>
+      <tr><th>Ver</th><th>内容</th></tr>
+      <tr><td>230</td><td>演出の表示・効果音を管理画面と閲覧者・別画面で個別に設定できるよう整理。棄権・失格の選手がいる試合に不戦勝を自動入力（送信は手動）。開いている別画面ボタンにマウスを乗せると縮小表示。カウントダウンの時間のベル（30秒・10秒・0秒、各ON/OFF）</td></tr>
+      <tr><td>229</td><td>試合時間タイマーのリセットボタン、残り0秒での自動停止と通知。2本先取で1本目のあとに別画面の時間を2本目の初期値へ切り替え。結果の取り消し時に古い残り時間が残る不具合を修正</td></tr>
+      <tr><td>228</td><td>演出をタップで省略。別画面のVSの表示ON/OFFと大きさ設定。演出・別画面の文字が途中で別のフォントに切り替わらないよう、フォントを先読み</td></tr>
+      <tr><td>227</td><td>試合途中の本数（2本先取の1-0など）を別画面に表示</td></tr>
+      <tr><td>226</td><td>別画面に「赤と青を左右入れ替え」設定</td></tr>
+      <tr><td>225</td><td>参加者リストの状態をトーナメント表に表示（遅刻・早退・棄権・失格。出禁は非表示）</td></tr>
+      <tr><td>224</td><td>配信専用モードの別画面でも推しコメントを表示</td></tr>
+      <tr><td>223</td><td>全ての別画面で機体名を2pt小さく、二つ名・所属を1ptずつ大きく</td></tr>
+      <tr><td>222</td><td>長い機体名を文字の高さを保ったまま横幅圧縮して表示</td></tr>
+      <tr><td>221</td><td>配信専用モード：別画面のURLを開くだけで、管理画面なしでもサーバーから最新を取り込んで表示</td></tr>
+      <tr><td>220</td><td>結果入力で、先取本数に達していなくてもチェックした本数のまま送信できるように（1個なら1本先取、2個なら2本先取の扱い。同点のときだけ案内を表示）</td></tr>
+      <tr><td>218</td><td>対戦カード演出に「🎰 パチンコ」を追加（群予告→保留変化→リーチ→PUSH→大当り→キリン柄カード）</td></tr>
+      <tr><td>217</td><td>セキュリティ強化：管理者パスワードをサーバー側で照合するように変更し、画面のソースからパスワードを削除。パスワード未設定時に誰でも書き込めた問題を修正</td></tr>
+      <tr><td>216</td><td>対戦カード演出の「派手／ド派手」をベスト16以上（派手）と3位決定戦・決勝（ド派手）に自動適用できるように（「使用する（上位）／（決勝）」チェック）。派手は段階名（ベスト16／ベスト8／準決勝）をテロップ表示、煽り文言は複数パターンからランダム。二つ名を斜めの称号帯に1文字ずつ刻む表示に</td></tr>
+      <tr><td>215</td><td>対戦カード演出のテストプレイに「通常／派手／ド派手」を追加（フラッシュ・激突・紙吹雪・昇格演出など。フラッシュは1秒3回以下に制限）</td></tr>
+      <tr><td>214</td><td>データの読込に失敗したとき、空の状態で上書き保存しないよう保存を一時停止（正常に読めたら自動で再開）。保存時の通信エラーも画面に通知</td></tr>
+      <tr><td>213</td><td>別画面1〜3に推しコメントの表示（チェックでON、複数は6秒ごとに切り替え）。別画面1・3のフリガナを選手名の直上へ移動</td></tr>
+      <tr><td>212</td><td>「推し投票ランキング」を「応援パネル」に改名し、推しコメント一覧タブを追加</td></tr>
+      <tr><td>211</td><td>保存データを圧縮して複数セルに分けて保存するように変更し、1大会あたりの容量上限を約20倍に拡大（khk26規模で使用率約1%）。保存に失敗したとき画面に通知するように修正。シードがある状態で選手数・トーナメント数などの全体設定を変えると、シードが自動配置で振り直されることを確認するダイアログを追加</td></tr>
+      <tr><td>210</td><td>別画面1の試合切り替え演出を5方式（スライド／フリップ／ズーム／フェード／ライズ）＋ランダムから選択可能に。画面設定からテストプレイ可能</td></tr>
+      <tr><td>209</td><td>焦らし演出のカード枠サイズを完全固定（所属の有無等で色ラインと二つ名が重なる不具合を解消）。二つ名が移動しながら変化するアニメーションを復元</td></tr>
+      <tr><td>208</td><td>焦らし演出の二つ名表示を縮小し「」を削除。対戦カード／勝ち上がりそれぞれに焦らし演出のON/OFFを独立設定（既定：対戦カードON・勝ち上がりOFF）</td></tr>
+      <tr><td>207</td><td>別画面1〜4（WinMeter含む）に写真サイズ（小／中／大）の設定を追加</td></tr>
+      <tr><td>206</td><td>演出設定に写真サイズ選択・対戦カード／勝ち上がりの表示順入れ替え・選手ポップアップの表示項目設定（番号／所属／フリガナ／タイプ／一言紹介／二つ名／写真）を追加。テストプレイは単体再生に変更</td></tr>
+      <tr><td>203〜205</td><td>複数ブロック代表トーナメントの決勝で二つ名・写真（フリガナ／タイプ／一言紹介も）が反映されない不具合を修正。WinMeterの事前勝率をBP（バトルポイント）基準に変更</td></tr>
+      <tr><td>199〜202</td><td>別画面1〜4の二つ名・写真表示ON/OFF、演出設定を共通／勝ち上がり／対戦カードに分割し表示項目を個別設定可能に、二つ名を先に見せる「焦らし演出」とテストプレイ機能を追加</td></tr>
+      <tr><td>191</td><td>表示倍率UIと実データの乖離バグを修正（選択肢にない0.5倍指定時、UI表示上は100%でも実際は縮小されたままだった問題）。doPostにpageList APIを追加</td></tr>
+      <tr><td>189</td><td>配信データ生成時、文字列中の <code>https://</code> が正規表現によるコメント除去処理で誤って消失する不具合を修正（<code>&amp;#47;&amp;#47;</code> エスケープで対策）</td></tr>
+      <tr><td>187</td><td><code>?result</code> の2ブロック代表3位決定戦、成績表記をさらに1段深い方向に修正</td></tr>
+      <tr><td>186</td><td><code>?result</code> の2ブロック代表3位決定戦、敗者の成績表記を「ベスト4」に修正</td></tr>
+      <tr><td>184</td><td>KHK杯型3位決定戦（2ブロック代表・repSize=2）を実装。<a href="#export">大会成績CSV出力</a>の3位対応、取説更新</td></tr>
+      <tr><td>123</td><td>ブロックリーグ戦（総当たり）に対応</td></tr>
+      <tr><td>122</td><td><a href="#board">WinMeter（勝敗メーター）</a>を実装</td></tr>
+      <tr><td>121</td><td>ポータルをservalトップページへ移動、GASのHTMLを<code>app.html</code>として分離、取説（本ページ）を新規作成。ダークモードをデフォルト化しテーマ切り替えボタンを追加</td></tr>
+      <tr><td>20</td><td>GAS配信の白画面バグを解決（<code>&lt;script&gt;</code>の分割・iframe内URL不可視への<code>__EXECURL__</code>注入で対策）</td></tr>
+    </table>
+    <div class="callout">
+      <div class="label">補足</div>
+      上記以外のバージョン（ver1〜19、21〜120、124〜183の大半、185、188、190、192〜198など）は、Googleスプレッドシート経由のGASデプロイが都度のGitコミットを伴わずに行われていたため、個別の変更内容を遡って正確に復元できません。ver199以降は継続的に記録しています。
+    </div>
+  </main>
+
+</div><!-- /.layout -->
+
+<script>
+/* ─── テーマ ─── */
+(function(){
+  var saved=localStorage.getItem('servalTheme')||'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('themeBtn').textContent=saved==='dark'?'🌙':'☀️';
+})();
+document.getElementById('themeBtn').onclick=function(){
+  var cur=document.documentElement.getAttribute('data-theme');
+  var next=cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('servalTheme', next);
+  this.textContent=next==='dark'?'🌙':'☀️';
+};
+
+/* ─── サイドバーのアクティブリンク ─── */
+var links=document.querySelectorAll('.sidebar nav a');
+var headings=document.querySelectorAll('.content [id]');
+var observer=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting){
+      links.forEach(function(l){l.style.background='';l.style.color='';});
+      var a=document.querySelector('.sidebar nav a[href="#'+e.target.id+'"]');
+      if(a){a.style.background='var(--panel)';a.style.color='var(--text)';}
+    }
+  });
+},{rootMargin:'-30% 0px -60% 0px'});
+headings.forEach(function(h){observer.observe(h);});
+</script>
+</body>
+</html>
