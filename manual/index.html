@@ -207,11 +207,6 @@
     <p>
       大会用のページ（doc）は開発者（sin1.studio）が事前に用意しています。<strong>GASのコピーや設定は不要</strong>で、受け取ったURLを開くだけで使い始められます。
     </p>
-    <div class="callout tip">
-      🤖 <strong>操作で迷ったら <a href="https://notebook.google.com/notebook/171ad47b-c05b-4dd6-85e4-989c358217e7" target="_blank" rel="noopener">Serval Bot</a> に質問できます。</strong>
-      この取扱説明書を読み込ませたAI（Gemini Notebook）が、「結果はどこで入力する？」「2本先取の送り方は？」などに答えます（Googleアカウントでのログインが必要です。AIの回答は誤ることがあるので、大事な操作は本書でも確認してください）。
-      ボタンの場所は <a href="#screen">画面の見かた</a> にもまとめています。
-    </div>
     <h3>事前に受け取るもの</h3>
     <table>
       <tr><th>もの</th><th>用途</th><th>共有範囲</th></tr>
@@ -253,6 +248,19 @@
     <p>ご自身のGoogleアカウントでデータを完全に分けて運用したい場合は、<a href="#new-book">新規ブックの作り方</a>を参照してください。</p>
 
     <!-- ─── はじめに ─── -->
+    <h3 id="serval-bot">🤖 Serval Bot（操作をAIに質問する）</h3>
+    <p>Serval Bot は、この取扱説明書を学習（RAG）したAIボットです。「結果はどこで入力する？」「2本先取の送り方は？」など、操作で迷ったときに日本語で質問できます。</p>
+    <ul>
+      <li><strong>回答の根拠を確認する</strong>：AIはもっともらしく間違うことがあります。回答の最後にある<strong>番号（ソース）</strong>を押すと、取扱説明書の該当箇所を直接確認できます。</li>
+      <li><strong>上手な質問のしかた</strong>：具体的に聞くほど正確に答えられます。<br>
+        ❌「送れません」<br>
+        ⭕「2本先取の試合で、1本目が終わったあと別画面の本数を1-0にするにはどう操作しますか？」</li>
+      <li><strong>サービスについて</strong>：Google の Gemini Notebook（旧 NotebookLM）を使っています。無料で使えますが、質問する人（あなた）の Google アカウントのAI利用枠が<strong>消費されます</strong>（無料アカウントでは1日数十回程度）。ログインや会話の内容が開発者に提供されることはありません。</li>
+      <li><strong>免責事項</strong>：本ボットの回答を参考にしたことによる大会運営上のトラブル・データの損失などについて、開発者は責任を負いません。大事な操作（リセット・復元・組み合わせの変更など）は、本書で確認してから行ってください。</li>
+    </ul>
+    <p>以上をご理解のうえ、自己責任でご利用いただける方は以下からどうぞ（Google アカウントでのログインが必要です）。</p>
+    <p><a href="https://notebook.google.com/notebook/171ad47b-c05b-4dd6-85e4-989c358217e7" target="_blank" rel="noopener" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#E9A93D;color:#151004;font-weight:700;text-decoration:none">🤖 Serval Bot を利用する（Gemini Notebook）</a></p>
+
     <h2 id="overview">servalとは</h2>
     <p>
       <strong>serval</strong> はロボット競技大会を対象としたトーナメント・リーグ戦管理ウェブアプリです。
