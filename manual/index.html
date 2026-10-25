@@ -170,9 +170,6 @@
       <a href="#structure">システム構成</a>
       <a href="#screen">画面の見かた</a>
       <div class="group">セットアップ</div>
-      <a href="#new-book">新規ブックの作り方</a>
-      <a href="#add-tournament">トーナメントの追加</a>
-      <a href="#gas-register">GASの登録・更新手順</a>
       <a href="#settings">初期設定</a>
       <div class="group">基本操作</div>
       <a href="#players">選手・機体登録</a>
@@ -205,7 +202,7 @@
     <!-- ─── はじめての方へ ─── -->
     <h2 id="getting-started">🔰 はじめての方へ</h2>
     <p>
-      大会用のページ（doc）は開発者（sin1.studio）が事前に用意しています。<strong>GASのコピーや設定は不要</strong>で、受け取ったURLを開くだけで使い始められます。
+      大会用のページ（doc）は開発者（sin1.studio）が事前に用意しています。<strong>インストールや設定は不要</strong>で、受け取ったURLを開くだけで使い始められます。
     </p>
     <h3>事前に受け取るもの</h3>
     <table>
@@ -245,7 +242,6 @@
       <div class="label">お願い</div>
       管理用URLとパスワードはスタッフ内だけで共有し、SNSや配布物には載せないでください。観客に案内するのは<strong>閲覧用URLのみ</strong>です。
     </div>
-    <p>ご自身のGoogleアカウントでデータを完全に分けて運用したい場合は、<a href="#new-book">新規ブックの作り方</a>を参照してください。</p>
 
     <!-- ─── はじめに ─── -->
     <h3 id="serval-bot">🤖 Serval Bot（操作をAIに質問する）</h3>
@@ -368,139 +364,15 @@
 
     <h2 id="structure">システム構成</h2>
     <p>
-      大会シリーズ（<strong>ブック</strong>）ごとに独立した GAS プロジェクトを1つ用意します。
-      各ブックの中に第1回・第2回…の各<strong>トーナメント</strong>が入る、2階層の構造です。
-      すべてのブックは <a href="../">serval ポータル</a> から一元管理します。
+      servalは1つのウェブアプリですべての大会を扱います。大会ごとのデータは<strong>トーナメント名（docKey）</strong>で区別され、URLの <code>?doc=JimaCup7</code> の部分で開く大会が決まります。
+      アプリの更新は開発者が行うため、運営側で設定や更新作業をする必要はありません。
     </p>
     <table>
       <tr><th>用語</th><th>説明</th></tr>
-      <tr><td><strong>ブック</strong>（Book）</td><td>GASプロジェクト1つ＝大会シリーズ1つ。例：「中島杯」全体。データは1つのスプレッドシートで管理される</td></tr>
-      <tr><td><strong>トーナメント</strong>（Tournament）</td><td>ブック内の各回。例：中島杯の第7回・第6回・…。「第N回」と「トーナメント名（docKey）」をペアで登録する</td></tr>
-      <tr><td>GASウェブアプリ（/exec）</td><td>トーナメント管理アプリ本体。URLに <code>?doc=JimaCup7</code> のように docKey を付けて各回のデータを区別する</td></tr>
-      <tr><td>Googleスプレッドシート</td><td>GASに自動紐付けされるデータ保存先。「Store」シートに全回分のデータを保存</td></tr>
-      <tr><td>ポータル（sin1.studio/serval/）</td><td>ブック一覧・トーナメント追加の管理画面。GitHub Pagesで配信</td></tr>
+      <tr><td><strong>ブック</strong></td><td>大会シリーズのまとまり（例：「中島杯」）。ポータルでの表示を整理するための単位</td></tr>
+      <tr><td><strong>トーナメント</strong></td><td>ブック内の各回（例：中島杯の第7回）。「第N回」と「トーナメント名（docKey）」をペアで登録する。docKeyは他の大会と重複しない半角英数字にする</td></tr>
+      <tr><td>ポータル（<a href="../">sin1.studio/serval/</a>）</td><td>ブックとトーナメントの一覧。各大会の閲覧画面・管理画面をここから開ける</td></tr>
     </table>
-
-    <div class="callout">
-      <div class="label">ポイント</div>
-      1つのGASプロジェクト = 1ブック（大会シリーズ）。中島杯の第7回・第6回はすべて同じGASとスプレッドシートで管理します。
-      第N回のデータは docKey（例: JimaCup7）で区別され、GAS URLに <code>?doc=JimaCup7</code> を付けてアクセスします。
-    </div>
-
-    <!-- ─── セットアップ ─── -->
-    <h2 id="new-book">新規ブックの作り方（新しい大会シリーズを登録する）</h2>
-    <ol class="steps">
-      <li>
-        <div>
-          <strong>GASプロジェクトをコピー作成</strong><br>
-          <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> にアクセスします。
-          既存の serval プロジェクト（例: TournamentManager）を開き、左上メニュー「…」→「コピーを作成」を選択します。
-          新しいスプレッドシートとGASプロジェクトが自動で作成されます。
-        </div>
-      </li>
-      <li>
-        <div>
-          <strong>ウェブアプリとしてデプロイ</strong><br>
-          コピーしたGASを開き、右上「デプロイ」→「新しいデプロイ」を選択。
-          種類「ウェブアプリ」を選び、次のように設定します：
-          <ul style="margin-top:6px">
-            <li>説明：任意（例: 中島杯）</li>
-            <li>次のユーザーとして実行：自分（例: sin1@sin1.studio）</li>
-            <li>アクセスできるユーザー：<strong>全員</strong>（Googleアカウント不要）</li>
-          </ul>
-          「デプロイ」をクリックし、承認ダイアログが出た場合は「アクセスを承認」→ Googleアカウントを選択 →「詳細」→「（プロジェクト名）に移動」→「許可」の順に操作します。
-          表示された <code>/exec</code> の URL をコピーします。
-        </div>
-      </li>
-      <li>
-        <div>
-          <strong>スクリプトプロパティを設定</strong><br>
-          GASエディタの左側「⚙ プロジェクトの設定」→「スクリプトプロパティ」を開きます。
-          「プロパティを追加」で以下を設定してください：
-          <table style="margin-top:8px; font-size:12.5px">
-            <tr><th>プロパティ名</th><th>値</th><th>用途</th></tr>
-            <tr><td><code>ADMIN_TOKEN</code></td><td>任意のパスワード</td><td>ポータルからの書き込み認証</td></tr>
-            <tr><td><code>LINE_TOKEN</code></td><td>LINE Notifyトークン</td><td>LINE通知（任意）</td></tr>
-            <tr><td><code>LINE_CALL_URL</code></td><td>呼び出しサーバーのURL</td><td>LINE呼び出し（任意）</td></tr>
-          </table>
-        </div>
-      </li>
-      <li>
-        <div>
-          <strong>ポータルでブックを作成・URLを登録</strong><br>
-          <a href="../">serval ポータル</a> を開き、「＋ 新規ブック」をクリックします。
-          ブック名（例: 中島杯）を入力し、コピーした <code>/exec</code> URLを「GAS WebアプリURL」欄に貼り付けて保存します。
-          準備中カードが作成され、黄色バーに変わります。
-        </div>
-      </li>
-      <li>
-        <div>
-          <strong>ブックカードにトーナメントを追加</strong><br>
-          ポータルのブックカード下部の「第 __ 回　トーナメント名」欄に入力して「＋ 追加」をクリックします。
-          例：第 <code>7</code> 回、トーナメント名 <code>JimaCup7</code> → 「第7回 / JimaCup7 / 開く / 管理」の行が表示されます。
-          「開く」は <code>?doc=JimaCup7</code> 付きのURL、「管理」は <code>?doc=JimaCup7&amp;admin</code> 付きのURLを開きます。
-        </div>
-      </li>
-    </ol>
-
-    <div class="callout tip">
-      <div class="label">ヒント</div>
-      デプロイ後に「コードを修正してもウェブアプリに反映されない」場合は、「デプロイ → デプロイを管理 → 編集（鉛筆アイコン）→ バージョン：新バージョン → デプロイ」で更新できます。
-    </div>
-
-    <h2 id="add-tournament">トーナメントの追加（同じブックの次の回を登録する）</h2>
-    <p>
-      中島杯の第6回・第8回など、同じ大会シリーズの新しい回を追加するには、<strong>同じGASに新しいトーナメントを登録するだけ</strong>です。
-      新たにGASをコピーする必要はありません。同じスプレッドシートに回ごとのデータが別キーで保存されます。
-    </p>
-    <ol class="steps">
-      <li>
-        <div>
-          ポータルで対象のブックカード（例: 中島杯）を開く
-        </div>
-      </li>
-      <li>
-        <div>
-          カード下部の追加行に「第 <code>8</code> 回　<code>JimaCup8</code>」のように入力して「＋ 追加」をクリック
-        </div>
-      </li>
-      <li>
-        <div>
-          「開く」ボタンから <code>?doc=JimaCup8</code> 付きのURLを開いて、新しいトーナメントの選手登録・設定を行う
-        </div>
-      </li>
-    </ol>
-
-    <div class="callout">
-      <div class="label">注意</div>
-      同じGAS内でデータが共存するため、docKey（例: JimaCup8）は他の回と重複しないようにしてください。
-      容量が逼迫してきたら（管理画面のデータサイズバーが70%超）、新しいGASを別途コピーして新ブックとして登録してください（ver211以降は保存データを圧縮するため、通常の大会規模で逼迫することはほぼありません）。
-    </div>
-
-    <h2 id="gas-register">GASのコード更新手順（servalのバージョンアップ時）</h2>
-    <p>serval 本体のコード（Code.gs / app.html など）が更新された場合、各ブックのGASにも反映が必要です。</p>
-    <ol class="steps">
-      <li>
-        <div>
-          更新済みの serval プロジェクト（TournamentManager）から更新内容を確認
-        </div>
-      </li>
-      <li>
-        <div>
-          各ブックのGASプロジェクトを開き、該当するファイルを差し替えてコードを貼り替える
-        </div>
-      </li>
-      <li>
-        <div>
-          「デプロイ → デプロイを管理 → 編集（鉛筆）→ バージョン：新バージョン → デプロイ」で反映
-        </div>
-      </li>
-      <li>
-        <div>
-          スクリプトプロパティ（<code>ADMIN_TOKEN</code> 等）は引き継がれるため、通常は再設定不要
-        </div>
-      </li>
-    </ol>
 
     <h2 id="screen">画面の見かた（どこに何があるか）</h2>
     <p>管理画面（管理者としてログインした画面）は、大きく5つの場所に分かれています。</p>
@@ -736,39 +608,10 @@
     <p>試合終了後に修理時間を計測できます。試合の右カラムの「修理開始」ボタンで計測開始。設定で指定した上限時間に達すると別画面の表示から自動的に消えます。</p>
 
     <h2 id="line">LINE通知</h2>
-    <p>次の試合に呼ばれる選手にLINEで自動通知します。</p>
-
-    <h3>設定手順</h3>
-    <ol class="steps">
-      <li>
-        <div>
-          <a href="https://notify-bot.line.me/" target="_blank" rel="noopener">LINE Notify</a> でトークンを取得（「トークへの通知」で自分のトークに送るのが簡単）
-        </div>
-      </li>
-      <li>
-        <div>
-          呼び出しサーバーを起動。<a href="https://github.com/sin1n24/line-call-system" target="_blank" rel="noopener">line-call-system</a> を PC でローカル起動し、cloudflared などで外部公開URLを取得。
-        </div>
-      </li>
-      <li>
-        <div>
-          GASのスクリプトプロパティに設定：
-          <ul>
-            <li><code>LINE_TOKEN</code>：LINE Notifyのトークン</li>
-            <li><code>LINE_CALL_URL</code>：呼び出しサーバーの外部URL（例：<code>https://xxxx.trycloudflare.com</code>）</li>
-          </ul>
-        </div>
-      </li>
-      <li>
-        <div>
-          選手の「番号」欄に呼び出し用の番号（数字のみ）を登録
-        </div>
-      </li>
-    </ol>
-
+    <p>次の試合に呼ばれる選手にLINEで自動通知します。呼び出し用のサーバー（<a href="https://github.com/sin1n24/line-call-system" target="_blank" rel="noopener">line-call-system</a>）は開発者が用意します。運営側の作業は、選手の「番号」欄に呼び出し用の番号（数字のみ）を登録するだけです。</p>
     <div class="callout warn">
       <div class="label">注意</div>
-      公共WiFiで再認証が発生するとcloudflaredのトンネルURLが失効します。大会中は安定したネットワーク環境を推奨します。
+      呼び出しサーバーは大会当日にPCから起動して公開します。公共Wi-Fiで再認証が発生すると公開URLが無効になるため、大会中は安定したネットワーク環境を推奨します。
     </div>
 
     <h2 id="announce">アナウンス</h2>
@@ -791,23 +634,22 @@
     <!-- ─── 管理 ─── -->
     <h2 id="portal">ポータル管理</h2>
     <p>
-      <a href="../">serval ポータル</a> からブックの一覧表示・編集・削除と、各ブック内トーナメントの追加・削除ができます。
+      <a href="../">serval ポータル</a> で、ブックごとにトーナメントの一覧を表示します。
     </p>
     <ul>
-      <li>ブックカード：「編集」でブック名・GAS URL・メモを更新、「削除」でポータルから非表示（ソフトデリート）</li>
-      <li>トーナメント行：「開く」→選手閲覧モード、「管理」→管理者モード（パスワード認証あり）、「×」で行を削除</li>
-      <li>「削除済みも表示」チェックで削除済みブックを表示し「復元」できます。GASのデータ自体は削除されません。</li>
+      <li>トーナメント行：「開く」→閲覧画面、「管理」→管理画面（パスワード入力あり）</li>
+      <li>次の回を追加するときは、ブックカード下部の追加行に「第 <code>8</code> 回　<code>JimaCup8</code>」のように入力して「＋ 追加」。「×」で行を削除します（大会のデータ自体は消えません）</li>
+      <li>メモ・回次はダブルクリックで書き換えられます</li>
     </ul>
     <p>
-      ポータルの書き込み操作（作成・更新・削除・トーナメント追加）には管理者パスワードが必要です。
-      初回アクセス時にプロンプトが表示され、ブラウザのlocalStorageに保存されます。
+      ポータルでの追加・削除・書き換えには管理者パスワードが必要です（初回だけ入力を求められ、そのブラウザに記憶されます）。
     </p>
 
     <h2 id="export">大会成績CSV出力 <span class="badge new">NEW</span></h2>
     <p>
-      GASウェブアプリのURLに <code>?result&amp;doc=&lt;docKey&gt;</code> を付けてアクセスすると、参加選手・機体の大会成績一覧をCSVファイルとしてダウンロードできます。
+      大会のURLに <code>?result&amp;doc=&lt;docKey&gt;</code> を付けてアクセスすると、参加選手・機体の大会成績一覧をCSVファイルとしてダウンロードできます。
     </p>
-    <pre>https://script.google.com/macros/s/…/exec?result&doc=JimaCup7</pre>
+    <pre>https://sin1.studio/serval/go/?result&doc=JimaCup7</pre>
     <div class="callout warn">
       <div class="label">注意</div>
       <code>doc=</code> の指定を忘れると <code>default</code> という別データが返ってしまいます。必ず対象のトーナメント名（docKey）を指定してください。
@@ -817,7 +659,7 @@
       <tr><th>列</th><th>内容</th></tr>
       <tr><td>番号／ロボット名／フリガナ／操縦者名／所属／所属フリガナ／タイプ1／タイプ2／一言紹介</td><td>選手・機体登録の内容そのまま</td></tr>
       <tr><td>大会成績</td><td>大会での最終成績（下表参照）</td></tr>
-      <tr><td>勝ち試合数／負け試合数／勝ち本数／負け本数</td><td>大会を通じた通算成績</td></tr>
+      <tr><td>勝ち試合数／負け試合数／勝ち本数／負け本数</td><td>大会を通じた通算成績。複数ブロックの大会では<a href="#multiblock">代表戦</a>（代表3位決定戦を含む）の試合も含みます。勝ち本数は自分が取った本数（負けた試合で取った本数も含む）、負け本数は相手に取られた本数です</td></tr>
     </table>
     <p><strong>「大会成績」列の付き方</strong>はブロック数によって変わります。</p>
     <table>
@@ -833,7 +675,7 @@
     </p>
     <div class="callout warn">
       <div class="label">容量上限について</div>
-      1大会（1つのdocKey）のデータは、圧縮後で約98万字まで保存できます（ver210以前は圧縮なしで約5万字）。servalは試合数が増えると容量が増加します。管理画面のデータサイズバーで使用率を確認してください。70%を超えたら新規ブック（GASを新たにコピー）への移行を検討してください。
+      1大会（1つのdocKey）のデータは、圧縮後で約98万字まで保存できます（ver210以前は圧縮なしで約5万字）。servalは試合数が増えると容量が増加します。管理画面のデータサイズバーで使用率を確認し、70%を超えたら開発者に相談してください（通常の大会規模で逼迫することはほぼありません）。
     </div>
 
     <h2 id="trouble">トラブルシュート</h2>
@@ -851,9 +693,8 @@
         <td>LINE通知が来ない</td>
         <td>
           <ol>
-            <li><code>LINE_TOKEN</code> と <code>LINE_CALL_URL</code> が正しく設定されているか確認</li>
-            <li>cloudflaredのトンネルが生きているか確認（公共WiFi再認証後は失効する）</li>
             <li>選手の「番号」欄が数字のみになっているか確認</li>
+            <li>それでも届かない場合は、呼び出しサーバーが止まっている可能性があるため開発者に連絡</li>
           </ol>
         </td>
       </tr>
@@ -861,16 +702,16 @@
         <td>別画面が更新されない</td>
         <td>別画面は定期的にポーリングしています。ネットワーク状況を確認し、ページを再読み込みしてください</td>
       </tr>
-      <tr>
-        <td>ポータルにアクセスできない（CORS エラー）</td>
-        <td>レジストリGASのデプロイが最新か確認。GASを再デプロイ（バージョン更新）してください</td>
-      </tr>
     </table>
 
     <h2 id="changelog">更新履歴</h2>
     <p>主な更新のみを記載しています（軽微な修正は省略）。バージョン番号は管理画面左上の見出しに表示されます。</p>
     <table>
       <tr><th>Ver</th><th>内容</th></tr>
+      <tr><td>238</td><td>大会成績CSV出力（<code>?result</code>）の勝敗数・本数に、代表戦（代表トーナメント・代表3位決定戦・代表リーグ戦）の試合も含めるよう変更</td></tr>
+      <tr><td>237</td><td>大会ごとの管理者パスワードが常に弾かれていた不具合を修正。URL末尾に <code>&amp;relogin</code> を付けると、記憶済みのパスワードを忘れて入力し直せます</td></tr>
+      <tr><td>236</td><td>大会ごとに別の管理者パスワードを設定できるように</td></tr>
+      <tr><td>235</td><td>大会成績CSV出力の本数を修正（負け本数＝相手に取られた本数、負けた試合で取った本数も勝ち本数に含める）</td></tr>
       <tr><td>234</td><td>試合や選手枠を選んだままでも、他の管理画面で入力・取り消しした結果を自動で取り込むよう改善（同じPCで開いた別画面に古い結果が残り続ける問題の対策。文字入力の途中は取り込みを待ちます）</td></tr>
       <tr><td>233</td><td>参加者リストの「出禁」を、管理者だけが読める別の保存先に分けて保存（閲覧者の画面には一切届きません）。以前のデータの出禁は、管理画面で開いたときに自動で移し替えます</td></tr>
       <tr><td>232</td><td>配信するプログラムを圧縮して軽量化（動作・画面は変わりません）</td></tr>
