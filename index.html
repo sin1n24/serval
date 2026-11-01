@@ -784,10 +784,12 @@ function fetchPlacementData(base,docKey){
 }
 
 /**
- * ページ読み込み時、優勝が未記録（無記名）のトーナメントだけを対象に結果を1回チェックし、
- * 優勝・準優勝・3位が確定していれば表示に反映する。一度優勝が記録された大会は結果が
- * 後から変わらない前提で以後チェック対象から外れる（通信量削減）。管理者トークンを
- * 保持しているブラウザ（＝過去に「編集」でログイン済み）の場合は、変化をそのままレジストリにも自動保存する。
+ * ページ読み込み時、全トーナメントの結果（?result）を1回チェックし、優勝が確定していて
+ * ポータルの優勝・準優勝・3位と食い違っていれば、記録（serval本体）側に合わせて上書きする。
+ * 以前は「優勝が未記録の大会だけ」を対象にしていたが、途中・テスト時点の結果を一度拾うと
+ * 以後二度と直らない問題があったため（2026-11 電大杯で発生）、記録との一致を毎回確認する方式に変更。
+ * 記録側で3位等が未確定（空）のときは、ポータル側の既存値を消さずに残す。
+ * 管理者トークンを保持しているブラウザ（＝過去に「編集」でログイン済み）の場合は、変化をそのままレジストリにも自動保存する。
  * トークンが無い一般閲覧者の場合は画面表示のみ更新し、保存は行わない（保存にはADMIN_TOKENが必要なため）。
  * 通信エラーや未確定の大会は静かにスキップする（トースト等は出さない）。
  */
@@ -799,21 +801,22 @@ function autoSyncPlacements(){
     if(!base) return;
     var tours=Array.isArray(b.tournaments)?b.tournaments:[];
     if(!tours.length) return;
-    // 優勝が未記録（無記名）のトーナメントだけを対象にする。一度確定した結果は
-    // 後から変わらない前提で、毎回全件を問い合わせない（通信量削減）。
+    // 全トーナメントを対象に、記録（?result）と食い違っていれば記録側に合わせる。
     var pending=[];
-    tours.forEach(function(t,idx){ if(!t.champion) pending.push(idx); });
+    tours.forEach(function(t,idx){ if(t && t.docKey) pending.push(idx); });
     if(!pending.length) return;
     var changed=false;
     Promise.all(pending.map(function(idx){
       var t=tours[idx];
       return fetchPlacementData(base,t.docKey).then(function(res){
         if(!res||!res.champion) return;
-        tours[idx]=Object.assign({},t,{
+        var next={
           champion:res.champion,
           runnerUp:res.runnerUp||t.runnerUp||'',
           thirdPlace:res.thirdPlace||t.thirdPlace||''
-        });
+        };
+        if(next.champion===(t.champion||'') && next.runnerUp===(t.runnerUp||'') && next.thirdPlace===(t.thirdPlace||'')) return;
+        tours[idx]=Object.assign({},t,next);
         changed=true;
       });
     })).then(function(){
