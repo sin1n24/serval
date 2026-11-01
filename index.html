@@ -783,52 +783,86 @@ function fetchPlacementData(base,docKey){
   }).catch(function(){return null;});
 }
 
+/* 結果の自動確認の対象期間：大会データ（serval本体）の最終更新からこの日数以内の大会だけ確認する */
+var RESULT_RECHECK_DAYS=14;
+
+/** 各GASの ?api=docversions で docKey ごとの最終更新日時をまとめて取得。未対応・失敗時は null。 */
+function fetchDocVersions(base,keys){
+  return fetch(base+'?api=docversions&keys='+encodeURIComponent(keys.join(','))).then(function(r){return r.json();})
+    .then(function(j){ return (j&&j.ok&&j.versions)?j.versions:null; }).catch(function(){return null;});
+}
+
 /**
- * ページ読み込み時、全トーナメントの結果（?result）を1回チェックし、優勝が確定していて
- * ポータルの優勝・準優勝・3位と食い違っていれば、記録（serval本体）側に合わせて上書きする。
- * 以前は「優勝が未記録の大会だけ」を対象にしていたが、途中・テスト時点の結果を一度拾うと
- * 以後二度と直らない問題があったため（2026-11 電大杯で発生）、記録との一致を毎回確認する方式に変更。
- * 記録側で3位等が未確定（空）のときは、ポータル側の既存値を消さずに残す。
+ * ページ読み込み時、大会結果（?result）を確認して優勝・準優勝・3位をポータルに反映する。
+ * 確認の対象は「大会データの最終更新が RESULT_RECHECK_DAYS 日以内」の大会だけ（GASごとに
+ * ?api=docversions を1回呼んで更新日時をまとめて取得）。結果が後から確定・訂正されるのは大会直後に
+ * 限られるため、古い大会は問い合わせない（通信量削減）。対象期間内は、優勝欄が埋まっていても
+ * 記録と食い違えば記録側に合わせて上書きする（途中・テスト時点の結果を拾ったまま直らない問題への対策。
+ * 2026-11 電大杯で発生）。記録側で3位等が未確定（空）のときは、ポータル側の既存値を残す。
+ * docversions 未対応のGAS（個別GAS等）では従来どおり「優勝が未記録の大会だけ」を確認する。
  * 管理者トークンを保持しているブラウザ（＝過去に「編集」でログイン済み）の場合は、変化をそのままレジストリにも自動保存する。
  * トークンが無い一般閲覧者の場合は画面表示のみ更新し、保存は行わない（保存にはADMIN_TOKENが必要なため）。
  * 通信エラーや未確定の大会は静かにスキップする（トースト等は出さない）。
  */
 function autoSyncPlacements(){
   var canSave=!!getToken();
+  var byBase={};
   _books.forEach(function(b){
     if(b.deleted) return;
     var base=targetGasUrl(b);
     if(!base) return;
     var tours=Array.isArray(b.tournaments)?b.tournaments:[];
     if(!tours.length) return;
-    // 全トーナメントを対象に、記録（?result）と食い違っていれば記録側に合わせる。
-    var pending=[];
-    tours.forEach(function(t,idx){ if(t && t.docKey) pending.push(idx); });
-    if(!pending.length) return;
-    var changed=false;
-    Promise.all(pending.map(function(idx){
-      var t=tours[idx];
-      return fetchPlacementData(base,t.docKey).then(function(res){
-        if(!res||!res.champion) return;
-        var next={
-          champion:res.champion,
-          runnerUp:res.runnerUp||t.runnerUp||'',
-          thirdPlace:res.thirdPlace||t.thirdPlace||''
-        };
-        if(next.champion===(t.champion||'') && next.runnerUp===(t.runnerUp||'') && next.thirdPlace===(t.thirdPlace||'')) return;
-        tours[idx]=Object.assign({},t,next);
-        changed=true;
-      });
-    })).then(function(){
-      if(!changed) return;
-      renderList();
-      if(!canSave) return;
-      var obj=Object.assign({},b,{tournaments:tours});
-      apiPostUtf8({action:'bookUpdate',id:b.id,book:obj,token:getToken()}).then(function(r){
-        if(r&&r.ok) toast('「'+(b.name||b.id)+'」の大会結果を自動反映しました');
-        else if(r&&r.error&&r.error.indexOf('認証')>=0) clearToken();
-      }).catch(function(){});
+    (byBase[base]=byBase[base]||[]).push(b);
+  });
+  var cutoff=Date.now()-RESULT_RECHECK_DAYS*86400000;
+  Object.keys(byBase).forEach(function(base){
+    var books=byBase[base];
+    var keys=[];
+    books.forEach(function(b){ b.tournaments.forEach(function(t){ if(t&&t.docKey&&keys.indexOf(t.docKey)<0) keys.push(t.docKey); }); });
+    if(!keys.length) return;
+    fetchDocVersions(base,keys).then(function(vers){
+      books.forEach(function(b){ syncBookPlacements(b,base,vers,cutoff,canSave); });
     });
+  });
+}
+
+function syncBookPlacements(b,base,vers,cutoff,canSave){
+  var tours=b.tournaments;
+  var pending=[];
+  tours.forEach(function(t,idx){
+    if(!t||!t.docKey) return;
+    if(vers){
+      var u=Date.parse(vers[t.docKey]||'');
+      if(!isNaN(u) && u>=cutoff) pending.push(idx);
+    }else if(!t.champion){
+      pending.push(idx);
+    }
+  });
+  if(!pending.length) return;
+  var changed=false;
+  Promise.all(pending.map(function(idx){
+    var t=tours[idx];
+    return fetchPlacementData(base,t.docKey).then(function(res){
+      if(!res||!res.champion) return;
+      var next={
+        champion:res.champion,
+        runnerUp:res.runnerUp||t.runnerUp||'',
+        thirdPlace:res.thirdPlace||t.thirdPlace||''
+      };
+      if(next.champion===(t.champion||'') && next.runnerUp===(t.runnerUp||'') && next.thirdPlace===(t.thirdPlace||'')) return;
+      tours[idx]=Object.assign({},t,next);
+      changed=true;
+    });
+  })).then(function(){
+    if(!changed) return;
+    renderList();
+    if(!canSave) return;
+    var obj=Object.assign({},b,{tournaments:tours});
+    apiPostUtf8({action:'bookUpdate',id:b.id,book:obj,token:getToken()}).then(function(r){
+      if(r&&r.ok) toast('「'+(b.name||b.id)+'」の大会結果を自動反映しました');
+      else if(r&&r.error&&r.error.indexOf('認証')>=0) clearToken();
+    }).catch(function(){});
   });
 }
 
